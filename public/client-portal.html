@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>My Projects — Kingdom Painting Inc.</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg:#ede9de;
+    --fg:#2e3557;
+    --card:#ede9de;
+    --border:#d6d1c3;
+    --muted:#c8c2b2;
+    --muted-fg:#757575;
+    --primary:#d4a96a;
+    --primary-fg:#0a0a0a;
+    --destructive:#ef4444;
+    --radius:0.25rem;
+    --shadow:0 1px 4px rgba(0,0,0,.15);
+    --shadow-lg:0 8px 40px rgba(0,0,0,.18);
+    --r:6px;--r2:10px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased}
+  body{font-family:'Montserrat',sans-serif;background:var(--bg);color:var(--fg);min-height:100vh;font-size:14px}
+
+  /* ── Header ── */
+  .header{background:var(--fg);border-bottom:1px solid rgba(255,255,255,.08);padding:0 28px;height:62px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 10px rgba(0,0,0,.2)}
+  .logo{display:flex;align-items:center;gap:12px}
+  .logo img{height:38px;width:auto;display:block}
+  .logo-text{display:flex;flex-direction:column;line-height:1.2}
+  .logo-name{font-size:14px;font-weight:700;color:#fff;letter-spacing:.04em;text-transform:uppercase}
+  .logo-sub{font-size:9px;color:var(--primary);font-weight:600;letter-spacing:.12em;text-transform:uppercase;margin-top:1px}
+  .user-pill{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);border-radius:20px;padding:5px 14px 5px 5px;font-size:12px;color:#fff}
+  .user-avatar{width:26px;height:26px;border-radius:50%;background:var(--primary);color:var(--fg);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}
+  .signout-btn{background:none;border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.7);font-family:'Montserrat',sans-serif;font-size:11px;font-weight:500;cursor:pointer;padding:5px 12px;border-radius:var(--r);transition:all .15s}
+  .signout-btn:hover{background:rgba(255,255,255,.1);color:#fff}
+
+  /* ── Login screen ── */
+  #login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--bg)}
+  .login-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r2);box-shadow:var(--shadow-lg);padding:44px 40px;width:100%;max-width:420px;text-align:center}
+  .login-logo-wrap{display:flex;flex-direction:column;align-items:center;gap:10px;margin-bottom:28px}
+  .login-logo-wrap img{height:64px;width:auto}
+  .login-company{font-size:11px;font-weight:700;color:var(--fg);letter-spacing:.1em;text-transform:uppercase;opacity:.7}
+  .login-title{font-size:20px;font-weight:700;margin-bottom:6px;color:var(--fg)}
+  .login-sub{font-size:12px;color:var(--muted-fg);margin-bottom:28px;line-height:1.6}
+  .input-group{text-align:left;margin-bottom:14px}
+  .input-group label{display:block;font-size:10px;font-weight:700;color:var(--muted-fg);margin-bottom:5px;text-transform:uppercase;letter-spacing:.07em}
+  .input-group input{width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:var(--r);font-size:13px;font-family:'Montserrat',sans-serif;color:var(--fg);background:#fff;transition:border .15s;outline:none}
+  .input-group input:focus{border-color:var(--primary)}
+  .btn-primary{width:100%;background:var(--primary);color:var(--fg);border:none;border-radius:var(--r);padding:11px;font-size:13px;font-weight:700;font-family:'Montserrat',sans-serif;cursor:pointer;transition:opacity .15s;margin-top:4px;letter-spacing:.03em}
+  .btn-primary:hover{opacity:.88}
+  .btn-primary:disabled{opacity:.5;cursor:not-allowed}
+  .login-msg{margin-top:14px;padding:10px 14px;border-radius:var(--r);font-size:12px;display:none;text-align:left}
+  .login-msg.success{background:#f0fdf4;color:#166534;border:1px solid #bbf7d0}
+  .login-msg.error{background:#fef2f2;color:#991b1b;border:1px solid #fecaca}
+  .login-divider{margin:18px 0;display:flex;align-items:center;gap:12px;color:var(--muted);font-size:11px}
+  .login-divider::before,.login-divider::after{content:'';flex:1;height:1px;background:var(--border)}
+
+  /* ── Portal ── */
+  #portal-screen{display:none;min-height:100vh}
+  .portal-body{max-width:1040px;margin:0 auto;padding:32px 24px 48px}
+  .section-header{margin-bottom:20px}
+  .section-title{font-size:17px;font-weight:700;color:var(--fg);margin-bottom:3px}
+  .section-sub{font-size:12px;color:var(--muted-fg)}
+  .projects-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;margin-bottom:44px}
+  .empty-state{grid-column:1/-1;background:rgba(255,255,255,.5);border:1.5px dashed var(--border);border-radius:var(--r2);padding:40px;text-align:center;color:var(--muted-fg);font-size:13px}
+  .empty-icon{margin:0 auto 12px;opacity:.35;width:36px;height:36px}
+
+  /* ── Project card ── */
+  .proj-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;box-shadow:var(--shadow);transition:box-shadow .18s,transform .18s;cursor:default}
+  .proj-card:hover{box-shadow:0 6px 22px rgba(0,0,0,.13);transform:translateY(-2px)}
+  .card-top{padding:16px 18px 13px;border-bottom:1px solid var(--border)}
+  .card-stage{display:inline-flex;align-items:center;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;padding:3px 9px;border-radius:20px;margin-bottom:9px}
+  .stage-Lead{background:#e8eaf6;color:#3949ab}
+  .stage-Proposal{background:#e3f2fd;color:#1565c0}
+  .stage-Scheduled{background:#f3e5f5;color:#7b1fa2}
+  .stage-Completed{background:#e8f5e9;color:#2e7d32}
+  .card-name{font-size:14px;font-weight:700;color:var(--fg);line-height:1.35;margin-bottom:5px}
+  .card-addr{font-size:11px;color:var(--muted-fg);display:flex;align-items:center;gap:4px}
+  .card-bottom{padding:13px 18px}
+  .card-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .card-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-fg)}
+  .card-value-gold{color:var(--primary);font-size:16px;font-weight:700}
+  .dates-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .date-block{background:rgba(255,255,255,.55);border:1px solid var(--border);border-radius:var(--r);padding:8px 11px}
+  .date-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted-fg);margin-bottom:3px}
+  .date-val{font-size:13px;font-weight:600;color:var(--fg)}
+
+  /* ── OTP step ── */
+  #otp-step{display:none}
+
+  /* ── Spinner ── */
+  .spinner{width:34px;height:34px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .8s linear infinite;margin:60px auto}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  @media(max-width:500px){
+    .login-card{padding:32px 22px}
+    .portal-body{padding:20px 14px 40px}
+    .header{padding:0 16px}
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo-wrap">
+      <img src="data:image/png;base64,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" alt="Kingdom Painting Inc."/>
+      <div class="login-company">Kingdom Painting Inc.</div>
+    </div>
+    <div class="login-title">Client Portal</div>
+    <div class="login-sub">Enter your email address to view your projects and scheduled dates.</div>
+
+    <div id="email-step">
+      <div class="input-group">
+        <label>Email address</label>
+        <input type="email" id="email-input" placeholder="you@example.com" autocomplete="email"/>
+      </div>
+      <button class="btn-primary" id="send-otp-btn" onclick="sendOTP()">Send Login Code</button>
+    </div>
+
+    <div id="otp-step">
+      <div class="login-divider">Check your email</div>
+      <div class="login-sub" style="margin-bottom:18px" id="otp-hint">We sent a 6-digit code to your email.</div>
+      <div class="input-group">
+        <label>One-time code</label>
+        <input type="text" id="otp-input" placeholder="123456" maxlength="6" inputmode="numeric" autocomplete="one-time-code" oninput="this.value=this.value.replace(/\D/g,'')"/>
+      </div>
+      <button class="btn-primary" id="verify-otp-btn" onclick="verifyOTP()">Verify &amp; Sign In</button>
+      <button style="width:100%;background:none;border:none;color:var(--muted-fg);font-family:'Montserrat',sans-serif;font-size:11px;cursor:pointer;margin-top:12px;padding:8px" onclick="backToEmail()">&#8592; Use a different email</button>
+    </div>
+
+    <div class="login-msg" id="login-msg"></div>
+  </div>
+</div>
+
+<!-- PORTAL SCREEN -->
+<div id="portal-screen">
+  <div class="header">
+    <div class="logo">
+      <img src="data:image/png;base64,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" alt="Kingdom Painting Inc."/>
+      <div class="logo-text">
+        <div class="logo-name">Kingdom Painting</div>
+        <div class="logo-sub">Client Portal</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="user-pill">
+        <div class="user-avatar" id="user-avatar">?</div>
+        <span id="user-email-display"></span>
+      </div>
+      <button class="signout-btn" onclick="signOut()">Sign out</button>
+    </div>
+  </div>
+
+  <div class="portal-body">
+    <div id="loading-deals"><div class="spinner"></div></div>
+    <div id="deals-content" style="display:none">
+
+      <div class="section-header">
+        <div class="section-title">My Projects</div>
+        <div class="section-sub">Your current and upcoming painting projects</div>
+      </div>
+      <div class="projects-grid" id="active-grid"></div>
+
+      <div class="section-header">
+        <div class="section-title">Past Projects</div>
+        <div class="section-sub">Completed projects from your history</div>
+      </div>
+      <div class="projects-grid" id="past-grid"></div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPA_URL='https://cyzvmcmlpnozwrqifrdt.supabase.co';
+const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN5enZtY21scG5vendycWlmcmR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2Mzk1MzEsImV4cCI6MjA5NDIxNTUzMX0.IeZRx5xcPddSQcL77vhKjOgAKFi8bKpj3dMfajHpV3c';
+const{createClient}=supabase;
+const sb=createClient(SUPA_URL,SUPA_KEY);
+let currentEmail='';
+
+sb.auth.getSession().then(({data:{session}})=>{if(session)showPortal(session.user.email);});
+sb.auth.onAuthStateChange((event,session)=>{
+  if(event==='SIGNED_IN'&&session)showPortal(session.user.email);
+  if(event==='SIGNED_OUT')showLogin();
+});
+
+function showMsg(msg,type){const el=document.getElementById('login-msg');el.textContent=msg;el.className='login-msg '+type;el.style.display='block';}
+function hideMsg(){document.getElementById('login-msg').style.display='none';}
+
+async function sendOTP(){
+  const email=document.getElementById('email-input').value.trim().toLowerCase();
+  if(!email||!email.includes('@')){showMsg('Please enter a valid email address.','error');return;}
+  currentEmail=email;
+  const btn=document.getElementById('send-otp-btn');
+  btn.disabled=true;btn.textContent='Sending...';hideMsg();
+  const{error}=await sb.auth.signInWithOtp({email,options:{shouldCreateUser:false}});
+  btn.disabled=false;btn.textContent='Send Login Code';
+  if(error){
+    showMsg(error.message&&error.message.includes('user')?'No account found for this email. Please contact Kingdom Painting to get access.':error.message||'Could not send code. Please try again.','error');
+    return;
+  }
+  document.getElementById('email-step').style.display='none';
+  document.getElementById('otp-step').style.display='block';
+  document.getElementById('otp-hint').textContent='We sent a 6-digit code to '+email;
+  hideMsg();
+}
+
+async function verifyOTP(){
+  const token=document.getElementById('otp-input').value.trim();
+  if(token.length!==6){showMsg('Please enter the 6-digit code.','error');return;}
+  const btn=document.getElementById('verify-otp-btn');
+  btn.disabled=true;btn.textContent='Verifying...';hideMsg();
+  const{error}=await sb.auth.verifyOtp({email:currentEmail,token,type:'email'});
+  btn.disabled=false;btn.textContent='Verify & Sign In';
+  if(error){showMsg('Invalid or expired code. Please try again.','error');return;}
+}
+
+function backToEmail(){
+  document.getElementById('otp-step').style.display='none';
+  document.getElementById('email-step').style.display='block';
+  document.getElementById('otp-input').value='';hideMsg();
+}
+async function signOut(){await sb.auth.signOut();}
+function showLogin(){document.getElementById('login-screen').style.display='flex';document.getElementById('portal-screen').style.display='none';}
+
+async function showPortal(email){
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('portal-screen').style.display='block';
+  document.getElementById('user-email-display').textContent=email;
+  document.getElementById('user-avatar').textContent=email[0].toUpperCase();
+  await loadDeals(email);
+}
+
+async function loadDeals(email){
+  document.getElementById('loading-deals').style.display='block';
+  document.getElementById('deals-content').style.display='none';
+  const{data,error}=await sb.rpc('get_client_deals',{client_email:email});
+  document.getElementById('loading-deals').style.display='none';
+  document.getElementById('deals-content').style.display='block';
+  if(error||!data){console.error('Error loading deals:',error);renderGrid('active-grid',[],'No active projects found.');renderGrid('past-grid',[],'No completed projects yet.');return;}
+  renderGrid('active-grid',data.filter(d=>d.stage!=='Completed'),'No active projects found.');
+  renderGrid('past-grid',data.filter(d=>d.stage==='Completed'),'No completed projects yet.');
+}
+
+function fmtDate(s){
+  if(!s)return'—';
+  const[y,m,d]=s.split('-');if(!y||!m||!d)return s;
+  return['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(m,10)-1]+' '+parseInt(d,10)+', '+y;
+}
+function fmtCurrency(v){if(!v)return'—';return'$'+parseFloat(v).toLocaleString('en-CA',{minimumFractionDigits:0,maximumFractionDigits:0});}
+function getDateRange(deal){
+  let start=deal.startDate||null,end=deal.endDate||null;
+  if(!start&&deal.scheduleDays&&deal.scheduleDays.length){
+    const s=[...deal.scheduleDays].sort((a,b)=>a.date>b.date?1:-1);
+    start=s[0].date;end=s[s.length-1].date;
+  }
+  return{start,end};
+}
+function esc(str){return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+function renderGrid(id,deals,empty){
+  const g=document.getElementById(id);
+  if(!deals.length){
+    g.innerHTML='<div class="empty-state"><svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>'+empty+'</div>';
+    return;
+  }
+  g.innerHTML=deals.map(deal=>{
+    const{start,end}=getDateRange(deal);
+    return'<div class="proj-card"><div class="card-top">'
+      +'<div class="card-stage stage-'+esc(deal.stage||'Lead')+'">'+esc(deal.stage||'Lead')+'</div>'
+      +'<div class="card-name">'+esc(deal.dealName||'Unnamed Project')+'</div>'
+      +(deal.address?'<div class="card-addr"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>'+esc(deal.address)+'</div>':'')
+      +(deal.rooms&&deal.rooms.length?'<div style="margin-top:8px"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:10px;font-weight:600;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.05em">'+deal.rooms.filter(function(r){return r.done;}).length+'/'+deal.rooms.length+' rooms</span><span style="font-size:10px;font-weight:700;color:var(--primary)">'+(deal.progress||0)+'%</span></div><div style="height:5px;background:rgba(0,0,0,.08);border-radius:9px;overflow:hidden"><div style="height:100%;background:var(--primary);border-radius:9px;width:'+(deal.progress||0)+'%"></div></div></div>':'')
+      +'</div><div class="card-bottom">'
+      +'<div class="card-row"><span class="card-label">Project Value</span><span class="card-value-gold">'+fmtCurrency(deal.value)+'</span></div>'
+      +'<div class="dates-row">'
+      +'<div class="date-block"><div class="date-lbl">Start Date</div><div class="date-val">'+fmtDate(start)+'</div></div>'
+      +'<div class="date-block"><div class="date-lbl">End Date</div><div class="date-val">'+fmtDate(end)+'</div></div>'
+      +'</div></div></div>';
+  }).join('');
+}
+
+document.getElementById('email-input').addEventListener('keydown',e=>{if(e.key==='Enter')sendOTP();});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.getElementById('otp-step').style.display==='block')verifyOTP();});
+</script>
+</body>
+</html>

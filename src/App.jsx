@@ -254,7 +254,11 @@ const api = {
       DB.deals = (rows||[]).map(r=>({...r,
         invoicePaid: r.invoicePaid ?? r.invoicepaid ?? 0,
         labels: r.labels || [],
-        rooms: r.rooms || [],
+        rooms: (r.rooms||[]).map(rm=>({...rm,
+        wallCoats:+(rm.wallCoats||2),ceilCoats:+(rm.ceilCoats||2),
+        baseCoats:+(rm.baseCoats||2),crownCoats:+(rm.crownCoats||2),
+        dfCoats:+(rm.dfCoats||2),winCoats:+(rm.winCoats||2),doorCoats:+(rm.doorCoats||2),
+      })),
         progress: r.progress || 0,
         contactFreeText: r.contactFreeText || '',
       }));
@@ -3113,14 +3117,14 @@ function updSeg(id,idx,val){
   var r=rooms.find(function(x){return x.id===id;});if(!r)return;
   if(!r.wallSegs)r.wallSegs=[{l:0},{l:0},{l:0},{l:0},{l:0},{l:0}];
   r.wallSegs[idx]={l:+(val)||0};
-  recalcAll();
+  renderRooms(id);recalcAll();
 }
 function updCeilSeg(id,idx,key,val){
   var r=rooms.find(function(x){return x.id===id;});if(!r)return;
   if(!r.ceilSegs)r.ceilSegs=[{l:0,w:0},{l:0,w:0}];
   r.ceilSegs[idx]=Object.assign({},r.ceilSegs[idx]);
   r.ceilSegs[idx][key]=+(val)||0;
-  recalcAll();
+  renderRooms(id);recalcAll();
 }
 
 function calcRoomSuppliesCost(r){
@@ -3281,7 +3285,7 @@ function renderRoomBody(r){
     +'<div class="field"><label>Doors</label><input type="number" min="0" step="1" value="'+(r.doorCount||'')+'" placeholder="0" oninput="upd('+r.id+',\\'doorCount\\',+this.value)"></div>'
     +'</div>'
     +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">'
-    +'<input type="checkbox" id="irreg_'+r.id+'" '+(r.irregular?'checked':'')+' onchange="upd('+r.id+',\\'irregular\\',this.checked);renderRooms();" style="accent-color:var(--gold);width:14px;height:14px">'
+    +'<input type="checkbox" id="irreg_'+r.id+'" '+(r.irregular?'checked':'')+' onchange="upd('+r.id+',\\'irregular\\',this.checked);renderRooms('+r.id+');" style="accent-color:var(--gold);width:14px;height:14px">'
     +'<label for="irreg_'+r.id+'" style="font-size:12px;font-weight:600;color:var(--ink2);cursor:pointer">Irregular Room</label>'
     +'</div>'
     +irregHtml
@@ -3330,19 +3334,19 @@ function renderRoomBody(r){
     +'<div class="field"><label>Wall colour</label><select onchange="upd('+r.id+',\\'wallColour\\',this.value)"><option value="">\\u2014 Colour \\u2014</option>'+colourOpts(r.wallColour)+'</select></div>'
     +'<div class="field"><label>Wall sheen</label><select onchange="upd('+r.id+',\\'wallSheen\\',this.value)"><option value="">\\u2014 Sheen \\u2014</option>'+sheenOpts(r.wallSheen)+'</select></div>'
     +'</div>'
-    +(r.wallCoats===3?'<div class="field" style="margin-bottom:8px"><label style="color:var(--gold2);font-weight:600">Wall primer</label><select onchange="upd('+r.id+',\\'wallsPrimer\\',this.value)">'+primerOpts(r.wallsPrimer)+'</select></div>':'')
+    +(r.wallCoats==3?'<div class="field" style="margin-bottom:8px"><label style="color:var(--gold2);font-weight:600">Wall primer</label><select onchange="upd('+r.id+',\\'wallsPrimer\\',this.value)">'+primerOpts(r.wallsPrimer)+'</select></div>':'')
     +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:4px">'
     +'<div class="field"><label>Ceiling paint</label><select onchange="upd('+r.id+',\\'ceilPaint\\',this.value)">'+paintOpts(r.ceilPaint)+'</select></div>'
     +'<div class="field"><label>Ceiling colour</label><select onchange="upd('+r.id+',\\'ceilColour\\',this.value)"><option value="">\\u2014 Colour \\u2014</option>'+colourOpts(r.ceilColour)+'</select></div>'
     +'<div class="field"><label>Ceiling sheen</label><select onchange="upd('+r.id+',\\'ceilSheen\\',this.value)"><option value="">\\u2014 Sheen \\u2014</option>'+sheenOpts(r.ceilSheen)+'</select></div>'
     +'</div>'
-    +(r.ceilCoats===3?'<div class="field" style="margin-bottom:8px"><label style="color:var(--gold2);font-weight:600">Ceiling primer</label><select onchange="upd('+r.id+',\\'ceilingPrimer\\',this.value)">'+primerOpts(r.ceilingPrimer)+'</select></div>':'')
+    +(r.ceilCoats==3?'<div class="field" style="margin-bottom:8px"><label style="color:var(--gold2);font-weight:600">Ceiling primer</label><select onchange="upd('+r.id+',\\'ceilingPrimer\\',this.value)">'+primerOpts(r.ceilingPrimer)+'</select></div>':'')
     +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:4px">'
     +'<div class="field"><label>Trim paint</label><select onchange="upd('+r.id+',\\'trimPaint\\',this.value)">'+paintOpts(r.trimPaint)+'</select></div>'
     +'<div class="field"><label>Trim colour</label><select onchange="upd('+r.id+',\\'trimColour\\',this.value)"><option value="">\\u2014 Colour \\u2014</option>'+colourOpts(r.trimColour)+'</select></div>'
     +'<div class="field"><label>Trim sheen</label><select onchange="upd('+r.id+',\\'trimSheen\\',this.value)"><option value="">\\u2014 Sheen \\u2014</option>'+sheenOpts(r.trimSheen)+'</select></div>'
     +'</div>'
-    +((r.baseCoats===3||r.crownCoats===3||r.doorCoats===3||r.dfCoats===3||r.winCoats===3)?'<div class="field" style="margin-bottom:8px"><label style="color:var(--gold2);font-weight:600">Trim primer</label><select onchange="upd('+r.id+',\\'trimPrimer\\',this.value)">'+primerOpts(r.trimPrimer)+'</select></div>':'')
+    +((r.baseCoats==3||r.crownCoats==3||r.doorCoats==3||r.dfCoats==3||r.winCoats==3)?'<div class="field" style="margin-bottom:8px"><label style="color:var(--gold2);font-weight:600">Trim primer</label><select onchange="upd('+r.id+',\\'trimPrimer\\',this.value)">'+primerOpts(r.trimPrimer)+'</select></div>':'')
     +colourChips(r)
     +(function(){
       var sups=r.supplies||[];
@@ -3597,6 +3601,7 @@ function initPaintInputs(){
 function updStd(surface,coats,val){if(!val||val<1)return;STANDARDS[surface][coats]=val;recalcAll();schedulePaintSave();}
 
 // ─── SUPABASE SAVE/LOAD ──────────────────────────
+var _session=null; // injected by React parent via win._session
 const SUPA_URL='https://cyzvmcmlpnozwrqifrdt.supabase.co';
 const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN5enZtY21scG56dndycWlmcmR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2Mzk1MzEsImV4cCI6MjA5NDIxNTUzMX0.IeZRx5xcPddSQcL77vhKjOgAKFi8bKpj3dMfajHpV3c';
 
@@ -3846,12 +3851,12 @@ function recalcAll(){
       var wSqft=calcWalls(r),cSqft=calcCeil(r),tSqft=calcTrims(r);
       // Walls: if Primer & 2 Coats, add primer row (1 coat sqft) and paint row (2x sqft)
       if(r.walls&&wSqft){
-        if(r.wallCoats===3&&r.wallsPrimer){addCol(r.wallsPrimer,'','Walls (Primer)',r.name||'Room '+r.id,wSqft);addCol(r.wallPaint,r.wallColour,'Walls (2 Coats)',r.name||'Room '+r.id,wSqft*2);}
+        if(r.wallCoats==3&&r.wallsPrimer){addCol(r.wallsPrimer,'','Walls (Primer)',r.name||'Room '+r.id,wSqft);addCol(r.wallPaint,r.wallColour,'Walls (2 Coats)',r.name||'Room '+r.id,wSqft*2);}
         else addCol(r.wallPaint,r.wallColour,'Walls',r.name||'Room '+r.id,wSqft);
       }
       // Ceiling
       if(r.ceiling&&cSqft){
-        if(r.ceilCoats===3&&r.ceilingPrimer){addCol(r.ceilingPrimer,'','Ceiling (Primer)',r.name||'Room '+r.id,cSqft);addCol(r.ceilPaint,r.ceilColour,'Ceiling (2 Coats)',r.name||'Room '+r.id,cSqft*2);}
+        if(r.ceilCoats==3&&r.ceilingPrimer){addCol(r.ceilingPrimer,'','Ceiling (Primer)',r.name||'Room '+r.id,cSqft);addCol(r.ceilPaint,r.ceilColour,'Ceiling (2 Coats)',r.name||'Room '+r.id,cSqft*2);}
         else addCol(r.ceilPaint,r.ceilColour,'Ceiling',r.name||'Room '+r.id,cSqft);
       }
       // Trim
@@ -3861,7 +3866,7 @@ function recalcAll(){
       if(r.doorFrames&&r.dfLF)trimSurfs.push('Door Frames');
       if(r.windows&&r.winLF)trimSurfs.push('Windows');
       if(r.doors&&r.doorCount)trimSurfs.push('Doors');
-      var trimHasPrimer=(r.baseCoats===3||r.crownCoats===3||r.doorCoats===3||r.dfCoats===3||r.winCoats===3)&&r.trimPrimer;
+      var trimHasPrimer=(r.baseCoats==3||r.crownCoats==3||r.doorCoats==3||r.dfCoats==3||r.winCoats==3)&&r.trimPrimer;
       if(trimSurfs.length&&tSqft){
         if(trimHasPrimer){addCol(r.trimPrimer,'',trimSurfs.join(', ')+' (Primer)',r.name||'Room '+r.id,tSqft);addCol(r.trimPaint,r.trimColour,trimSurfs.join(', ')+' (2 Coats)',r.name||'Room '+r.id,tSqft*2);}
         else addCol(r.trimPaint,r.trimColour,trimSurfs.join(', '),r.name||'Room '+r.id,tSqft);
@@ -3948,9 +3953,9 @@ function recalcAll(){
         });
         if(supParts.length)suppliesStr='<div style=\\"font-size:11px;color:var(--ink2);margin-bottom:4px\\">Supplies: '+supParts.join(', ')+'</div>';
       }
-      var trimPrimerVal=(r.baseCoats===3||r.crownCoats===3||r.doorCoats===3||r.dfCoats===3||r.winCoats===3)?r.trimPrimer:'';
-      if(r.walls&&ws)paintLines+=qPaintLine(r.wallPaint,r.wallColour,r.wallSheen,r.wallCoats===3?r.wallsPrimer:'');
-      if(r.ceiling&&cs)paintLines+=qPaintLine(r.ceilPaint,r.ceilColour,r.ceilSheen,r.ceilCoats===3?r.ceilingPrimer:'');
+      var trimPrimerVal=(r.baseCoats==3||r.crownCoats==3||r.doorCoats==3||r.dfCoats==3||r.winCoats==3)?r.trimPrimer:'';
+      if(r.walls&&ws)paintLines+=qPaintLine(r.wallPaint,r.wallColour,r.wallSheen,r.wallCoats==3?r.wallsPrimer:'');
+      if(r.ceiling&&cs)paintLines+=qPaintLine(r.ceilPaint,r.ceilColour,r.ceilSheen,r.ceilCoats==3?r.ceilingPrimer:'');
       if(r.baseboards||r.crown||r.doorFrames||r.windows||r.doors)paintLines+=qPaintLine(r.trimPaint,r.trimColour,r.trimSheen,trimPrimerVal);
       qlbody.innerHTML+='<tr>'
         +'<td style=\\"font-size:12px;font-weight:600;vertical-align:top;padding-right:8px\\">'+(r.name||'Room '+r.id)+'</td>'
@@ -4196,6 +4201,7 @@ window.updWinDim=updWinDim;
 window.updCeilSeg=updCeilSeg;
 window.showTab=showTab;
 window.schedulePaintSave=schedulePaintSave;
+window.loadContactsDropdown=loadContactsDropdown;
 window.loadPaintSettings=loadPaintSettings;
 window.renderRooms=renderRooms;
 window.addRoom=addRoom;
@@ -4249,8 +4255,20 @@ function savePaintSettings(){
 
 function gv(id){var e=sel(id);return e?e.value:'';}
 function upsertPaintSettings(){
-  var token=(_session&&_session.access_token)?_session.access_token:SUPA_KEY;
-  var uid=_session&&_session.user?_session.user.id:null;
+  // Retry if session not yet injected
+  if(!_session||!_session.access_token){
+    setTimeout(upsertPaintSettings,1500);
+    return;
+  }
+  var token=_session.access_token;
+  // uid: try user object, fall back to decoding JWT sub claim
+  var uid=(_session.user&&_session.user.id)?_session.user.id:null;
+  if(!uid){
+    try{
+      var payload=JSON.parse(atob(token.split('.')[1]));
+      uid=payload.sub||null;
+    }catch(e){}
+  }
   if(!uid)return;
   var data={paints:PAINTS,primers:PRIMERS,colours:COLOURS,supplies:SUPPLIES};
   var labourData={
@@ -4273,8 +4291,12 @@ function upsertPaintSettings(){
 
 function sv(id,val){var e=sel(id);if(e&&val!==undefined&&val!=='')e.value=val;}
 function loadPaintSettings(cb){
-  var token=(_session&&_session.access_token)?_session.access_token:SUPA_KEY;
-  if(!_session||!_session.access_token){if(cb)cb();return;}
+  if(!_session||!_session.access_token){
+    // Retry once after delay if session not ready
+    setTimeout(function(){loadPaintSettings(cb);},800);
+    return;
+  }
+  var token=_session.access_token;
   fetch(SUPA_URL+'/rest/v1/paint_settings?id=eq.singleton&select=data,labour,standards',{
     headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+token}
   }).then(function(r){return r.json();}).then(function(rows){
@@ -4332,8 +4354,8 @@ function loadContactsDropdown(){
   var selEl=document.getElementById('ci-contact-select');
   if(!selEl)return;
   // If no session yet, retry after a short delay (called before session injected)
-  if(!_session||!_session.access_token){
-    setTimeout(loadContactsDropdown,800);
+  if(typeof _session==='undefined'||!_session||!_session.access_token){
+    setTimeout(loadContactsDropdown,600);
     return;
   }
   var token=_session.access_token;
@@ -4523,6 +4545,10 @@ function pushToProject(){
 
 
 
+
+
+
+
 </script>
 </body>
 </html>`;
@@ -4534,7 +4560,12 @@ function MasterEstimate(){
       const win=ref.current?.contentWindow;
       if(!win)return;
       // Inject session token so iframe can make authenticated Supabase requests
-      if(_session?.access_token) win._session={access_token:_session.access_token,user:_session.user};
+      if(_session?.access_token){
+        win._session={
+          access_token:_session.access_token,
+          user:_session.user||{id:_session.user?.id}
+        };
+      }
       // Load paint settings from Supabase, then init paint inputs
       if(win.loadPaintSettings) win.loadPaintSettings(function(){
         if(win.initPaintInputs) win.initPaintInputs();
@@ -4571,8 +4602,9 @@ function MasterEstimateOnTab({tab}){
       try{
         const win=ref.current?.contentWindow;
         if(!win)return;
-        if(_session?.access_token) win._session={access_token:_session.access_token};
+        if(_session?.access_token) win._session={access_token:_session.access_token,user:_session.user};
         if(win.showTab) win.showTab(tab);
+        if(win.loadContactsDropdown) win.loadContactsDropdown();
       }catch(e){}
     },400);
   },[tab]);

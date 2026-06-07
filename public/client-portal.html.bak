@@ -88,8 +88,8 @@
   .date-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted-fg);margin-bottom:3px}
   .date-val{font-size:13px;font-weight:600;color:var(--fg)}
 
-  /* ── Confirmation step ── */
-  #confirm-step{display:none}
+  /* ── OTP step ── */
+  #otp-step{display:none}
 
   /* ── Spinner ── */
   .spinner{width:34px;height:34px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .8s linear infinite;margin:60px auto}
@@ -119,12 +119,17 @@
         <label>Email address</label>
         <input type="email" id="email-input" placeholder="you@example.com" autocomplete="email"/>
       </div>
-      <button class="btn-primary" id="send-otp-btn" onclick="sendMagicLink()">Send Confirmation Email</button>
+      <button class="btn-primary" id="send-otp-btn" onclick="sendOTP()">Send Login Code</button>
     </div>
 
-    <div id="confirm-step">
+    <div id="otp-step">
       <div class="login-divider">Check your email</div>
-      <div class="login-sub" style="margin-bottom:18px" id="otp-hint">We sent a confirmation link to your email. Click the link to sign in — no password needed.</div>
+      <div class="login-sub" style="margin-bottom:18px" id="otp-hint">We sent a 6-digit code to your email.</div>
+      <div class="input-group">
+        <label>One-time code</label>
+        <input type="text" id="otp-input" placeholder="123456" maxlength="6" inputmode="numeric" autocomplete="one-time-code" oninput="this.value=this.value.replace(/\D/g,'')"/>
+      </div>
+      <button class="btn-primary" id="verify-otp-btn" onclick="verifyOTP()">Verify &amp; Sign In</button>
       <button style="width:100%;background:none;border:none;color:var(--muted-fg);font-family:'Montserrat',sans-serif;font-size:11px;cursor:pointer;margin-top:12px;padding:8px" onclick="backToEmail()">&#8592; Use a different email</button>
     </div>
 
@@ -187,25 +192,36 @@ sb.auth.onAuthStateChange((event,session)=>{
 function showMsg(msg,type){const el=document.getElementById('login-msg');el.textContent=msg;el.className='login-msg '+type;el.style.display='block';}
 function hideMsg(){document.getElementById('login-msg').style.display='none';}
 
-async function sendMagicLink(){
+async function sendOTP(){
   const email=document.getElementById('email-input').value.trim().toLowerCase();
   if(!email||!email.includes('@')){showMsg('Please enter a valid email address.','error');return;}
   currentEmail=email;
   const btn=document.getElementById('send-otp-btn');
-  btn.disabled=true;btn.textContent='Sending…';
-  const{error}=await sb.auth.signInWithOtp({
-    email,
-    options:{shouldCreateUser:true,emailRedirectTo:window.location.href.split('?')[0]}
-  });
-  btn.disabled=false;btn.textContent='Send Confirmation Email';
-  if(error){showMsg(error.message||'Could not send email. Please try again.','error');return;}
+  btn.disabled=true;btn.textContent='Sending...';hideMsg();
+  const{error}=await sb.auth.signInWithOtp({email,options:{shouldCreateUser:false}});
+  btn.disabled=false;btn.textContent='Send Login Code';
+  if(error){
+    showMsg(error.message&&error.message.includes('user')?'No account found for this email. Please contact Kingdom Painting to get access.':error.message||'Could not send code. Please try again.','error');
+    return;
+  }
   document.getElementById('email-step').style.display='none';
-  document.getElementById('confirm-step').style.display='block';
-  document.getElementById('otp-hint').textContent='We sent a confirmation link to '+email+'. Click the link in your email to sign in.';
+  document.getElementById('otp-step').style.display='block';
+  document.getElementById('otp-hint').textContent='We sent a 6-digit code to '+email;
   hideMsg();
 }
+
+async function verifyOTP(){
+  const token=document.getElementById('otp-input').value.trim();
+  if(token.length!==6){showMsg('Please enter the 6-digit code.','error');return;}
+  const btn=document.getElementById('verify-otp-btn');
+  btn.disabled=true;btn.textContent='Verifying...';hideMsg();
+  const{error}=await sb.auth.verifyOtp({email:currentEmail,token,type:'email'});
+  btn.disabled=false;btn.textContent='Verify & Sign In';
+  if(error){showMsg('Invalid or expired code. Please try again.','error');return;}
+}
+
 function backToEmail(){
-  document.getElementById('confirm-step').style.display='none';
+  document.getElementById('otp-step').style.display='none';
   document.getElementById('email-step').style.display='block';
   document.getElementById('otp-input').value='';hideMsg();
 }
@@ -269,8 +285,8 @@ function renderGrid(id,deals,empty){
   }).join('');
 }
 
-document.getElementById('email-input').addEventListener('keydown',e=>{if(e.key==='Enter')sendMagicLink();});
-
+document.getElementById('email-input').addEventListener('keydown',e=>{if(e.key==='Enter')sendOTP();});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.getElementById('otp-step').style.display==='block')verifyOTP();});
 </script>
 </body>
 </html>

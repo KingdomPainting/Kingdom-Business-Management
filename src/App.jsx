@@ -2937,9 +2937,12 @@ var CEILING_PAINTS=[
   {n:'Sherwin Williams - ProMar Ceiling',g:45,p:0}
 ];
 const PRIMERS=[
-  {n:'Benjamin Moore - Drywall Primer Gallon',p:35},{n:'Benjamin Moore - Stix Primer Gallon',p:85},
-  {n:'Kilz - Original Oil Primer Gallon',p:70},{n:'Kilz - PVA Primer Gallon',p:25},
-  {n:'Kilz - 1 Primer Gallon',p:35},{n:'Kilz - 2 Primer Gallon',p:55}
+  {n:'Benjamin Moore - Drywall Primer',g:35,p:0},
+  {n:'Benjamin Moore - Stix Primer',g:85,p:0},
+  {n:'Kilz - Original Oil Primer',g:70,p:0},
+  {n:'Kilz - PVA Primer',g:25,p:0},
+  {n:'Kilz - 1 Primer',g:35,p:0},
+  {n:'Kilz - 2 Primer',g:55,p:0}
 ];
 const COLOURS=[
   // Whites & Off-Whites
@@ -3650,11 +3653,37 @@ function initPaintInputs(){
       handle.parentElement.addEventListener('drop',function(ev){ev.preventDefault();handle.parentElement.style.borderTop='';var tgt=parseInt(handle.parentElement.querySelector('.cp-drag').dataset.idx);if(dragIdx===null||dragIdx===tgt)return;var moved=CEILING_PAINTS.splice(dragIdx,1)[0];CEILING_PAINTS.splice(tgt,0,moved);initPaintInputs();schedulePaintSave();});
     });
   }());
-  renderPIList('pi-primers-container',PRIMERS,
-    i=>'PRIMERS['+i+'].n=this.value;schedulePaintSave()',
-    i=>'PRIMERS['+i+'].p=+this.value;schedulePaintSave()',
-    i=>'PRIMERS.splice('+i+',1);initPaintInputs();schedulePaintSave()',
-    'PRIMERS.push({n:\\'\\',p:0});initPaintInputs();schedulePaintSave()','Add primer');
+  // Primers: 2-price-column render with drag (gallon + pail)
+  (function(){
+    var c=sel('pi-primers-container');if(!c)return;
+    var h='<table style="width:100%;border-collapse:collapse"><thead><tr>'
+      +'<th style="width:24px"></th>'
+      +'<th style="text-align:left;font-size:11px;color:var(--ink3);padding:4px 8px;font-weight:600">Product</th>'
+      +'<th style="text-align:right;font-size:11px;color:var(--ink3);padding:4px 8px;font-weight:600">Gallon $</th>'
+      +'<th style="text-align:right;font-size:11px;color:var(--ink3);padding:4px 8px;font-weight:600">Pail $</th>'
+      +'<th style="width:28px"></th></tr></thead><tbody>';
+    PRIMERS.forEach(function(item,i){
+      h+='<tr style="border-bottom:1px solid var(--cream2)">'
+        +'<td style="padding:4px 2px;width:24px;cursor:grab" draggable="true" class="pr-drag" data-idx="'+i+'">'
+        +'<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="3" y1="5" x2="13" y2="5"/><line x1="3" y1="8" x2="13" y2="8"/><line x1="3" y1="11" x2="13" y2="11"/></svg></td>'
+        +'<td style="padding:4px 6px"><input type="text" value="'+(item.n||'')+'" oninput="PRIMERS['+i+'].n=this.value;renderRooms();schedulePaintSave()" style="font-size:12px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);color:var(--ink);width:100%"></td>'
+        +'<td style="padding:4px 6px;width:80px"><input type="number" min="0" step="0.01" value="'+(item.g||0)+'" oninput="PRIMERS['+i+'].g=+this.value;schedulePaintSave()" style="font-size:12px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);text-align:right;width:100%"></td>'
+        +'<td style="padding:4px 6px;width:80px"><input type="number" min="0" step="0.01" value="'+(item.p||0)+'" oninput="PRIMERS['+i+'].p=+this.value;schedulePaintSave()" style="font-size:12px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);text-align:right;width:100%"></td>'
+        +'<td style="padding:4px 6px"><button onclick="PRIMERS.splice('+i+',1);initPaintInputs();schedulePaintSave()" style="background:none;border:none;cursor:pointer;color:var(--ink4);font-size:14px">&times;</button></td>'
+        +'</tr>';
+    });
+    h+='</tbody></table>'
+      +'<button onclick="PRIMERS.push({n:\\'\\',g:0,p:0});initPaintInputs();schedulePaintSave()" style="margin-top:8px;width:100%;padding:7px;border:1px dashed var(--ink4);border-radius:var(--r);background:transparent;color:var(--ink3);font-size:12px;cursor:pointer;font-family:var(--sans)">+ Add primer</button>';
+    c.innerHTML=h;
+    var dragIdx=null;
+    c.querySelectorAll('.pr-drag').forEach(function(handle){
+      handle.addEventListener('dragstart',function(ev){dragIdx=parseInt(handle.dataset.idx);handle.parentElement.style.opacity='0.4';ev.dataTransfer.effectAllowed='move';});
+      handle.addEventListener('dragend',function(){handle.parentElement.style.opacity='';c.querySelectorAll('tr[data-idx]').forEach(function(r){r.style.borderTop='';});});
+      handle.parentElement.addEventListener('dragover',function(ev){ev.preventDefault();handle.parentElement.style.borderTop='2px solid var(--gold)';});
+      handle.parentElement.addEventListener('dragleave',function(){handle.parentElement.style.borderTop='';});
+      handle.parentElement.addEventListener('drop',function(ev){ev.preventDefault();handle.parentElement.style.borderTop='';var tgt=parseInt(handle.parentElement.querySelector('.pr-drag').dataset.idx);if(dragIdx===null||dragIdx===tgt)return;var moved=PRIMERS.splice(dragIdx,1)[0];PRIMERS.splice(tgt,0,moved);initPaintInputs();schedulePaintSave();});
+    });
+  }());
   renderColoursList();
   renderPIList('pi-supplies-container',SUPPLIES,
     i=>'SUPPLIES['+i+'].n=this.value;schedulePaintSave()',
@@ -3945,7 +3974,7 @@ function recalcAll(){
       if(sqft<=0){qtyStr='—';}
       else if(sqft<=1900){qtyStr=Math.ceil(sqft/350)+' gal';}
       else{var pails=Math.floor(sqft/1900);var rem=sqft-pails*1900;var extraGal=rem>0?Math.ceil(rem/350):0;var parts=[];if(pails>0)parts.push(pails+' pail'+(pails>1?'s':''));if(extraGal>0)parts.push(extraGal+' gal');qtyStr=parts.join(' + ');}
-      var pObj=[...PAINTS,...PRIMERS].find(function(p){return p.n===cm.product;});
+      var pObj=[...PAINTS,...CEILING_PAINTS,...PRIMERS].find(function(p){return p.n===cm.product;});
       var unitPrice=pObj?(sqft>1900&&pObj.p>0?pObj.p:pObj.g||pObj.p||0):0;
       var lineCost=unitPrice>0?unitPrice*gallons*matBufC:0;
       totalPaintCost+=lineCost;
@@ -4609,6 +4638,7 @@ function pushToProject(){
     alert('Error: '+err.message);
   });
 }
+
 
 
 

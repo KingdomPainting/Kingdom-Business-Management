@@ -2854,7 +2854,7 @@ button.tab.active{color:var(--gold2);border-bottom-color:var(--gold2)}
 <!-- PAINT INPUTS -->
 <div class="page" id="page-paintinputs">
   <div class="grid2">
-    <div class="card"><div class="card-title">Paints</div><div id="pi-paints-container"></div></div>
+    <div class="card"><div class="card-title">Paints (Walls &amp; Trim)</div><div id="pi-paints-container"></div><div class="card-title" style="margin-top:16px">Paints (Ceiling)</div><div id="pi-ceilpaints-container"></div></div>
     <div class="card"><div class="card-title">Primers</div><div id="pi-primers-container"></div></div>
     <div class="card"><div class="card-title">Paint colours</div><div id="pi-colours-container"></div></div>
     <div class="card"><div class="card-title">Supplies</div><div id="pi-supplies-container"></div></div>
@@ -2924,13 +2924,17 @@ const PAINTS=[
   {n:'Benjamin Moore - Ben',g:70,p:0},
   {n:'Benjamin Moore - Aura',g:115,p:535},
   {n:'Benjamin Moore - Aura Bath & Spa',g:110,p:0},
-  {n:'Benjamin Moore - Waterborne Ceiling',g:75,p:0},
   {n:'Benjamin Moore - Advance',g:75,p:0},
   {n:'Sherwin Williams - Promar 200',g:50,p:225},
   {n:'Sherwin Williams - Duration Home',g:70,p:350},
   {n:'Sherwin Williams - Emerald',g:80,p:400},
   {n:'Sherwin Williams - Promar 400',g:35,p:140},
   {n:'Sherwin Williams - Pro Industrial Epoxy',g:75,p:0}
+];
+var CEILING_PAINTS=[
+  {n:'Benjamin Moore - Waterborne Ceiling',g:75,p:0},
+  {n:'Benjamin Moore - Ultra Spec Ceiling',g:50,p:0},
+  {n:'Sherwin Williams - ProMar Ceiling',g:45,p:0}
 ];
 const PRIMERS=[
   {n:'Benjamin Moore - Drywall Primer Gallon',p:35},{n:'Benjamin Moore - Stix Primer Gallon',p:85},
@@ -3056,6 +3060,7 @@ function sel(id){return document.getElementById(id);}
 function v(id){return sel(id)?sel(id).value:'';}
 function stripUnit(n){return(n||'').replace(/\\\\\\\\s+(Gallon|Pail|Can)\\\\\\\\s*$/i,'').trim();}
 function paintOpts(sv){sv=sv||'';return '<option value="">— Select —</option>'+PAINTS.map(function(p){return '<option value="'+p.n+'" '+(sv===p.n?'selected':'')+'>'+p.n+'</option>';}).join('');}
+function ceilPaintOpts(sv){sv=sv||'';return '<option value="">— Select —</option>'+CEILING_PAINTS.map(function(p){return '<option value="'+p.n+'" '+(sv===p.n?'selected':'')+'>'+p.n+'</option>';}).join('');}
 function primerOpts(sv=''){return '<option value="">— Select primer —</option>'+PRIMERS.map(p=>'<option value="'+p.n+'" '+(sv===p.n?'selected':'')+'>'+p.n+'</option>').join('');}
 function sheenOpts(sv=''){return ['Flat','Matte','Eggshell','Satin','Pearl','Semi-Gloss','TBD'].map(s=>'<option value="'+s+'" '+(sv===s?'selected':'')+'>'+s+'</option>').join('');}
 function colourOpts(sv=''){return '<option value="">— Colour —</option>'+COLOURS.map(c=>'<option value="'+c.n+'" '+(sv===c.n?'selected':'')+'>'+c.n+'</option>').join('');}
@@ -3364,7 +3369,7 @@ function renderRoomBody(r){
     +'</div>'
     +(r.wallCoats==3?'<div class="field" style="margin-bottom:8px"><label style="color:var(--gold2);font-weight:600">Wall primer</label><select onchange="upd('+r.id+',\\'wallsPrimer\\',this.value)">'+primerOpts(r.wallsPrimer)+'</select></div>':'')
     +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:4px">'
-    +'<div class="field"><label>Ceiling paint</label><select onchange="upd('+r.id+',\\'ceilPaint\\',this.value)">'+paintOpts(r.ceilPaint)+'</select></div>'
+    +'<div class="field"><label>Ceiling paint</label><select onchange="upd('+r.id+',\\'ceilPaint\\',this.value)">'+ceilPaintOpts(r.ceilPaint)+'</select></div>'
     +'<div class="field"><label>Ceiling colour</label><select onchange="upd('+r.id+',\\'ceilColour\\',this.value)"><option value="">\\u2014 Colour \\u2014</option>'+colourOpts(r.ceilColour)+'</select></div>'
     +'<div class="field"><label>Ceiling sheen</label><select onchange="upd('+r.id+',\\'ceilSheen\\',this.value)"><option value="">\\u2014 Sheen \\u2014</option>'+sheenOpts(r.ceilSheen)+'</select></div>'
     +'</div>'
@@ -3612,6 +3617,38 @@ function initPaintInputs(){
     h+='</tbody></table>'
       +'<button onclick="PAINTS.push({n:\\'\\',g:0,p:0});initPaintInputs();schedulePaintSave()" style="margin-top:8px;width:100%;padding:7px;border:1px dashed var(--ink4);border-radius:var(--r);background:transparent;color:var(--ink3);font-size:12px;cursor:pointer;font-family:var(--sans)">+ Add paint</button>';
     c.innerHTML=h;
+  }());
+  // Ceiling Paints: same 2-price-column render with drag
+  (function(){
+    var c=sel('pi-ceilpaints-container');if(!c)return;
+    var h='<table style="width:100%;border-collapse:collapse"><thead><tr>'
+      +'<th style="width:24px"></th>'
+      +'<th style="text-align:left;font-size:11px;color:var(--ink3);padding:4px 8px;font-weight:600">Product</th>'
+      +'<th style="text-align:right;font-size:11px;color:var(--ink3);padding:4px 8px;font-weight:600">Gallon $</th>'
+      +'<th style="text-align:right;font-size:11px;color:var(--ink3);padding:4px 8px;font-weight:600">Pail $</th>'
+      +'<th style="width:28px"></th></tr></thead><tbody>';
+    CEILING_PAINTS.forEach(function(item,i){
+      h+='<tr style="border-bottom:1px solid var(--cream2)">'
+        +'<td style="padding:4px 2px;width:24px;cursor:grab" draggable="true" class="cp-drag" data-idx="'+i+'">'
+        +'<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="3" y1="5" x2="13" y2="5"/><line x1="3" y1="8" x2="13" y2="8"/><line x1="3" y1="11" x2="13" y2="11"/></svg></td>'
+        +'<td style="padding:4px 6px"><input type="text" value="'+(item.n||'')+'" oninput="CEILING_PAINTS['+i+'].n=this.value;renderRooms();schedulePaintSave()" style="font-size:12px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);color:var(--ink);width:100%"></td>'
+        +'<td style="padding:4px 6px;width:80px"><input type="number" min="0" step="0.01" value="'+(item.g||0)+'" oninput="CEILING_PAINTS['+i+'].g=+this.value;schedulePaintSave()" style="font-size:12px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);text-align:right;width:100%"></td>'
+        +'<td style="padding:4px 6px;width:80px"><input type="number" min="0" step="0.01" value="'+(item.p||0)+'" oninput="CEILING_PAINTS['+i+'].p=+this.value;schedulePaintSave()" style="font-size:12px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);text-align:right;width:100%"></td>'
+        +'<td style="padding:4px 6px"><button onclick="CEILING_PAINTS.splice('+i+',1);initPaintInputs();schedulePaintSave()" style="background:none;border:none;cursor:pointer;color:var(--ink4);font-size:14px">&times;</button></td>'
+        +'</tr>';
+    });
+    h+='</tbody></table>'
+      +'<button onclick="CEILING_PAINTS.push({n:\\'\\',g:0,p:0});initPaintInputs();schedulePaintSave()" style="margin-top:8px;width:100%;padding:7px;border:1px dashed var(--ink4);border-radius:var(--r);background:transparent;color:var(--ink3);font-size:12px;cursor:pointer;font-family:var(--sans)">+ Add ceiling paint</button>';
+    c.innerHTML=h;
+    // Drag-to-reorder
+    var dragIdx=null;
+    c.querySelectorAll('.cp-drag').forEach(function(handle){
+      handle.addEventListener('dragstart',function(ev){dragIdx=parseInt(handle.dataset.idx);handle.parentElement.style.opacity='0.4';ev.dataTransfer.effectAllowed='move';});
+      handle.addEventListener('dragend',function(){handle.parentElement.style.opacity='';c.querySelectorAll('tr[data-idx]').forEach(function(r){r.style.borderTop='';});});
+      handle.parentElement.addEventListener('dragover',function(ev){ev.preventDefault();handle.parentElement.style.borderTop='2px solid var(--gold)';});
+      handle.parentElement.addEventListener('dragleave',function(){handle.parentElement.style.borderTop='';});
+      handle.parentElement.addEventListener('drop',function(ev){ev.preventDefault();handle.parentElement.style.borderTop='';var tgt=parseInt(handle.parentElement.querySelector('.cp-drag').dataset.idx);if(dragIdx===null||dragIdx===tgt)return;var moved=CEILING_PAINTS.splice(dragIdx,1)[0];CEILING_PAINTS.splice(tgt,0,moved);initPaintInputs();schedulePaintSave();});
+    });
   }());
   renderPIList('pi-primers-container',PRIMERS,
     i=>'PRIMERS['+i+'].n=this.value;schedulePaintSave()',
@@ -4237,6 +4274,7 @@ window.showTab=showTab;
 window.schedulePaintSave=schedulePaintSave;
 window.loadContactsDropdown=loadContactsDropdown;
 window.populateDealsDropdown=populateDealsDropdown;
+window.ceilPaintOpts=ceilPaintOpts;
 window.loadPaintSettings=loadPaintSettings;
 window.renderRooms=renderRooms;
 window.addRoom=addRoom;
@@ -4271,7 +4309,7 @@ function savePaintSettings(){
   var token=(_session&&_session.access_token)?_session.access_token:SUPA_KEY;
   var uid=_session&&_session.user?_session.user.id:null;
   if(!uid)return;
-  var data={paints:PAINTS,primers:PRIMERS,colours:COLOURS,supplies:SUPPLIES};
+  var data={paints:PAINTS,ceilPaints:CEILING_PAINTS,primers:PRIMERS,colours:COLOURS,supplies:SUPPLIES};
   fetch(SUPA_URL+'/rest/v1/paint_settings?id=eq.singleton',{
     method:'PATCH',
     headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json','Prefer':'return=minimal'},
@@ -4362,6 +4400,7 @@ function loadPaintSettings(cb){
       if(row.data){
         var d=row.data;
         if(d.paints&&d.paints.length)PAINTS.splice(0,PAINTS.length,...d.paints);
+        if(d.ceilPaints&&d.ceilPaints.length)CEILING_PAINTS.splice(0,CEILING_PAINTS.length,...d.ceilPaints);
         if(d.primers&&d.primers.length)PRIMERS.splice(0,PRIMERS.length,...d.primers);
         if(d.colours&&d.colours.length)COLOURS.splice(0,COLOURS.length,...d.colours);
         if(d.supplies&&d.supplies.length)SUPPLIES.splice(0,SUPPLIES.length,...d.supplies);
@@ -4570,6 +4609,7 @@ function pushToProject(){
     alert('Error: '+err.message);
   });
 }
+
 
 
 

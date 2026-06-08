@@ -5,7 +5,22 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>My Projects — Kingdom Painting Inc.</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
+// Document viewer
+function viewDoc(html,title){
+  var overlay=document.createElement('div');
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;flex-direction:column;';
+  var bar=document.createElement('div');
+  bar.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:#fff;border-bottom:1px solid #eee;flex-shrink:0;';
+  bar.innerHTML='<span style="font-weight:700;font-size:15px">'+title+'</span><button onclick="this.closest(\'div[style*=fixed]\').remove()" style="font-size:22px;background:none;border:none;cursor:pointer;color:#666;line-height:1;">&times;</button>';
+  var frame=document.createElement('div');
+  frame.style.cssText='flex:1;overflow:auto;background:#f5f5f5;padding:20px;';
+  frame.innerHTML=html;
+  overlay.appendChild(bar);
+  overlay.appendChild(frame);
+  document.body.appendChild(overlay);
+}
+</script>
 <style>
   :root{
     --bg:#ede9de;
@@ -259,7 +274,12 @@ function renderGrid(id,deals,empty){
       +'<div class="card-stage stage-'+esc(deal.stage||'Lead')+'">'+esc(deal.stage||'Lead')+'</div>'
       +'<div class="card-name">'+esc(deal.dealName||'Unnamed Project')+'</div>'
       +(deal.address?'<div class="card-addr"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>'+esc(deal.address)+'</div>':'')
-      +(deal.rooms&&deal.rooms.length?'<div style="margin-top:8px"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:10px;font-weight:600;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.05em">'+deal.rooms.filter(function(r){return r.done;}).length+'/'+deal.rooms.length+' rooms</span><span style="font-size:10px;font-weight:700;color:var(--primary)">'+(deal.progress||0)+'%</span></div><div style="height:5px;background:rgba(0,0,0,.08);border-radius:9px;overflow:hidden"><div style="height:100%;background:var(--primary);border-radius:9px;width:'+(deal.progress||0)+'%"></div></div></div>':'')
+      +(deal.rooms&&deal.rooms.length?'<div style="margin-top:8px">'+(deal.rooms.map(function(r){return '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><span style="width:12px;height:12px;border-radius:3px;border:1.5px solid var(--primary);display:inline-block;background:'+(r.done?'var(--primary)':'transparent')+';flex-shrink:0"></span><span style="font-size:12px;color:'+(r.done?'var(--muted-fg)':'#1a1a1a')+';text-decoration:'+(r.done?'line-through':'none')+'">'+(r.name||'Room')+(r.sqft?' <span style="font-size:10px;color:var(--primary);font-weight:600;">'+r.sqft+' sqft</span>':'')+'</span></div>';}).join('')+'<div style="margin-top:6px;display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:10px;font-weight:600;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.05em">'+deal.rooms.filter(function(r){return r.done;}).length+'/'+deal.rooms.length+' rooms done</span><span style="font-size:10px;font-weight:700;color:var(--primary)">'+(deal.progress||0)+'%</span></div><div style="height:5px;background:rgba(0,0,0,.08);border-radius:9px;overflow:hidden"><div style="height:100%;background:var(--primary);border-radius:9px;width:'+(deal.progress||0)+'%"></div></div></div>':'')
+      +(deal.quote_html||deal.contract_html||deal.change_order_html?'<div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(0,0,0,.06);display:flex;gap:8px;flex-wrap:wrap">'
+        +(deal.quote_html?'<button onclick="viewDoc('+JSON.stringify(deal.quote_html)+',\'Quote\')" style="font-size:11px;padding:4px 12px;border-radius:20px;border:1px solid var(--primary);background:transparent;color:var(--primary);cursor:pointer;font-weight:600;">📄 Quote</button>':'')
+        +(deal.contract_html?'<button onclick="viewDoc('+JSON.stringify(deal.contract_html)+',\'Contract\')" style="font-size:11px;padding:4px 12px;border-radius:20px;border:1px solid var(--primary);background:transparent;color:var(--primary);cursor:pointer;font-weight:600;">📋 Contract</button>':'')
+        +(deal.change_order_html?'<button onclick="viewDoc('+JSON.stringify(deal.change_order_html)+',\'Change Order\')" style="font-size:11px;padding:4px 12px;border-radius:20px;border:1px solid var(--primary);background:transparent;color:var(--primary);cursor:pointer;font-weight:600;">📝 Change Order</button>':'')
+        +'</div>':'')
       +'</div><div class="card-bottom">'
       +'<div class="card-row"><span class="card-label">Project Value</span><span class="card-value-gold">'+fmtCurrency(deal.value)+'</span></div>'
       +'<div class="dates-row">'

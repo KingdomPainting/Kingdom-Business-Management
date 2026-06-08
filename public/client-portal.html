@@ -289,15 +289,30 @@ async function sendMagicLink(){
   currentEmail=email;
   const btn=document.getElementById('send-otp-btn');
   btn.disabled=true;btn.textContent='Sending…';
-  const{error}=await sb.auth.signInWithOtp({
-    email,
-    options:{shouldCreateUser:true,emailRedirectTo:window.location.href.split('?')[0]}
-  });
+  let result;
+  try{
+    result=await sb.auth.signInWithOtp({
+      email,
+      options:{
+        shouldCreateUser:true,
+        emailRedirectTo:window.location.origin+'/portal'
+      }
+    });
+  }catch(e){
+    btn.disabled=false;btn.textContent='Send Confirmation Email';
+    showMsg('Network error: '+e.message,'error');
+    return;
+  }
   btn.disabled=false;btn.textContent='Send Confirmation Email';
-  if(error){console.error('Magic link error:',error);showMsg(error.message||'Could not send email. Please try again.','error');return;}
+  const error=result&&result.error;
+  if(error){
+    console.error('Magic link error:',JSON.stringify(error));
+    showMsg(error.message||'Could not send email. Please try again.','error');
+    return;
+  }
   document.getElementById('email-step').style.display='none';
   document.getElementById('confirm-step').style.display='block';
-  document.getElementById('otp-hint').textContent='We sent a confirmation link to '+email+'. Click the link in your email to sign in.';
+  document.getElementById('otp-hint').textContent='We sent a confirmation link to '+email+'. Click the link in your email to sign in — no password needed.';
   hideMsg();
 }
 function backToEmail(){

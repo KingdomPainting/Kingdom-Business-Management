@@ -5412,15 +5412,6 @@ export default function App(){
 
   if(!session) return <LoginScreen/>;
 
-  // Non-admin users go to the client portal
-  const ADMIN_EMAILS = ['info@kingdompainting.ca'];
-  const userEmail = session?.user?.email?.toLowerCase()?.trim() || '';
-  if(!ADMIN_EMAILS.includes(userEmail)){
-    // Redirect to client portal
-    window.location.replace('/portal');
-    return null;
-  }
-
   return (
     <>
       <style>{STYLE}</style>

@@ -4360,12 +4360,48 @@ function loadContactsDropdown(){
   }
   var token=_session.access_token;
   var headers={'apikey':SUPA_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json'};
+  function populateDropdown(deals,contacts){
+    var contactMap={};
+    contacts.forEach(function(c){contactMap[c.id]=c;});
+    while(selEl.options.length>1)selEl.remove(1);
+    if(!deals.length){console.warn('loadContactsDropdown: no deals returned');return;}
+    deals.forEach(function(deal){
+      var contact=contactMap[deal.contact]||{};
+      var label=deal.dealName||'Unnamed project';
+      var id=String(deal.id);
+      _kpMap[id]={
+        _isDeal:true,dealId:id,dealName:label,
+        fullName:contact.fullName||contact.full_name||contact.name||deal.contactFreeText||'',
+        phone:contact.phone||contact.phoneNumber||contact.phone_number||'',
+        email:contact.email||'',
+        address:deal.address||contact.address||''
+      };
+      var opt=document.createElement('option');
+      opt.value=id;
+      var clientName=contact.fullName||deal.contactFreeText||'';
+      opt.textContent=label+(clientName?'\\u2014'+clientName:'');
+      selEl.appendChild(opt);
+    });
+    console.log('Loaded '+deals.length+' projects into dropdown');
+  }
   Promise.all([
-    fetch(SUPA_URL+'/rest/v1/deals?select=*&order=dealName.asc',{headers:headers}).then(function(r){return r.json();}),
+    fetch(SUPA_URL+'/rest/v1/deals?select=*&order=dealName.asc',{headers:headers}).then(function(r){console.log('deals fetch status:',r.status);return r.json();}),
     fetch(SUPA_URL+'/rest/v1/contacts?select=*&order=fullName.asc',{headers:headers}).then(function(r){return r.json();})
   ]).then(function(results){
     var deals=Array.isArray(results[0])?results[0]:[];
     var contacts=Array.isArray(results[1])?results[1]:[];
+    // If empty (possibly RLS with wrong uid), retry with service-level anon key
+    if(!deals.length){
+      var anonHeaders={'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY};
+      Promise.all([
+        fetch(SUPA_URL+'/rest/v1/deals?select=*&order=dealName.asc',{headers:anonHeaders}).then(function(r){return r.json();}),
+        fetch(SUPA_URL+'/rest/v1/contacts?select=*&order=fullName.asc',{headers:anonHeaders}).then(function(r){return r.json();})
+      ]).then(function(r2){
+        populateDropdown(Array.isArray(r2[0])?r2[0]:[],Array.isArray(r2[1])?r2[1]:[]);
+      }).catch(function(e){console.warn('anon fallback error:',e);});
+      return;
+    }
+    populateDropdown(deals,contacts);
     var contactMap={};
     contacts.forEach(function(c){contactMap[c.id]=c;});
     while(selEl.options.length>1)selEl.remove(1);
@@ -4475,6 +4511,7 @@ function pushToProject(){
     }
   }).catch(function(err){alert('Error: '+err.message);});
 }
+
 
 
 

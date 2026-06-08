@@ -1017,21 +1017,40 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead'}){
       {(f.quote_html||f.contract_html||f.change_order_html||f.invoice_html)&&(
         <div style={{marginBottom:12,padding:10,background:'var(--muted)',borderRadius:8,border:'1px solid var(--border)'}}>
           <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.07em',color:'var(--fg)',marginBottom:8}}>📄 Documents</p>
-          <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-            {f.quote_html&&<span style={{fontSize:11,padding:'3px 10px',background:'rgba(212,169,106,0.15)',borderRadius:20,color:'var(--primary)',fontWeight:600}}>✓ Quote</span>}
-            {f.contract_html&&<span style={{fontSize:11,padding:'3px 10px',background:'rgba(212,169,106,0.15)',borderRadius:20,color:'var(--primary)',fontWeight:600}}>✓ Contract</span>}
-            {f.contract_signed_html&&<span style={{fontSize:11,padding:'3px 10px',background:'rgba(34,197,94,0.15)',borderRadius:20,color:'#16a34a',fontWeight:600}}>✓ Signed Contract</span>}
-            {f.change_order_html&&<span style={{fontSize:11,padding:'3px 10px',background:'rgba(212,169,106,0.15)',borderRadius:20,color:'var(--primary)',fontWeight:600}}>✓ Change Order</span>}
-            {f.invoice_html&&<span style={{fontSize:11,padding:'3px 10px',background:'rgba(212,169,106,0.15)',borderRadius:20,color:'var(--primary)',fontWeight:600}}>✓ Invoice</span>}
+          <div style={{display:'flex',flexDirection:'column',gap:6}}>
+            {[
+              {key:'quote_html',label:'Quote',icon:'📄'},
+              {key:'contract_html',label:'Contract',icon:'📋'},
+              {key:'change_order_html',label:'Change Order',icon:'📝'},
+              {key:'invoice_html',label:'Invoice',icon:'🧾'},
+            ].filter(d=>f[d.key]).map(d=>(
+              <div key={d.key} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'4px 8px',background:'rgba(212,169,106,0.12)',borderRadius:6}}>
+                <span style={{fontSize:12,fontWeight:600,color:'var(--primary)'}}>{d.icon} {d.label}</span>
+                <button onClick={async()=>{
+                  if(!window.confirm(`Delete ${d.label}?`))return;
+                  setF(x=>({...x,[d.key]:''}));
+                  await api.saveDeal({[d.key]:null},f.id);
+                  DB.deals=DB.deals.map(x=>x.id===f.id?{...x,[d.key]:null}:x);
+                }} style={{fontSize:11,padding:'2px 8px',borderRadius:5,border:'1px solid var(--border)',background:'var(--card)',color:'var(--muted-fg)',cursor:'pointer',fontWeight:500}}>
+                  🗑 Delete
+                </button>
+              </div>
+            ))}
+            {f.contract_signed_html&&(
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'4px 8px',background:'rgba(34,197,94,0.08)',borderRadius:6}}>
+                <span style={{fontSize:12,fontWeight:600,color:'#16a34a'}}>✅ Signed Contract</span>
+                <div style={{display:'flex',gap:6}}>
+                  <button onClick={()=>{const w=window.open('','_blank');if(w){w.document.write(f.contract_signed_html);w.document.close();setTimeout(()=>w.print(),500);}}} style={{fontSize:11,padding:'2px 8px',borderRadius:5,border:'1px solid #16a34a',background:'transparent',color:'#16a34a',cursor:'pointer',fontWeight:600}}>⬇ Download</button>
+                  <button onClick={async()=>{
+                    if(!window.confirm('Delete signed contract?'))return;
+                    setF(x=>({...x,contract_signed_html:'',contract_signed_at:''}));
+                    await api.saveDeal({contract_signed_html:null,contract_signed_at:null},f.id);
+                    DB.deals=DB.deals.map(x=>x.id===f.id?{...x,contract_signed_html:null,contract_signed_at:null}:x);
+                  }} style={{fontSize:11,padding:'2px 8px',borderRadius:5,border:'1px solid var(--border)',background:'var(--card)',color:'var(--muted-fg)',cursor:'pointer',fontWeight:500}}>🗑 Delete</button>
+                </div>
+              </div>
+            )}
           </div>
-          {f.contract_signed_html&&(
-            <button onClick={()=>{
-              const w=window.open('','_blank');
-              if(w){w.document.write(f.contract_signed_html);w.document.close();setTimeout(()=>w.print(),500);}
-            }} style={{marginTop:8,fontSize:11,padding:'4px 12px',borderRadius:6,border:'1px solid #16a34a',background:'transparent',color:'#16a34a',cursor:'pointer',fontWeight:600}}>
-              ⬇ Download Signed Contract
-            </button>
-          )}
         </div>
       )}
       <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
@@ -2706,7 +2725,7 @@ button.tab.active{color:var(--gold2);border-bottom-color:var(--gold2)}
   </button>
   <button class="export-btn" onclick="pushToProject()" style="background:var(--gold);color:var(--ink);border:none;margin-left:8px">
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" width="14" height="14"><path d="M8 2v12M2 8l6-6 6 6"/></svg>
-    Project $
+    Push
   </button>
   <div class="card print-card">
     <div class="doc-header">
@@ -4608,7 +4627,9 @@ function pushToProject(){
   var changeOrderHtml=hasChangeOrder&&coPageEl?coPageEl.outerHTML:'';
 
   // Use session token if available
-  var token=(_session&&_session.access_token)?_session.access_token:SUPA_KEY;
+  // Require authenticated session
+  if(!_session||!_session.access_token){alert('Please select a project first. Make sure the estimates page has loaded your session.');return;}
+  var token=_session.access_token;
   var btn=document.querySelector('[onclick=\\"pushToProject()\\"]');
   if(btn){btn.disabled=true;btn.textContent='Saving\\u2026';}
 
@@ -4638,6 +4659,7 @@ function pushToProject(){
     alert('Error: '+err.message);
   });
 }
+
 
 
 

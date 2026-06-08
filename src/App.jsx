@@ -4202,6 +4202,7 @@ window.updCeilSeg=updCeilSeg;
 window.showTab=showTab;
 window.schedulePaintSave=schedulePaintSave;
 window.loadContactsDropdown=loadContactsDropdown;
+window.populateDealsDropdown=populateDealsDropdown;
 window.loadPaintSettings=loadPaintSettings;
 window.renderRooms=renderRooms;
 window.addRoom=addRoom;
@@ -4353,80 +4354,56 @@ var _kpMap={};
 function loadContactsDropdown(){
   var selEl=document.getElementById('ci-contact-select');
   if(!selEl)return;
-  // If no session yet, retry after a short delay (called before session injected)
-  if(typeof _session==='undefined'||!_session||!_session.access_token){
-    setTimeout(loadContactsDropdown,600);
-    return;
-  }
-  var token=_session.access_token;
-  var headers={'apikey':SUPA_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json'};
-  function populateDropdown(deals,contacts){
-    var contactMap={};
-    contacts.forEach(function(c){contactMap[c.id]=c;});
-    while(selEl.options.length>1)selEl.remove(1);
-    if(!deals.length){console.warn('loadContactsDropdown: no deals returned');return;}
-    deals.forEach(function(deal){
-      var contact=contactMap[deal.contact]||{};
-      var label=deal.dealName||'Unnamed project';
-      var id=String(deal.id);
-      _kpMap[id]={
-        _isDeal:true,dealId:id,dealName:label,
-        fullName:contact.fullName||contact.full_name||contact.name||deal.contactFreeText||'',
-        phone:contact.phone||contact.phoneNumber||contact.phone_number||'',
-        email:contact.email||'',
-        address:deal.address||contact.address||''
-      };
-      var opt=document.createElement('option');
-      opt.value=id;
-      var clientName=contact.fullName||deal.contactFreeText||'';
-      opt.textContent=label+(clientName?'\\u2014'+clientName:'');
-      selEl.appendChild(opt);
-    });
-    console.log('Loaded '+deals.length+' projects into dropdown');
-  }
+  // Data may already be loaded via postMessage — check first
+  if(selEl.options.length>1)return;
+  // Try Supabase fetch
+  var token=(_session&&_session.access_token)?_session.access_token:null;
+  var headers={'apikey':SUPA_KEY,'Authorization':'Bearer '+(token||SUPA_KEY)};
   Promise.all([
-    fetch(SUPA_URL+'/rest/v1/deals?select=*&order=dealName.asc',{headers:headers}).then(function(r){console.log('deals fetch status:',r.status);return r.json();}),
+    fetch(SUPA_URL+'/rest/v1/deals?select=*&order=dealName.asc',{headers:headers}).then(function(r){return r.json();}),
     fetch(SUPA_URL+'/rest/v1/contacts?select=*&order=fullName.asc',{headers:headers}).then(function(r){return r.json();})
   ]).then(function(results){
     var deals=Array.isArray(results[0])?results[0]:[];
     var contacts=Array.isArray(results[1])?results[1]:[];
-    // If empty (possibly RLS with wrong uid), retry with service-level anon key
-    if(!deals.length){
-      var anonHeaders={'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY};
-      Promise.all([
-        fetch(SUPA_URL+'/rest/v1/deals?select=*&order=dealName.asc',{headers:anonHeaders}).then(function(r){return r.json();}),
-        fetch(SUPA_URL+'/rest/v1/contacts?select=*&order=fullName.asc',{headers:anonHeaders}).then(function(r){return r.json();})
-      ]).then(function(r2){
-        populateDropdown(Array.isArray(r2[0])?r2[0]:[],Array.isArray(r2[1])?r2[1]:[]);
-      }).catch(function(e){console.warn('anon fallback error:',e);});
-      return;
-    }
-    populateDropdown(deals,contacts);
-    var contactMap={};
-    contacts.forEach(function(c){contactMap[c.id]=c;});
-    while(selEl.options.length>1)selEl.remove(1);
-    deals.forEach(function(deal){
-      var contact=contactMap[deal.contact]||{};
-      var label=deal.dealName||'Unnamed project';
-      var id=String(deal.id);
-      _kpMap[id]={
-        _isDeal:true,
-        dealId:id,
-        dealName:label,
-        fullName:contact.fullName||contact.full_name||contact.name||deal.contactFreeText||'',
-        phone:contact.phone||contact.phoneNumber||contact.phone_number||'',
-        email:contact.email||'',
-        address:deal.address||contact.address||''
-      };
-      var opt=document.createElement('option');
-      opt.value=id;
-      var clientName=contact.fullName||deal.contactFreeText||'';
-      opt.textContent=label+(clientName?' \\u2014 '+clientName:'');
-      selEl.appendChild(opt);
-    });
-    console.log('Loaded '+deals.length+' projects into dropdown');
+    populateDealsDropdown(deals,contacts);
   }).catch(function(err){console.warn('loadContactsDropdown error:',err);});
 }
+
+function populateDealsDropdown(deals,contacts){
+  var selEl=document.getElementById('ci-contact-select');
+  if(!selEl||!deals||!deals.length)return;
+  var contactMap={};
+  (contacts||[]).forEach(function(c){contactMap[c.id]=c;});
+  while(selEl.options.length>1)selEl.remove(1);
+  deals.forEach(function(deal){
+    var contact=contactMap[deal.contact]||{};
+    var label=deal.dealName||'Unnamed project';
+    var id=String(deal.id);
+    _kpMap[id]={
+      _isDeal:true,dealId:id,dealName:label,
+      fullName:contact.fullName||contact.full_name||contact.name||deal.contactFreeText||'',
+      phone:contact.phone||contact.phoneNumber||contact.phone_number||'',
+      email:contact.email||'',
+      address:deal.address||contact.address||''
+    };
+    var opt=document.createElement('option');
+    opt.value=id;
+    var clientName=contact.fullName||deal.contactFreeText||'';
+    opt.textContent=label+(clientName?' — '+clientName:'');
+    selEl.appendChild(opt);
+  });
+  console.log('Populated '+deals.length+' projects');
+}
+
+// Listen for deals data posted from React parent
+window.addEventListener('message',function(evt){
+  if(evt.data&&evt.data.type==='KP_DEALS'){
+    populateDealsDropdown(evt.data.deals,evt.data.contacts);
+  }
+  if(evt.data&&evt.data.type==='KP_SESSION'){
+    _session=evt.data.session;
+  }
+});
 function fillFromContact(val){
   if(!val)return;
   var c=_kpMap[val];if(!c)return;
@@ -4586,6 +4563,7 @@ function pushToProject(){
 
 
 
+
 </script>
 </body>
 </html>`;
@@ -4596,20 +4574,22 @@ function MasterEstimate(){
     try{
       const win=ref.current?.contentWindow;
       if(!win)return;
-      // Inject session token so iframe can make authenticated Supabase requests
+      // Inject session
       if(_session?.access_token){
-        win._session={
-          access_token:_session.access_token,
-          user:_session.user||{id:_session.user?.id}
-        };
+        win._session={access_token:_session.access_token,user:_session.user};
+        win.postMessage({type:'KP_SESSION',session:{access_token:_session.access_token,user:_session.user}},'*');
       }
-      // Load paint settings from Supabase, then init paint inputs
+      // Post deals + contacts directly — most reliable approach
+      const deals=api.getDeals();
+      const contacts=api.getContacts();
+      win.postMessage({type:'KP_DEALS',deals,contacts},'*');
+      // Also call loadContactsDropdown as fallback
+      if(win.loadContactsDropdown) win.loadContactsDropdown();
+      // Load paint settings
       if(win.loadPaintSettings) win.loadPaintSettings(function(){
         if(win.initPaintInputs) win.initPaintInputs();
       });
-      // Load the project dropdown now that we have auth
-      if(win.loadContactsDropdown) win.loadContactsDropdown();
-    }catch(e){}
+    }catch(e){console.warn('MasterEstimate onLoad error:',e);}
   },[]);
   return (
     <div style={{width:'100%',height:'100%',overflow:'hidden'}}>
@@ -4632,6 +4612,10 @@ function MasterEstimateOnTab({tab}){
       const win=ref.current?.contentWindow;
       if(!win)return;
       if(_session?.access_token) win._session={access_token:_session.access_token,user:_session.user};
+      // Post deals directly into iframe
+      const deals=api.getDeals();
+      const contacts=api.getContacts();
+      win.postMessage({type:'KP_DEALS',deals,contacts},'*');
       if(win.loadContactsDropdown) win.loadContactsDropdown();
       if(win.showTab) win.showTab(tab);
     }catch(e){}
@@ -4640,6 +4624,7 @@ function MasterEstimateOnTab({tab}){
         const win=ref.current?.contentWindow;
         if(!win)return;
         if(_session?.access_token) win._session={access_token:_session.access_token,user:_session.user};
+        win.postMessage({type:'KP_DEALS',deals:api.getDeals(),contacts:api.getContacts()},'*');
         if(win.showTab) win.showTab(tab);
         if(win.loadContactsDropdown) win.loadContactsDropdown();
       }catch(e){}

@@ -798,7 +798,7 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead'}){
   const blank={dealName:'',value:'',description:'',contactId:'',referralContactId:'',labels:[],leadSource:'',
     startDate:'',startTime:'09:00',endDate:'',endTime:'17:00',
     scheduleDays:[], // [{date, startTime, endTime, calEventId}]
-    address:'',notes:'',rooms:[],progress:0,contactFreeText:'',quote_html:'',contract_html:'',change_order_html:''};
+    address:'',notes:'',rooms:[],progress:0,contactFreeText:'',quote_html:'',contract_html:'',change_order_html:'',invoice_html:'',contract_signed_html:'',contract_signed_at:''};
   const [f,setF]=useState(blank);
   const [syncing,setSyncing]=useState(false);
 
@@ -811,7 +811,8 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead'}){
       endDate:deal.endDate||'',endTime:deal.endTime||'17:00',
       scheduleDays:deal.scheduleDays||[],address:deal.address||'',notes:deal.notes||'',
       rooms:deal.rooms||[],progress:deal.progress||0,contactFreeText:deal.contactFreeText||'',
-      quote_html:deal.quote_html||'',contract_html:deal.contract_html||'',change_order_html:deal.change_order_html||''
+      quote_html:deal.quote_html||'',contract_html:deal.contract_html||'',change_order_html:deal.change_order_html||'',
+      invoice_html:deal.invoice_html||'',contract_signed_html:deal.contract_signed_html||'',contract_signed_at:deal.contract_signed_at||''
     });
     else setF(blank);
   },[deal,open]);
@@ -1013,14 +1014,24 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead'}){
         </div>
       )}
       {/* Documents pushed from Estimates */}
-      {(f.quote_html||f.contract_html||f.change_order_html)&&(
+      {(f.quote_html||f.contract_html||f.change_order_html||f.invoice_html)&&(
         <div style={{marginBottom:12,padding:10,background:'var(--muted)',borderRadius:8,border:'1px solid var(--border)'}}>
           <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.07em',color:'var(--fg)',marginBottom:8}}>📄 Documents</p>
           <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
             {f.quote_html&&<span style={{fontSize:11,padding:'3px 10px',background:'rgba(212,169,106,0.15)',borderRadius:20,color:'var(--primary)',fontWeight:600}}>✓ Quote</span>}
             {f.contract_html&&<span style={{fontSize:11,padding:'3px 10px',background:'rgba(212,169,106,0.15)',borderRadius:20,color:'var(--primary)',fontWeight:600}}>✓ Contract</span>}
+            {f.contract_signed_html&&<span style={{fontSize:11,padding:'3px 10px',background:'rgba(34,197,94,0.15)',borderRadius:20,color:'#16a34a',fontWeight:600}}>✓ Signed Contract</span>}
             {f.change_order_html&&<span style={{fontSize:11,padding:'3px 10px',background:'rgba(212,169,106,0.15)',borderRadius:20,color:'var(--primary)',fontWeight:600}}>✓ Change Order</span>}
+            {f.invoice_html&&<span style={{fontSize:11,padding:'3px 10px',background:'rgba(212,169,106,0.15)',borderRadius:20,color:'var(--primary)',fontWeight:600}}>✓ Invoice</span>}
           </div>
+          {f.contract_signed_html&&(
+            <button onClick={()=>{
+              const w=window.open('','_blank');
+              if(w){w.document.write(f.contract_signed_html);w.document.close();setTimeout(()=>w.print(),500);}
+            }} style={{marginTop:8,fontSize:11,padding:'4px 12px',borderRadius:6,border:'1px solid #16a34a',background:'transparent',color:'#16a34a',cursor:'pointer',fontWeight:600}}>
+              ⬇ Download Signed Contract
+            </button>
+          )}
         </div>
       )}
       <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
@@ -4789,8 +4800,22 @@ function generateInvoicePDF(deal, contactName, contactAddr){
     +'<script>window.onload=function(){window.print();}<\/script>'
     +'</body></html>';
 
+  // Open print window
   const win = window.open('','_blank','width=860,height=900');
   if(win){ win.document.write(html); win.document.close(); }
+
+  // Save invoice HTML to Supabase deal record
+  if(deal.id){
+    const session=_session||null;
+    const token=session?.access_token;
+    supaFetch(`/rest/v1/deals?id=eq.${deal.id}`,'PATCH',{invoice_html:html})
+      .then(()=>{
+        // Refresh local DB
+        const d=DB.deals.find(x=>x.id===deal.id);
+        if(d) d.invoice_html=html;
+      })
+      .catch(e=>console.warn('invoice save error:',e));
+  }
 }
 
 

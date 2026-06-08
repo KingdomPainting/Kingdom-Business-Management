@@ -3098,7 +3098,7 @@ function upd(id,key,val){
   r[key]=val;
   autoFillLF(r);
   const rerender=['walls','ceiling','baseboards','crown','doorFrames','windows','doors','wallCoats','ceilCoats','doorCoats','baseCoats','crownCoats','dfCoats','winCoats','irregular','wallsPrimer','ceilingPrimer','trimPrimer'];
-  if(rerender.includes(key)){renderRooms();recalcAll();return;}
+  if(rerender.includes(key)){renderRooms(id);recalcAll();return;}
   const el_ws=sel('rws_'+id),el_cs=sel('rcs_'+id),el_lc=sel('rlc_'+id),el_t=sel('rtrim_'+id),el_d=sel('rdoors_'+id);
   if(el_ws)el_ws.textContent=fmtN(calcWalls(r));
   if(el_cs)el_cs.textContent=fmtN(calcCeil(r));
@@ -3313,7 +3313,7 @@ function renderRoomBody(r){
     +'<div class="field"><label>Doors</label><input type="number" min="0" step="1" value="'+(r.doorCount||'')+'" placeholder="0" oninput="upd('+r.id+',\\'doorCount\\',+this.value)"></div>'
     +'</div>'
     +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">'
-    +'<input type="checkbox" id="irreg_'+r.id+'" '+(r.irregular?'checked':'')+' onchange="upd('+r.id+',\\'irregular\\',this.checked);renderRooms('+r.id+');" style="accent-color:var(--gold);width:14px;height:14px">'
+    +'<input type="checkbox" id="irreg_'+r.id+'" '+(r.irregular?'checked':'')+' onchange="upd('+r.id+',\\'irregular\\',this.checked);" style="accent-color:var(--gold);width:14px;height:14px">'
     +'<label for="irreg_'+r.id+'" style="font-size:12px;font-weight:600;color:var(--ink2);cursor:pointer">Irregular Room</label>'
     +'</div>'
     +irregHtml

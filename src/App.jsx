@@ -4317,11 +4317,29 @@ function upsertPaintSettings(){
     discPct:gv('lr-disc-pct'),profitTarget:gv('lr-profit-target')
   };
   var standardsData=JSON.parse(JSON.stringify(STANDARDS));
-  fetch(SUPA_URL+'/rest/v1/paint_settings',{
-    method:'POST',
-    headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates,return=minimal'},
-    body:JSON.stringify({id:'singleton',user_id:uid,data:data,labour:labourData,standards:standardsData,updated_at:new Date().toISOString()})
-  }).catch(function(err){console.warn('upsertPaintSettings error:',err);});
+  // Upsert by user_id (unique constraint) - use PATCH if exists, POST if not
+  var payload={user_id:uid,data:data,labour:labourData,standards:standardsData,updated_at:new Date().toISOString()};
+  fetch(SUPA_URL+'/rest/v1/paint_settings?user_id=eq.'+uid,{
+    method:'PATCH',
+    headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json','Prefer':'return=minimal'},
+    body:JSON.stringify(payload)
+  }).then(function(r){
+    if(r.status===404||r.status===0||r.headers.get('content-range')==='*/0'){
+      // Row doesn't exist yet, insert it
+      fetch(SUPA_URL+'/rest/v1/paint_settings',{
+        method:'POST',
+        headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates,return=minimal'},
+        body:JSON.stringify(payload)
+      }).catch(function(err){console.warn('paint_settings insert error:',err);});
+    }
+  }).catch(function(err){
+    // PATCH failed — try POST as fallback
+    fetch(SUPA_URL+'/rest/v1/paint_settings',{
+      method:'POST',
+      headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates,return=minimal'},
+      body:JSON.stringify(payload)
+    }).catch(function(e2){console.warn('paint_settings fallback error:',e2);});
+  });
 }
 
 function sv(id,val){var e=sel(id);if(e&&val!==undefined&&val!=='')e.value=val;}
@@ -4332,7 +4350,10 @@ function loadPaintSettings(cb){
     return;
   }
   var token=_session.access_token;
-  fetch(SUPA_URL+'/rest/v1/paint_settings?id=eq.singleton&select=data,labour,standards',{
+  var uid=(_session.user&&_session.user.id)?_session.user.id:null;
+  if(!uid){try{var p2=JSON.parse(atob(token.split('.')[1]));uid=p2.sub||null;}catch(e){}}
+  if(!uid){if(cb)cb();return;}
+  fetch(SUPA_URL+'/rest/v1/paint_settings?user_id=eq.'+uid+'&select=data,labour,standards',{
     headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+token}
   }).then(function(r){return r.json();}).then(function(rows){
     if(rows&&rows.length){
@@ -4549,6 +4570,7 @@ function pushToProject(){
     alert('Error: '+err.message);
   });
 }
+
 
 
 

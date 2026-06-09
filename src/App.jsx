@@ -2601,6 +2601,7 @@ button.tab.active{color:var(--gold2);border-bottom-color:var(--gold2)}
     <div class="topbar-date" id="topDate"></div>
     <span id="save-indicator" style="font-size:11px;margin-right:8px;transition:opacity .3s"></span>
     <button onclick="openLoadPanel()" style="margin-right:6px;font-size:12px;padding:6px 12px;border:1px solid rgba(255,255,255,.25);border-radius:var(--r);background:transparent;color:var(--cream);cursor:pointer">&#8679; Load</button>
+    <button onclick="pushDocsToProject()" style="margin-right:6px;font-size:12px;padding:6px 14px;border:none;border-radius:var(--r);background:var(--gold);color:var(--ink);cursor:pointer;font-weight:600">&#8599; Push</button>
     <button onclick="newEstimate()" style="margin-right:6px;font-size:12px;padding:6px 12px;border:1px solid rgba(255,255,255,.25);border-radius:var(--r);background:transparent;color:var(--cream);cursor:pointer">+ New</button>
     <button class="save-btn" onclick="exportInfoPackage()">
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" width="14" height="14"><path d="M2 12v2h12v-2M8 2v8m0 0l-3-3m3 3l3-3"/></svg>
@@ -2725,7 +2726,7 @@ button.tab.active{color:var(--gold2);border-bottom-color:var(--gold2)}
   </button>
   <button class="export-btn" onclick="pushToProject()" style="background:var(--gold);color:var(--ink);border:none;margin-left:8px">
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" width="14" height="14"><path d="M8 2v12M2 8l6-6 6 6"/></svg>
-    Push
+    Project $
   </button>
   <div class="card print-card">
     <div class="doc-header">
@@ -3210,6 +3211,66 @@ function updWinRemove(id,idx){
   if(!r.winDims.length)r.winDims=[{l:0,w:0}];
   r.winLF=r.winDims.reduce(function(t,d){return t+2*((+(d.l)||0)+(+(d.w)||0));},0);
   renderRooms();recalcAll();
+}
+
+function pushDocsToProject(){
+  var projectSel=sel('ci-contact-select');
+  var projectId=projectSel?projectSel.value:'';
+  if(!projectId){alert('Please select a project on the Cover tab first.');return;}
+  if(!_session||!_session.access_token){alert('Session not ready. Please reload the estimates page.');return;}
+  var token=_session.access_token;
+  var btn=document.querySelector('[onclick=\\"pushDocsToProject()\\"]');
+  if(btn){btn._origHtml=btn._origHtml||btn.innerHTML;btn.disabled=true;btn.textContent='Pushing…';}
+
+  // Rooms
+  var coatLabel=function(v){return v==1?'1 Coat':v==3?'Primer & 2 Coats':'2 Coats';};
+  var roomsData=rooms.map(function(r){
+    var surfaces=[];
+    if(r.walls)surfaces.push({label:'Walls',coats:coatLabel(r.wallCoats),sqft:Math.round(calcWalls(r))});
+    if(r.ceiling)surfaces.push({label:'Ceiling',coats:coatLabel(r.ceilCoats),sqft:Math.round(calcCeil(r))});
+    if(r.baseboards)surfaces.push({label:'Baseboards',coats:coatLabel(r.baseCoats),lf:Math.round(r.baseLF||0)});
+    if(r.crown)surfaces.push({label:'Crown',coats:coatLabel(r.crownCoats),lf:Math.round(r.crownLF||0)});
+    if(r.doorFrames)surfaces.push({label:'Door Frames',coats:coatLabel(r.dfCoats),lf:Math.round(r.dfLF||0)});
+    if(r.windows)surfaces.push({label:'Windows',coats:coatLabel(r.winCoats),lf:Math.round(r.winLF||0)});
+    if(r.doors)surfaces.push({label:'Doors',coats:coatLabel(r.doorCoats),count:r.doorCount||0});
+    var sqft=Math.max(1,Math.round(calcWalls(r)+calcCeil(r)+(((r.baseLF||0)+(r.crownLF||0)+(r.dfLF||0)+(r.winLF||0)))*0.5+(r.doors?(r.doorCount||0):0)*20));
+    return {name:r.name||('Room '+r.id),surfaces:surfaces,done:false,sqft:sqft};
+  }).filter(function(r){return r.surfaces.length>0;});
+
+  // Quote HTML
+  var qEl=document.getElementById('page-quote');
+  var quoteHtml=qEl?qEl.outerHTML:'';
+
+  // Contract HTML
+  var totalEl=sel('q-total');
+  var amount=totalEl?parseFloat((totalEl.textContent||'').replace(/[^0-9.]/g,''))||0:0;
+  try{buildContract(amount,amount*0.1,amount*0.45,amount*0.45,1);}catch(e){}
+  var cEl=document.getElementById('page-contract');
+  var contractHtml=cEl?cEl.outerHTML:'';
+
+  // Change order (only if filled)
+  var coEl=document.getElementById('page-changeorder');
+  var coItems=document.querySelectorAll('.co-item');
+  var changeOrderHtml=(coItems&&coItems.length>0&&coEl)?coEl.outerHTML:'';
+
+  var payload={rooms:roomsData,progress:0};
+  if(quoteHtml)payload.quote_html=quoteHtml;
+  if(contractHtml)payload.contract_html=contractHtml;
+  if(changeOrderHtml)payload.change_order_html=changeOrderHtml;
+
+  fetch(SUPA_URL+'/rest/v1/deals?id=eq.'+projectId,{
+    method:'PATCH',
+    headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json','Prefer':'return=minimal'},
+    body:JSON.stringify(payload)
+  }).then(function(r){
+    if(btn){btn.disabled=false;btn.innerHTML=btn._origHtml||'▙ Push';}
+    if(r.ok){
+      if(btn){btn.textContent='✓ Pushed!';setTimeout(function(){btn.innerHTML=btn._origHtml||'▙ Push';},2500);}
+    }else{alert('Failed to push to project. Check console.');}
+  }).catch(function(err){
+    if(btn){btn.disabled=false;btn.innerHTML=btn._origHtml||'▙ Push';}
+    alert('Error: '+err.message);
+  });
 }
 
 function addRoom(){
@@ -4350,6 +4411,7 @@ window.deleteEstimate=deleteEstimate;
 window.syncClient=syncClient;
 window.fillFromContact=fillFromContact;
 window.pushToProject=pushToProject;
+window.pushDocsToProject=pushDocsToProject;
 
 init();
 
@@ -4583,82 +4645,31 @@ function _loadPDF(cb){
 // Push quote total to connected pipeline project
 function pushToProject(){
   var totalEl=sel('q-total');
-  if(!totalEl){alert('No total found. Please go to the Quote tab first.');return;}
+  if(!totalEl){alert('No total found. Please fill in rooms first.');return;}
   var totalText=totalEl.textContent||totalEl.innerText||'';
   var amount=parseFloat(totalText.replace(/[^0-9.]/g,''));
   if(isNaN(amount)||amount===0){alert('Could not read total amount. Make sure rooms are filled in.');return;}
-
   var projectSel=sel('ci-contact-select');
   var projectId=projectSel?projectSel.value:'';
   if(!projectId){alert('Please select a project on the Cover tab first.');return;}
-
-  // Build rooms payload from estimate rooms
-  var coatLabel=function(v){return v==1?'1 Coat':v==3?'Primer & 2 Coats':'2 Coats';};
-  var roomsData=rooms.map(function(r){
-    var surfaces=[];
-    if(r.walls){surfaces.push({label:'Walls',coats:coatLabel(r.wallCoats),sqft:Math.round(calcWalls(r))});}
-    if(r.ceiling){surfaces.push({label:'Ceiling',coats:coatLabel(r.ceilCoats),sqft:Math.round(calcCeil(r))});}
-    if(r.baseboards){surfaces.push({label:'Baseboards',coats:coatLabel(r.baseCoats),lf:Math.round(r.baseLF||0)});}
-    if(r.crown){surfaces.push({label:'Crown',coats:coatLabel(r.crownCoats),lf:Math.round(r.crownLF||0)});}
-    if(r.doorFrames){surfaces.push({label:'Door Frames',coats:coatLabel(r.dfCoats),lf:Math.round(r.dfLF||0)});}
-    if(r.windows){surfaces.push({label:'Windows',coats:coatLabel(r.winCoats),lf:Math.round(r.winLF||0)});}
-    if(r.doors){surfaces.push({label:'Doors',coats:coatLabel(r.doorCoats),count:r.doorCount||0});}
-    var wallSqft=calcWalls(r);
-    var ceilSqft=calcCeil(r);
-    var trimSqft=(((r.baseLF||0)+(r.crownLF||0)+(r.dfLF||0)+(r.winLF||0)))*0.5;
-    var doorSqft=(r.doors?(r.doorCount||0):0)*20;
-    var sqft=Math.max(1,Math.round(wallSqft+ceilSqft+trimSqft+doorSqft));
-    return {name:r.name||('Room '+r.id),surfaces:surfaces,done:false,sqft:sqft};
-  }).filter(function(r){return r.surfaces.length>0;});
-
-  // Capture quote HTML
-  var quotePageEl=document.getElementById('page-quote');
-  var quoteHtml=quotePageEl?quotePageEl.outerHTML:'';
-
-  // Capture contract HTML (trigger build first)
-  try{buildContract(amount,amount*0.1,amount*0.45,amount*0.45,1);}catch(e){}
-  var contractPageEl=document.getElementById('page-contract');
-  var contractHtml=contractPageEl?contractPageEl.outerHTML:'';
-
-  // Capture change order HTML (if filled)
-  var coPageEl=document.getElementById('page-changeorder');
-  var coItems=document.querySelectorAll('.co-item');
-  var hasChangeOrder=coItems&&coItems.length>0;
-  var changeOrderHtml=hasChangeOrder&&coPageEl?coPageEl.outerHTML:'';
-
-  // Use session token if available
-  // Require authenticated session
-  if(!_session||!_session.access_token){alert('Please select a project first. Make sure the estimates page has loaded your session.');return;}
+  if(!_session||!_session.access_token){alert('Session not ready. Please reload the estimates page.');return;}
   var token=_session.access_token;
   var btn=document.querySelector('[onclick=\\"pushToProject()\\"]');
-  if(btn){btn.disabled=true;btn.textContent='Saving\\u2026';}
-
-  var payload={
-    value:amount,
-    rooms:roomsData,
-    progress:0,
-    quote_html:quoteHtml||null,
-    contract_html:contractHtml||null,
-    change_order_html:changeOrderHtml||null
-  };
-
+  if(btn){btn._origHtml=btn._origHtml||btn.innerHTML;btn.disabled=true;btn.textContent='Saving…';}
   fetch(SUPA_URL+'/rest/v1/deals?id=eq.'+projectId,{
     method:'PATCH',
     headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json','Prefer':'return=minimal'},
-    body:JSON.stringify(payload)
+    body:JSON.stringify({value:amount})
   }).then(function(r){
-    if(btn){btn.disabled=false;btn.innerHTML=btn._origHtml||'Push to Project';}
-    if(r.ok){
-      var orig=btn?btn.innerHTML:'';
-      if(btn){btn.textContent='\\u2713 Saved!';setTimeout(function(){btn.innerHTML=orig;},2500);}
-    } else {
-      alert('Failed to update project. Check console.');
-    }
+    if(btn){btn.disabled=false;btn.innerHTML=btn._origHtml||'Project $';}
+    if(r.ok){if(btn){btn.textContent='✓ Saved!';setTimeout(function(){btn.innerHTML=btn._origHtml||'Project $';},2000);}}
+    else{alert('Failed to update project value.');}
   }).catch(function(err){
-    if(btn){btn.disabled=false;btn.innerHTML=btn._origHtml||'Push to Project';}
+    if(btn){btn.disabled=false;btn.innerHTML=btn._origHtml||'Project $';}
     alert('Error: '+err.message);
   });
 }
+
 
 
 

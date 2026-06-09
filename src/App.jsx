@@ -798,7 +798,7 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead'}){
   const blank={dealName:'',value:'',description:'',contactId:'',referralContactId:'',labels:[],leadSource:'',
     startDate:'',startTime:'09:00',endDate:'',endTime:'17:00',
     scheduleDays:[], // [{date, startTime, endTime, calEventId}]
-    address:'',notes:'',rooms:[],progress:0,contactFreeText:'',quote_html:'',contract_html:'',change_order_html:'',invoice_html:'',contract_signed_html:'',contract_signed_at:''};
+    address:'',notes:'',rooms:[],progress:0,contactFreeText:'',quote_html:'',contract_html:'',change_order_html:'',invoice_html:'',contract_signed_html:'',contract_signed_at:'',quote_date:''};
   const [f,setF]=useState(blank);
   const [syncing,setSyncing]=useState(false);
 
@@ -812,7 +812,8 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead'}){
       scheduleDays:deal.scheduleDays||[],address:deal.address||'',notes:deal.notes||'',
       rooms:deal.rooms||[],progress:deal.progress||0,contactFreeText:deal.contactFreeText||'',
       quote_html:deal.quote_html||'',contract_html:deal.contract_html||'',change_order_html:deal.change_order_html||'',
-      invoice_html:deal.invoice_html||'',contract_signed_html:deal.contract_signed_html||'',contract_signed_at:deal.contract_signed_at||''
+      invoice_html:deal.invoice_html||'',contract_signed_html:deal.contract_signed_html||'',contract_signed_at:deal.contract_signed_at||'',
+      quote_date:deal.quote_date||''
     });
     else setF(blank);
   },[deal,open]);
@@ -914,6 +915,7 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead'}){
       endDate:f.endDate||undefined,endTime:f.endTime||undefined,
       scheduleDays:finalDays,address:f.address||null,notes:f.notes||null,
       rooms:f.rooms||undefined,progress:f.progress||0,
+      quote_date:f.quote_date||undefined,
       projectCalEventId:projectCalEventId||undefined,
     },deal?.id);
     setSyncing(false);
@@ -925,11 +927,14 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead'}){
 
   return (
     <Modal open={open} onClose={onClose} title={deal?'Edit Project':'New Project'}>
-      <div style={{marginBottom:12}}><Label>Project Name</Label><Input value={f.dealName} onChange={e=>setF(x=>({...x,dealName:e.target.value}))} placeholder='Project name'/></div>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
-        <div><Label>Value ($)</Label><Input type='number' value={f.value} onChange={e=>setF(x=>({...x,value:e.target.value}))} placeholder='0'/></div>
+        <div><Label>Project Name</Label><Input value={f.dealName} onChange={e=>setF(x=>({...x,dealName:e.target.value}))} placeholder='Project name'/></div>
         <div><Label>Contact</Label>
           <ContactCombobox contacts={contacts} value={f.contactId} freeText={f.contactFreeText||''} onChange={(id,txt)=>setF(x=>({...x,contactId:id,contactFreeText:txt||''}))} /></div>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
+        <div><Label>Value ($)</Label><Input type='number' value={f.value} onChange={e=>setF(x=>({...x,value:e.target.value}))} placeholder='0'/></div>
+        <div><Label>Quote Date</Label><input type='date' value={f.quote_date||''} onChange={e=>setF(x=>({...x,quote_date:e.target.value}))} style={{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%'}}/></div>
       </div>
       <div style={{marginBottom:12}}><Label>Address (for calendar events)</Label><Input value={f.address} onChange={e=>setF(x=>({...x,address:e.target.value}))} placeholder='Job site address'/></div>
       {/* Schedule — start row + end row each with date / start time / end time */}
@@ -1751,7 +1756,10 @@ function Pipeline({showToast}){
                       )}
                       {/* Value + ref */}
                       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:10,paddingTop:8,borderTop:'1px solid var(--border)'}}>
-                        <span style={{fontSize:16,fontWeight:700,color:'var(--fg)'}}>{deal.value!=null?fmtUSD(deal.value):''}</span>
+                        <div>
+                          <span style={{fontSize:16,fontWeight:700,color:'var(--fg)'}}>{deal.value!=null?fmtUSD(deal.value):''}</span>
+                          {deal.quote_date&&<span style={{fontSize:10,color:'var(--muted-fg)',marginLeft:6}}>{new Date(deal.quote_date+'T12:00:00').toLocaleDateString('en-CA',{month:'short',day:'numeric',year:'numeric'})}</span>}
+                        </div>
                         {refName(deal)&&<span style={{fontSize:11,color:'var(--primary)'}}>Ref: {refName(deal)}</span>}
                       </div>
                       {/* Advance */}
@@ -3945,6 +3953,29 @@ function recalcAll(){
   const matBuf=+(v('lr-mat-buffer')||1.25);
   const suppliesRaw=rooms.reduce(function(t,r){return t+calcRoomSuppliesCost(r);},0);
   const suppliesCost=suppliesRaw*matBuf;
+  // Compute totalPaintCost inline before subtotal (colour summary block runs later)
+  var totalPaintCost=0;
+  var matBufC2=+(v('lr-mat-buffer')||1.25);
+  (function(){
+    var colMap2={};
+    function addCol2(product,sqft){
+      if(!product||!sqft)return;
+      colMap2[product]=(colMap2[product]||0)+sqft;
+    }
+    rooms.forEach(function(r){
+      var wSqft=calcWalls(r),cSqft=calcCeil(r),tSqft=calcTrims(r);
+      if(r.walls&&wSqft){if(r.wallCoats==3&&r.wallsPrimer){addCol2(r.wallsPrimer,wSqft);addCol2(r.wallPaint,wSqft*2);}else addCol2(r.wallPaint,wSqft);}
+      if(r.ceiling&&cSqft){if(r.ceilCoats==3&&r.ceilingPrimer){addCol2(r.ceilingPrimer,cSqft);addCol2(r.ceilPaint,cSqft*2);}else addCol2(r.ceilPaint,cSqft);}
+      var trimSurfs=(r.baseboards||r.crown||r.doorFrames||r.windows||r.doors);
+      if(trimSurfs&&tSqft){var trimHasPrimer=(r.baseCoats==3||r.crownCoats==3||r.dfCoats==3||r.winCoats==3||r.doorCoats==3)&&r.trimPrimer;if(trimHasPrimer){addCol2(r.trimPrimer,tSqft);addCol2(r.trimPaint,tSqft*2);}else addCol2(r.trimPaint,tSqft);}
+    });
+    Object.keys(colMap2).forEach(function(prod){
+      var sqft=colMap2[prod];
+      var pObj=[...PAINTS,...CEILING_PAINTS,...PRIMERS].find(function(p){return p.n===prod;});
+      var unitPrice=pObj?(sqft>1900&&pObj.p>0?pObj.p:pObj.g||pObj.p||0):0;
+      if(unitPrice>0)totalPaintCost+=unitPrice*Math.ceil(sqft/350)*matBufC2;
+    });
+  }());
   const subtotal=labourAmt-discAmt+suppliesCost+totalPaintCost;
   const tax=subtotal*0.13;
   const total=subtotal+tax;
@@ -4009,7 +4040,7 @@ function recalcAll(){
   }
 
   // Colour summary and cost
-  var totalPaintCost=0;
+  totalPaintCost=0; // reset then recompute for breakdown display
   var ctbody=sel('bd-colour-tbody');
   if(ctbody){
     ctbody.innerHTML='';
@@ -4045,7 +4076,7 @@ function recalcAll(){
         else addCol(r.trimPaint,r.trimColour,trimSurfs.join(', '),r.name||'Room '+r.id,tSqft,r.trimSheen||'');
       }
     });
-    var matBufC=+(v('lr-mat-buffer')||1.25);
+    var matBufC=matBufC2; // use pre-computed mat buffer
     Object.keys(colMap).forEach(function(key){
       var cm=colMap[key];
       var sqft=cm.area;
@@ -4659,7 +4690,7 @@ function pushToProject(){
   fetch(SUPA_URL+'/rest/v1/deals?id=eq.'+projectId,{
     method:'PATCH',
     headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json','Prefer':'return=minimal'},
-    body:JSON.stringify({value:amount})
+    body:JSON.stringify({value:amount,quote_date:new Date().toISOString().slice(0,10)})
   }).then(function(r){
     if(btn){btn.disabled=false;btn.innerHTML=btn._origHtml||'Project $';}
     if(r.ok){if(btn){btn.textContent='✓ Saved!';setTimeout(function(){btn.innerHTML=btn._origHtml||'Project $';},2000);}}
@@ -4669,6 +4700,8 @@ function pushToProject(){
     alert('Error: '+err.message);
   });
 }
+
+
 
 
 

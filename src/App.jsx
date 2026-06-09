@@ -3272,7 +3272,7 @@ function pushDocsToProject(){
 
   // Delegate PATCH to React parent which has a fresh session token
   window.parent.postMessage({type:'KP_PATCH_DEAL',dealId:projectId,data:payload},'*');
-  if(btn){btn.textContent='\u2713 Pushed!';setTimeout(function(){btn.innerHTML=btn._origHtml||'\u2599 Push';btn.disabled=false;},2500);}
+  if(btn){btn.textContent='\\u2713 Pushed!';setTimeout(function(){btn.innerHTML=btn._origHtml||'\\u2599 Push';btn.disabled=false;},2500);}
 }
 
 function addRoom(){
@@ -4463,22 +4463,7 @@ function savePaintSettings(){
 
 function gv(id){var e=sel(id);return e?e.value:'';}
 function upsertPaintSettings(){
-  // Retry if session not yet injected
-  if(!_session||!_session.access_token){
-    setTimeout(upsertPaintSettings,1500);
-    return;
-  }
-  var token=_session.access_token;
-  // uid: try user object, fall back to decoding JWT sub claim
-  var uid=(_session.user&&_session.user.id)?_session.user.id:null;
-  if(!uid){
-    try{
-      var payload=JSON.parse(atob(token.split('.')[1]));
-      uid=payload.sub||null;
-    }catch(e){}
-  }
-  if(!uid)return;
-  var data={paints:PAINTS,primers:PRIMERS,colours:COLOURS,supplies:SUPPLIES};
+  var data={paints:PAINTS,ceilPaints:CEILING_PAINTS,primers:PRIMERS,colours:COLOURS,supplies:SUPPLIES};
   var labourData={
     workers:JSON.parse(JSON.stringify(workers)),
     overheadItems:JSON.parse(JSON.stringify(overheadItems)),
@@ -4490,90 +4475,57 @@ function upsertPaintSettings(){
     discPct:gv('lr-disc-pct'),profitTarget:gv('lr-profit-target')
   };
   var standardsData=JSON.parse(JSON.stringify(STANDARDS));
-  // Upsert by user_id (unique constraint) - use PATCH if exists, POST if not
-  var payload={user_id:uid,data:data,labour:labourData,standards:standardsData,updated_at:new Date().toISOString()};
-  fetch(SUPA_URL+'/rest/v1/paint_settings?user_id=eq.'+uid,{
-    method:'PATCH',
-    headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json','Prefer':'return=minimal'},
-    body:JSON.stringify(payload)
-  }).then(function(r){
-    if(r.status===404||r.status===0||r.headers.get('content-range')==='*/0'){
-      // Row doesn't exist yet, insert it
-      fetch(SUPA_URL+'/rest/v1/paint_settings',{
-        method:'POST',
-        headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates,return=minimal'},
-        body:JSON.stringify(payload)
-      }).catch(function(err){console.warn('paint_settings insert error:',err);});
-    }
-  }).catch(function(err){
-    // PATCH failed — try POST as fallback
-    fetch(SUPA_URL+'/rest/v1/paint_settings',{
-      method:'POST',
-      headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates,return=minimal'},
-      body:JSON.stringify(payload)
-    }).catch(function(e2){console.warn('paint_settings fallback error:',e2);});
-  });
+  // Post to React parent which uses its own authenticated session
+  window.parent.postMessage({
+    type:'KP_SAVE_PAINT_SETTINGS',
+    data:data,
+    labour:labourData,
+    standards:standardsData
+  },'*');
 }
 
 function sv(id,val){var e=sel(id);if(e&&val!==undefined&&val!=='')e.value=val;}
 function loadPaintSettings(cb){
-  if(!_session||!_session.access_token){
-    // Retry once after delay if session not ready
-    setTimeout(function(){loadPaintSettings(cb);},800);
-    return;
-  }
-  var token=_session.access_token;
-  var uid=(_session.user&&_session.user.id)?_session.user.id:null;
-  if(!uid){try{var p2=JSON.parse(atob(token.split('.')[1]));uid=p2.sub||null;}catch(e){}}
-  if(!uid){if(cb)cb();return;}
-  fetch(SUPA_URL+'/rest/v1/paint_settings?user_id=eq.'+uid+'&select=data,labour,standards',{
-    headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+token}
-  }).then(function(r){return r.json();}).then(function(rows){
-    if(rows&&rows.length){
-      var row=rows[0];
-      // Paint inputs
-      if(row.data){
-        var d=row.data;
-        if(d.paints&&d.paints.length)PAINTS.splice(0,PAINTS.length,...d.paints);
-        if(d.ceilPaints&&d.ceilPaints.length)CEILING_PAINTS.splice(0,CEILING_PAINTS.length,...d.ceilPaints);
-        if(d.primers&&d.primers.length)PRIMERS.splice(0,PRIMERS.length,...d.primers);
-        if(d.colours&&d.colours.length)COLOURS.splice(0,COLOURS.length,...d.colours);
-        if(d.supplies&&d.supplies.length)SUPPLIES.splice(0,SUPPLIES.length,...d.supplies);
-      }
-      // Standards
-      if(row.standards&&typeof row.standards==='object'){
-        Object.keys(row.standards).forEach(function(surf){
-          if(STANDARDS[surf]){
-            Object.keys(row.standards[surf]).forEach(function(coats){
-              STANDARDS[surf][coats]=row.standards[surf][coats];
-            });
-          }
-        });
-      }
-      // Labour rates
-      if(row.labour){
-        var L=row.labour;
-        if(L.workers&&L.workers.length)workers.splice(0,workers.length,...L.workers);
-        if(L.overheadItems&&L.overheadItems.length)overheadItems.splice(0,overheadItems.length,...L.overheadItems);
-        // Restore workers + overhead UI and input fields after DOM ready
-        setTimeout(function(){
-          try{initLabourRates();}catch(e){}
-          sv('lr-billable',L.billable);
-          sv('lr-buffer',L.buffer);
-          sv('lr-mat-buffer',L.matBuffer);
-          if(L.taxes!==undefined){var et=sel('lr-taxes');if(et)et.checked=(L.taxes==='true'||L.taxes===true||L.taxes==='on');}
-          if(L.discount!==undefined){var ed=sel('lr-discount');if(ed)ed.checked=(L.discount==='true'||L.discount===true||L.discount==='on');}
-          if(L.discountAmt!==undefined){var eda=sel('lr-discount-amt');if(eda)eda.checked=(L.discountAmt==='true'||L.discountAmt===true||L.discountAmt==='on');}
-          sv('lr-disc-amt',L.discAmt);
-          sv('lr-disc-pct',L.discPct);
-          sv('lr-profit-target',L.profitTarget);
-          try{recalcRates();}catch(e){}
-        },500);
-      }
-    }
-    if(cb)cb();
-  }).catch(function(){if(cb)cb();});
+  // Store callback so we can call it when parent sends back the data
+  window._paintSettingsCb=cb;
+  window.parent.postMessage({type:'KP_LOAD_PAINT_SETTINGS'},'*');
+  // Fallback: call cb after 3s even if no response
+  var t=setTimeout(function(){if(window._paintSettingsCb){window._paintSettingsCb();window._paintSettingsCb=null;}},3000);
+  window._paintSettingsTimeout=t;
 }
+// Called when React parent sends back paint settings
+function applyPaintSettings(settingsData){
+  clearTimeout(window._paintSettingsTimeout);
+  var cb=window._paintSettingsCb;
+  window._paintSettingsCb=null;
+  if(!settingsData){if(cb)cb();return;}
+  var d=settingsData.data||{};
+  var L=settingsData.labour||{};
+  var S=settingsData.standards||{};
+  if(d.paints&&d.paints.length)PAINTS.splice(0,PAINTS.length,...d.paints);
+  if(d.ceilPaints&&d.ceilPaints.length)CEILING_PAINTS.splice(0,CEILING_PAINTS.length,...d.ceilPaints);
+  if(d.primers&&d.primers.length)PRIMERS.splice(0,PRIMERS.length,...d.primers);
+  if(d.colours&&d.colours.length)COLOURS.splice(0,COLOURS.length,...d.colours);
+  if(d.supplies&&d.supplies.length)SUPPLIES.splice(0,SUPPLIES.length,...d.supplies);
+  if(S&&Object.keys(S).length){Object.keys(S).forEach(function(surf){if(STANDARDS[surf])Object.assign(STANDARDS[surf],S[surf]);});}
+  if(L.workers&&L.workers.length)workers.splice(0,workers.length,...L.workers);
+  if(L.overheadItems&&L.overheadItems.length)overheadItems.splice(0,overheadItems.length,...L.overheadItems);
+  function sv(id,val){var e=sel(id);if(e&&val!==undefined&&val!==null&&val!=='')e.value=val;}
+  try{initLabourRates();}catch(e){}
+  sv('lr-billable',L.billable);sv('lr-buffer',L.buffer);sv('lr-mat-buffer',L.matBuffer);
+  if(L.taxes!==undefined){var et=sel('lr-taxes');if(et)et.checked=(L.taxes===true||L.taxes==='true');}
+  if(L.discount!==undefined){var ed=sel('lr-discount');if(ed)ed.checked=(L.discount===true||L.discount==='true');}
+  if(L.discountAmt!==undefined){var eda=sel('lr-discount-amt');if(eda)eda.checked=(L.discountAmt===true||L.discountAmt==='true');}
+  sv('lr-disc-amt',L.discAmt);sv('lr-disc-pct',L.discPct);sv('lr-profit-target',L.profitTarget);
+  try{recalcRates();}catch(e){}
+  if(cb)cb();
+}
+// Listen for paint settings sent back from React parent
+window.addEventListener('message',function(ev){
+  if(ev.data&&ev.data.type==='KP_PAINT_SETTINGS_DATA'){
+    applyPaintSettings(ev.data.settings);
+  }
+});
 
 })();
 
@@ -4683,9 +4635,11 @@ function pushToProject(){
   var btn=document.querySelector('[onclick=\\"pushToProject()\\"]');
   if(btn){btn._origHtml=btn._origHtml||btn.innerHTML;btn.disabled=true;btn.textContent='Saving…';}
   window.parent.postMessage({type:'KP_PATCH_DEAL',dealId:projectId,data:{value:amount,quote_date:new Date().toISOString().slice(0,10)}},'*');
-  if(btn){btn.textContent='\u2713 Saved!';setTimeout(function(){btn.innerHTML=btn._origHtml||'Project $';btn.disabled=false;},2000);}
+  if(btn){btn.textContent='\\u2713 Saved!';setTimeout(function(){btn.innerHTML=btn._origHtml||'Project $';btn.disabled=false;},2000);}
 
 }
+
+
 
 
 
@@ -4790,10 +4744,43 @@ function MasterEstimate(){
         if(!dealId||!data)return;
         try{
           await api.saveDeal(data,dealId);
-          // Refresh local DB
           const existing=DB.deals.find(d=>d.id===dealId);
           if(existing) Object.assign(existing,data);
         }catch(e){console.warn('KP_PATCH_DEAL error:',e);}
+      }
+      if(ev.data?.type==='KP_LOAD_PAINT_SETTINGS'){
+        // Fetch paint settings from Supabase and send back to iframe
+        (async()=>{
+          try{
+            const session=_session;
+            if(!session?.access_token||!session?.user?.id)return;
+            const rows=await supaFetch(`/rest/v1/paint_settings?user_id=eq.${session.user.id}&select=data,labour,standards`);
+            const settings=(rows&&rows.length)?rows[0]:null;
+            const win=ref.current?.contentWindow;
+            if(win) win.postMessage({type:'KP_PAINT_SETTINGS_DATA',settings},'*');
+          }catch(e){console.warn('KP_LOAD_PAINT_SETTINGS error:',e);}
+        })();
+      }
+        const {data,labour,standards}=ev.data;
+        if(!data)return;
+        try{
+          const session=_session;
+          if(!session?.access_token)return;
+          const token=session.access_token;
+          const uid=session.user?.id||null;
+          if(!uid)return;
+          const payload={user_id:uid,data,labour,standards,updated_at:new Date().toISOString()};
+          // PATCH first, then POST if no rows updated
+          const r=await supaFetch(`/rest/v1/paint_settings?user_id=eq.${uid}`,'PATCH',payload);
+          // If PATCH updated 0 rows, insert
+          const check=await fetch(`${SUPA_URL}/rest/v1/paint_settings?user_id=eq.${uid}&select=id`,{
+            headers:{apikey:SUPA_KEY,'Authorization':`Bearer ${token}`}
+          });
+          const rows=await check.json();
+          if(!rows||rows.length===0){
+            await supaFetch('/rest/v1/paint_settings','POST',payload);
+          }
+        }catch(e){console.warn('KP_SAVE_PAINT_SETTINGS error:',e);}
       }
     };
     window.addEventListener('message',handler);

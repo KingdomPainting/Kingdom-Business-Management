@@ -4685,6 +4685,7 @@ function pushToProject(){
   if(!projectId){alert('Please select a project on the Cover tab first.');return;}
   if(!_session||!_session.access_token){alert('Session not ready. Please reload the estimates page.');return;}
   var token=_session.access_token;
+  console.log('pushToProject: token prefix',token.slice(0,20),'projectId',projectId);
   var btn=document.querySelector('[onclick=\\"pushToProject()\\"]');
   if(btn){btn._origHtml=btn._origHtml||btn.innerHTML;btn.disabled=true;btn.textContent='Saving…';}
   fetch(SUPA_URL+'/rest/v1/deals?id=eq.'+projectId,{
@@ -4700,6 +4701,7 @@ function pushToProject(){
     alert('Error: '+err.message);
   });
 }
+
 
 
 

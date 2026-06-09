@@ -3270,19 +3270,9 @@ function pushDocsToProject(){
   if(contractHtml)payload.contract_html=contractHtml;
   if(changeOrderHtml)payload.change_order_html=changeOrderHtml;
 
-  fetch(SUPA_URL+'/rest/v1/deals?id=eq.'+projectId,{
-    method:'PATCH',
-    headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json','Prefer':'return=minimal'},
-    body:JSON.stringify(payload)
-  }).then(function(r){
-    if(btn){btn.disabled=false;btn.innerHTML=btn._origHtml||'▙ Push';}
-    if(r.ok){
-      if(btn){btn.textContent='✓ Pushed!';setTimeout(function(){btn.innerHTML=btn._origHtml||'▙ Push';},2500);}
-    }else{alert('Failed to push to project. Check console.');}
-  }).catch(function(err){
-    if(btn){btn.disabled=false;btn.innerHTML=btn._origHtml||'▙ Push';}
-    alert('Error: '+err.message);
-  });
+  // Delegate PATCH to React parent which has a fresh session token
+  window.parent.postMessage({type:'KP_PATCH_DEAL',dealId:projectId,data:payload},'*');
+  if(btn){btn.textContent='\u2713 Pushed!';setTimeout(function(){btn.innerHTML=btn._origHtml||'\u2599 Push';btn.disabled=false;},2500);}
 }
 
 function addRoom(){
@@ -4692,19 +4682,11 @@ function pushToProject(){
   console.log('pushToProject: token prefix',token.slice(0,20),'projectId',projectId);
   var btn=document.querySelector('[onclick=\\"pushToProject()\\"]');
   if(btn){btn._origHtml=btn._origHtml||btn.innerHTML;btn.disabled=true;btn.textContent='Saving…';}
-  fetch(SUPA_URL+'/rest/v1/deals?id=eq.'+projectId,{
-    method:'PATCH',
-    headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json','Prefer':'return=minimal'},
-    body:JSON.stringify({value:amount,quote_date:new Date().toISOString().slice(0,10)})
-  }).then(function(r){
-    if(btn){btn.disabled=false;btn.innerHTML=btn._origHtml||'Project $';}
-    if(r.ok){if(btn){btn.textContent='✓ Saved!';setTimeout(function(){btn.innerHTML=btn._origHtml||'Project $';},2000);}}
-    else{alert('Failed to update project value.');}
-  }).catch(function(err){
-    if(btn){btn.disabled=false;btn.innerHTML=btn._origHtml||'Project $';}
-    alert('Error: '+err.message);
-  });
+  window.parent.postMessage({type:'KP_PATCH_DEAL',dealId:projectId,data:{value:amount,quote_date:new Date().toISOString().slice(0,10)}},'*');
+  if(btn){btn.textContent='\u2713 Saved!';setTimeout(function(){btn.innerHTML=btn._origHtml||'Project $';btn.disabled=false;},2000);}
+
 }
+
 
 
 
@@ -4799,6 +4781,24 @@ function pushToProject(){
 
 function MasterEstimate(){
   const ref=useRef(null);
+
+  // Listen for PATCH requests from the iframe (which can't reliably use its own session)
+  useEffect(()=>{
+    const handler=async(ev)=>{
+      if(ev.data?.type==='KP_PATCH_DEAL'){
+        const {dealId,data}=ev.data;
+        if(!dealId||!data)return;
+        try{
+          await api.saveDeal(data,dealId);
+          // Refresh local DB
+          const existing=DB.deals.find(d=>d.id===dealId);
+          if(existing) Object.assign(existing,data);
+        }catch(e){console.warn('KP_PATCH_DEAL error:',e);}
+      }
+    };
+    window.addEventListener('message',handler);
+    return ()=>window.removeEventListener('message',handler);
+  },[]);
   const onLoad=useCallback(()=>{
     try{
       const win=ref.current?.contentWindow;

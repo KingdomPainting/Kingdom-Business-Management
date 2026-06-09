@@ -2585,6 +2585,10 @@ hr.divider{border:none;border-top:1px solid var(--cream3);margin:16px 0}
 @media print{
   *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
   .topbar,.tabs-wrap,.export-btn,.add-btn,.btn{display:none!important}
+  input,select,textarea{display:none!important}
+  .field{display:none!important}
+  .surf-grid{display:none!important}
+  .page.print-target input,.page.print-target select,.page.print-target textarea{display:block!important}
   body{background:#fff!important;padding:0!important}
   .main{padding:0!important;max-width:100%!important}
   .page{display:none!important}
@@ -5248,6 +5252,8 @@ function Financials({showToast}){
   const totalRevenue=deals.reduce((s,d)=>s+getRow(d).quote,0);
   const totalGP=deals.reduce((s,d)=>s+getRow(d).grossProfit,0);
   const totalProjects=deals.length;
+  const lostDealsF=api.getDeals().filter(d=>d.stage==='Archive'&&(d.labels||[]).includes('Lost'));
+  const totalLostDealsValue=lostDealsF.reduce((s,d)=>s+(parseFloat(d.value)||0),0);
 
   // Monthly data for charts (last 6 months)
   const now=new Date();
@@ -5280,7 +5286,7 @@ function Financials({showToast}){
         {[
           {label:'Total Revenue',value:fmtUSD(totalRevenue),color:'var(--primary)'},
           {label:'Total Profit',value:fmtUSD(totalGP),color:totalGP>=0?'#22c55e':'#ef4444'},
-          {label:'Total Projects',value:totalProjects,color:'var(--fg)'},
+          {label:'Total Lost',value:fmtUSD(totalLostDealsValue),color:'#ef4444'},
         ].map(({label,value,color})=>(
           <Card key={label} style={{padding:'14px 18px'}}>
             <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',marginBottom:4}}>{label}</p>

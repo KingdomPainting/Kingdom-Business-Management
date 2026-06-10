@@ -2909,14 +2909,30 @@ button.tab.active{color:var(--gold2);border-bottom-color:var(--gold2)}
       </table>
     </div>
     <div class="card">
-      <div class="card-title">Ceiling — sqft per hour</div>
+      <div class="card-title">Flat Ceiling — sqft per hour</div>
       <table class="doc-table"><thead><tr><th>Coats</th><th class="right">Sqft/Hr</th></tr></thead>
         <tbody>
-          <tr><td>1 coat</td><td class="right"><input type="number" min="1" value="150" style="width:80px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('ceiling',1,+this.value)"></td></tr>
-          <tr><td>2 coats</td><td class="right"><input type="number" min="1" value="90" style="width:80px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('ceiling',2,+this.value)"></td></tr>
-          <tr><td>Primer &amp; 2 coats</td><td class="right"><input type="number" min="1" value="55" style="width:80px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('ceiling',3,+this.value)"></td></tr>
+          <tr><td>1 coat</td><td class="right"><input type="number" min="1" value="150" style="width:80px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('flatCeiling',1,+this.value)"></td></tr>
+          <tr><td>2 coats</td><td class="right"><input type="number" min="1" value="90" style="width:80px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('flatCeiling',2,+this.value)"></td></tr>
+          <tr><td>Primer &amp; 2 coats</td><td class="right"><input type="number" min="1" value="55" style="width:80px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('flatCeiling',3,+this.value)"></td></tr>
         </tbody>
       </table>
+    </div>
+    <div class="card">
+      <div class="card-title">Stucco Ceiling — sqft per hour</div>
+      <table class="doc-table"><thead><tr><th>Coats</th><th class="right">Sqft/Hr</th></tr></thead>
+        <tbody>
+          <tr><td>1 coat</td><td class="right"><input type="number" min="1" value="80" style="width:80px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('stuccoCeiling',1,+this.value)"></td></tr>
+          <tr><td>2 coats</td><td class="right"><input type="number" min="1" value="50" style="width:80px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('stuccoCeiling',2,+this.value)"></td></tr>
+          <tr><td>Primer &amp; 2 coats</td><td class="right"><input type="number" min="1" value="35" style="width:80px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('stuccoCeiling',3,+this.value)"></td></tr>
+        </tbody>
+      </table>
+      <hr class="divider" style="margin:12px 0 10px">
+      <div class="card-title" style="margin-bottom:8px">Remove Stucco — rate per sqft</div>
+      <div class="field" style="margin:0">
+        <label>$ per sqft</label>
+        <input type="number" min="0" step="0.05" value="0.75" style="width:100px;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="if(+this.value>0){STANDARDS.removeStucco={rate:+this.value};recalcAll();schedulePaintSave();}">
+      </div>
     </div>
     <div class="card">
       <div class="card-title">Trims — linear feet per hour</div>
@@ -2947,6 +2963,8 @@ button.tab.active{color:var(--gold2);border-bottom-color:var(--gold2)}
 <script>// ─── DATA ───────────────────────────────────────
 const STANDARDS={
   walls:{1:200,2:120,3:75},ceiling:{1:150,2:90,3:55},
+  flatCeiling:{1:150,2:90,3:55},stuccoCeiling:{1:80,2:50,3:35},
+  removeStucco:{rate:0.75},
   baseboards:{1:100,2:60,3:40},crown:{1:90,2:55,3:35},
   doorFrames:{1:170,2:102,3:65},windows:{1:100,2:60,3:40},doors:{1:84,2:42,3:21}
 };
@@ -3116,7 +3134,7 @@ function syncClient(){
     if(a1)lines.push(a1);
     if(a2)lines.push(a2);
     if(ph)lines.push(ph);
-    if(em)lines.push('<span style=\"color:#1a6bbf\">'+em+'</span>');
+    if(em)lines.push('<span style=\\"color:#1a6bbf\\">'+em+'</span>');
     cpn.innerHTML=lines.join('<br>');
   }
   ['q-client','inv-client','co-client'].forEach(id=>{const e=sel(id);if(e)e.textContent=name||'—';});
@@ -3180,7 +3198,11 @@ function calcRoomHrs(r){
   let h=0;
   const ws=calcWalls(r),cs=calcCeil(r);
   if(r.walls&&ws)h+=ws/STANDARDS.walls[r.wallCoats];
-  if(r.ceiling&&cs)h+=cs/STANDARDS.ceiling[r.ceilCoats];
+  if(r.ceiling&&cs){
+    var cStd=(r.ceilType==='stucco'?STANDARDS.stuccoCeiling:STANDARDS.flatCeiling)||STANDARDS.ceiling;
+    h+=cs/cStd[r.ceilCoats];
+    if(r.removeStucco)h+=cs/((STANDARDS.removeStucco.rate||0.75));
+  }
   if(r.baseboards&&r.baseLF)h+=r.baseLF/STANDARDS.baseboards[r.baseCoats];
   if(r.crown&&r.crownLF)h+=r.crownLF/STANDARDS.crown[r.crownCoats];
   if(r.doorFrames&&r.dfLF)h+=r.dfLF/STANDARDS.doorFrames[r.dfCoats];
@@ -3298,6 +3320,7 @@ function addRoom(){
     doorFrames:false,dfCoats:2,dfLF:0,windows:false,winCoats:2,winLF:0,winDims:[{l:0,w:0}],
     doors:false,doorCoats:2,doorCount:0,
     prep:{furniture:false,plastic:false,outlets:false,drywall:false,caulking:false,cleanup:false,custom:''},
+    ceilType:'flat',removeStucco:false,
     wallPaint:'',wallSheen:'',wallColour:'',ceilPaint:'',ceilSheen:'',ceilColour:'',
     trimPaint:'',trimSheen:'',trimColour:'',notes:'',supplies:[]
   });
@@ -3425,6 +3448,20 @@ function renderRoomBody(r){
     +'<div class="card-title">Surfaces</div>'
     +sfRow('walls',r.walls,'wallCoats','Walls')
     +sfRow('ceiling',r.ceiling,'ceilCoats','Ceiling')
++(r.ceiling?(
+  '<div style="background:var(--cream2);border-radius:var(--r);padding:10px 12px;margin:4px 0 8px 24px">'
+  +'<div style="font-size:11px;font-weight:600;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Ceiling Type</div>'
+  +'<div style="display:flex;gap:16px;margin-bottom:8px">'
+  +'<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">'
+  +'<input type="radio" name="ctype_'+r.id+'" value="flat" '+((!r.ceilType||r.ceilType==="flat")?'checked':'')+' onchange="upd('+r.id+',\\'ceilType\\',\\'flat\\')"> Flat / Drywall</label>'
+  +'<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">'
+  +'<input type="radio" name="ctype_'+r.id+'" value="stucco" '+(r.ceilType==="stucco"?'checked':'')+' onchange="upd('+r.id+',\\'ceilType\\',\\'stucco\\')"> Stucco</label>'
+  +'</div>'
+  +'<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;background:var(--cream);padding:6px 10px;border-radius:var(--r)">'
+  +'<input type="checkbox" '+(r.removeStucco?'checked':'')+' onchange="upd('+r.id+',\\'removeStucco\\',this.checked)" style="accent-color:var(--gold)">'
+  +' Remove stucco ($'+((STANDARDS.removeStucco.rate||0.75))+'/sqft)</label>'
+  +'</div>'
+):'')
     +trimRow('baseboards',r.baseboards,'baseCoats','Baseboards')
     +trimRow('crown',r.crown,'crownCoats','Crown Moulding')
     +'<div class="surf-grid"><label class="surf-label"><input type="checkbox" '+(r.doors?'checked':'')+' onchange="upd('+r.id+',\\'doors\\',this.checked)"> Doors</label>'
@@ -4739,6 +4776,7 @@ function pushToProject(){
 
 
 
+
 </script>
 </body>
 </html>`;
@@ -4771,7 +4809,6 @@ function MasterEstimate(){
           }catch(e){console.warn('KP_LOAD_PAINT_SETTINGS error:',e);}
         })();
       }
-      if(ev.data?.type==='KP_SAVE_PAINT_SETTINGS'){
         const {data,labour,standards}=ev.data;
         if(!data)return;
         try{

@@ -4771,6 +4771,7 @@ function MasterEstimate(){
           }catch(e){console.warn('KP_LOAD_PAINT_SETTINGS error:',e);}
         })();
       }
+      if(ev.data?.type==='KP_SAVE_PAINT_SETTINGS'){
         const {data,labour,standards}=ev.data;
         if(!data)return;
         try{

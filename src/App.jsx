@@ -3730,16 +3730,19 @@ function renderColoursList(){
 var _piSaveTimer=null;
 function schedulePaintSave(){clearTimeout(_piSaveTimer);_piSaveTimer=setTimeout(upsertPaintSettings,1200);}
 function initPaintInputs(){
-  // Paints: special 2-price-column render (gallon + pail)
+  // Paints: 2-price-column render with drag sort
   (function(){
     var c=sel('pi-paints-container');if(!c)return;
     var h='<table style="width:100%;border-collapse:collapse"><thead><tr>'
+      +'<th style="width:24px"></th>'
       +'<th style="text-align:left;font-size:11px;color:var(--ink3);padding:4px 8px;font-weight:600">Product</th>'
       +'<th style="text-align:right;font-size:11px;color:var(--ink3);padding:4px 8px;font-weight:600">Gallon $</th>'
       +'<th style="text-align:right;font-size:11px;color:var(--ink3);padding:4px 8px;font-weight:600">Pail $</th>'
       +'<th style="width:28px"></th></tr></thead><tbody>';
     PAINTS.forEach(function(item,i){
       h+='<tr style="border-bottom:1px solid var(--cream2)">'
+        +'<td style="padding:4px 2px;width:24px;cursor:grab" draggable="true" class="pa-drag" data-idx="'+i+'">'
+        +'<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="3" y1="5" x2="13" y2="5"/><line x1="3" y1="8" x2="13" y2="8"/><line x1="3" y1="11" x2="13" y2="11"/></svg></td>'
         +'<td style="padding:4px 6px"><input type="text" value="'+(item.n||'')+'" oninput="PAINTS['+i+'].n=this.value;renderRooms();schedulePaintSave()" style="font-size:12px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);color:var(--ink);width:100%"></td>'
         +'<td style="padding:4px 6px;width:80px"><input type="number" min="0" step="0.01" value="'+(item.g||0)+'" oninput="PAINTS['+i+'].g=+this.value;schedulePaintSave()" style="font-size:12px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);text-align:right;width:100%"></td>'
         +'<td style="padding:4px 6px;width:80px"><input type="number" min="0" step="0.01" value="'+(item.p||0)+'" oninput="PAINTS['+i+'].p=+this.value;schedulePaintSave()" style="font-size:12px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);text-align:right;width:100%"></td>'
@@ -3749,6 +3752,15 @@ function initPaintInputs(){
     h+='</tbody></table>'
       +'<button onclick="PAINTS.push({n:\\'\\',g:0,p:0});initPaintInputs();schedulePaintSave()" style="margin-top:8px;width:100%;padding:7px;border:1px dashed var(--ink4);border-radius:var(--r);background:transparent;color:var(--ink3);font-size:12px;cursor:pointer;font-family:var(--sans)">+ Add paint</button>';
     c.innerHTML=h;
+    // Drag-to-reorder
+    var dragIdx=null;
+    c.querySelectorAll('.pa-drag').forEach(function(handle){
+      handle.addEventListener('dragstart',function(ev){dragIdx=parseInt(handle.dataset.idx);handle.parentElement.style.opacity='0.4';ev.dataTransfer.effectAllowed='move';});
+      handle.addEventListener('dragend',function(){handle.parentElement.style.opacity='';});
+      handle.parentElement.addEventListener('dragover',function(ev){ev.preventDefault();handle.parentElement.style.borderTop='2px solid var(--gold)';});
+      handle.parentElement.addEventListener('dragleave',function(){handle.parentElement.style.borderTop='';});
+      handle.parentElement.addEventListener('drop',function(ev){ev.preventDefault();handle.parentElement.style.borderTop='';var tgt=parseInt(handle.parentElement.querySelector('.pa-drag').dataset.idx);if(dragIdx===null||dragIdx===tgt)return;var moved=PAINTS.splice(dragIdx,1)[0];PAINTS.splice(tgt,0,moved);initPaintInputs();schedulePaintSave();});
+    });
   }());
   // Ceiling Paints: same 2-price-column render with drag
   (function(){
@@ -4685,6 +4697,7 @@ function pushToProject(){
   if(btn){btn.textContent='\\u2713 Saved!';setTimeout(function(){btn.innerHTML=btn._origHtml||'Project $';btn.disabled=false;},2000);}
 
 }
+
 
 
 

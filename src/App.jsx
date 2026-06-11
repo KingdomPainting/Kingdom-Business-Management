@@ -1608,10 +1608,10 @@ function Dashboard({toast}){
           <StatCard label='Profit Margin' value={profitMargin.toFixed(1)+'%'} color={profitMargin>=0?'#22c55e':'#ef4444'}/>
         </div>
 
-        {/* Row 5 — Conversion Rate + Profit Margin */}
+        {/* Row 5 — Conversion Rate + Avg Project Value */}
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,flexShrink:0}}>
           <StatCard label='Conversion Rate' value={conversionRate.toFixed(1)+'%'} color='var(--primary)'/>
-          <StatCard label='Paid Off Projects' value={`${paidOffDeals.length} / ${allPipelineDeals.length}`} color='#22c55e'/>
+          <StatCard label='Avg Project Value' value={fmtUSD(allPipelineDeals.length>0?totalRevenue/allPipelineDeals.length:0)} color='var(--primary)'/>
         </div>
 
       </div>
@@ -5319,6 +5319,9 @@ function Financials({showToast}){
   // Profit Margin: (gross profit / revenue) * 100
   const profitMarginF = totalRevenue>0 ? (totalGP/totalRevenue)*100 : 0;
 
+  // Avg Project Value: revenue / total projects
+  const avgProjectValueF = totalProjects>0 ? totalRevenue/totalProjects : 0;
+
   // Conversion Rate: deals with $0 outstanding / all pipeline deals
   const allDeals = api.getDeals();
   const invoiceDealsF = allDeals.filter(d=>['Scheduled','Completed','Archive'].includes(d.stage)&&!(d.labels||[]).includes('Lost'));
@@ -5411,13 +5414,13 @@ function Financials({showToast}){
         </Card>
       </div>
 
-      {/* ── Row 2: Conversion Rate + Profit Margin ── */}
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
+      {/* ── Row 2: Conversion Rate + Profit Margin + Avg Project Value ── */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:14}}>
         <Card style={{padding:'20px 22px',display:'flex',flexDirection:'column',gap:6}}>
           <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)'}}>Conversion Rate</p>
           <p style={{fontSize:42,fontWeight:800,color:'var(--primary)',lineHeight:1}}>{conversionRateF.toFixed(1)}<span style={{fontSize:22,fontWeight:600}}>%</span></p>
-          <p style={{fontSize:11,color:'var(--muted-fg)',marginTop:4}}>{paidOffDealsF.length} paid-off projects out of {allDeals.length} total in pipeline</p>
-          <p style={{fontSize:10,color:'var(--muted-fg)',opacity:0.7}}>Clients with $0 outstanding ÷ all pipeline deals × 100</p>
+          <p style={{fontSize:11,color:'var(--muted-fg)',marginTop:4}}>{paidOffDealsF.length} paid-off out of {allDeals.length} total projects</p>
+          <p style={{fontSize:10,color:'var(--muted-fg)',opacity:0.7}}>Paid-off projects ÷ all pipeline deals × 100</p>
           <div style={{marginTop:8,height:6,background:'var(--border)',borderRadius:9,overflow:'hidden'}}>
             <div style={{height:'100%',background:'var(--primary)',borderRadius:9,width:`${Math.min(100,conversionRateF)}%`,transition:'width .5s'}}/>
           </div>
@@ -5430,6 +5433,12 @@ function Financials({showToast}){
           <div style={{marginTop:8,height:6,background:'var(--border)',borderRadius:9,overflow:'hidden'}}>
             <div style={{height:'100%',background:profitMarginF>=0?'#22c55e':'#ef4444',borderRadius:9,width:`${Math.min(100,Math.max(0,profitMarginF))}%`,transition:'width .5s'}}/>
           </div>
+        </Card>
+        <Card style={{padding:'20px 22px',display:'flex',flexDirection:'column',gap:6}}>
+          <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)'}}>Avg Project Value</p>
+          <p style={{fontSize:36,fontWeight:800,color:'var(--primary)',lineHeight:1}}>{fmtUSD(avgProjectValueF)}</p>
+          <p style={{fontSize:11,color:'var(--muted-fg)',marginTop:4}}>{fmtUSD(totalRevenue)} across {totalProjects} project{totalProjects!==1?'s':''}</p>
+          <p style={{fontSize:10,color:'var(--muted-fg)',opacity:0.7}}>Total Revenue ÷ Total Projects</p>
         </Card>
       </div>
 

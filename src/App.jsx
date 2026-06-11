@@ -1505,6 +1505,14 @@ function Dashboard({toast}){
   const totalLost = lostDeals.length;
   const totalLostValue = lostDeals.reduce((s,d)=>s+(parseFloat(d.value)||0),0);
 
+  // Conversion Rate: clients with $0 outstanding / all pipeline deals (including lost)
+  const paidOffDeals = invoiceDeals.filter(d=>(parseFloat(d.value)||0)>0 && Math.max(0,(parseFloat(d.value)||0)-(parseFloat(d.invoicePaid)||0))===0);
+  const allPipelineDeals = deals; // includes lost
+  const conversionRate = allPipelineDeals.length>0 ? (paidOffDeals.length/allPipelineDeals.length)*100 : 0;
+
+  // Profit Margin: (gross profit / revenue) * 100
+  const profitMargin = totalRevenue>0 ? (totalProfit/totalRevenue)*100 : 0;
+
   const StatCard=({label,value,color='var(--primary)'})=>(
     <Card style={{padding:'14px 18px'}}>
       <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',marginBottom:4}}>{label}</p>
@@ -1597,7 +1605,13 @@ function Dashboard({toast}){
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,flexShrink:0}}>
           <StatCard label='Total Revenue' value={fmtUSD(totalRevenue)}/>
           <StatCard label='Total Profit' value={fmtUSD(totalProfit)} color={totalProfit>=0?'#22c55e':'#ef4444'}/>
-          <StatCard label='Total Lost' value={fmtUSD(totalLostValue)} color='#ef4444'/>
+          <StatCard label='Profit Margin' value={profitMargin.toFixed(1)+'%'} color={profitMargin>=0?'#22c55e':'#ef4444'}/>
+        </div>
+
+        {/* Row 5 — Conversion Rate + Profit Margin */}
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,flexShrink:0}}>
+          <StatCard label='Conversion Rate' value={conversionRate.toFixed(1)+'%'} color='var(--primary)'/>
+          <StatCard label='Paid Off Projects' value={`${paidOffDeals.length} / ${allPipelineDeals.length}`} color='#22c55e'/>
         </div>
 
       </div>
@@ -5300,8 +5314,15 @@ function Financials({showToast}){
   const totalRevenue=deals.reduce((s,d)=>s+getRow(d).quote,0);
   const totalGP=deals.reduce((s,d)=>s+getRow(d).grossProfit,0);
   const totalProjects=deals.length;
-  const lostDealsF=api.getDeals().filter(d=>d.stage==='Archive'&&(d.labels||[]).includes('Lost'));
-  const totalLostDealsValue=lostDealsF.reduce((s,d)=>s+(parseFloat(d.value)||0),0);
+
+  // Profit Margin: (gross profit / revenue) * 100
+  const profitMarginF = totalRevenue>0 ? (totalGP/totalRevenue)*100 : 0;
+
+  // Conversion Rate: deals with $0 outstanding / all pipeline deals
+  const allDeals = api.getDeals();
+  const invoiceDealsF = allDeals.filter(d=>['Scheduled','Completed','Archive'].includes(d.stage)&&!(d.labels||[]).includes('Lost'));
+  const paidOffDealsF = invoiceDealsF.filter(d=>(parseFloat(d.value)||0)>0 && Math.max(0,(parseFloat(d.value)||0)-(parseFloat(d.invoicePaid)||0))===0);
+  const conversionRateF = allDeals.length>0 ? (paidOffDealsF.length/allDeals.length)*100 : 0;
 
   // Monthly data for charts (last 6 months)
   const now=new Date();
@@ -5334,7 +5355,7 @@ function Financials({showToast}){
         {[
           {label:'Total Revenue',value:fmtUSD(totalRevenue),color:'var(--primary)'},
           {label:'Total Profit',value:fmtUSD(totalGP),color:totalGP>=0?'#22c55e':'#ef4444'},
-          {label:'Total Lost',value:fmtUSD(totalLostDealsValue),color:'#ef4444'},
+          {label:'Profit Margin',value:profitMarginF.toFixed(1)+'%',color:profitMarginF>=0?'#22c55e':'#ef4444'},
         ].map(({label,value,color})=>(
           <Card key={label} style={{padding:'14px 18px'}}>
             <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',marginBottom:4}}>{label}</p>
@@ -5389,48 +5410,24 @@ function Financials({showToast}){
         </Card>
       </div>
 
-      {/* ── Row 2: Leads by Source / Month ── */}
+      {/* ── Row 2: Conversion Rate + Profit Margin ── */}
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
-        <Card style={{display:'flex',flexDirection:'column'}}>
-          <div style={{padding:'10px 14px 4px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-            <span style={{fontWeight:600,fontSize:12}}>Leads by Source / Month</span>
-            <span style={{fontSize:10,color:'var(--muted-fg)'}}>{new Date().toLocaleString('en',{month:'long',year:'numeric'})}</span>
-          </div>
-          <div style={{padding:'0 14px 10px'}}>
-            <ResponsiveContainer width='100%' height={160}>
-              <BarChart data={LEAD_SOURCES.map(source=>({
-                source:source.slice(0,8),
-                count:deals.filter(d=>{
-                  const dt=dealDate(d);
-                  return d.leadSource===source && dt.getTime()!==0 && dt.getMonth()===now.getMonth() && dt.getFullYear()===now.getFullYear();
-                }).length
-              }))} margin={{top:4,right:4,left:0,bottom:4}}>
-                <CartesianGrid strokeDasharray='3 3' stroke='var(--border)'/>
-                <XAxis dataKey='source' tick={{fontSize:8}}/>
-                <YAxis tick={{fontSize:9}} allowDecimals={false}/>
-                <Tooltip formatter={v=>[v,'Leads']} contentStyle={{background:'var(--card)',border:'1px solid var(--border)',borderRadius:8,fontSize:11}}/>
-                <Bar dataKey='count' fill='var(--primary)' radius={[3,3,0,0]}/>
-              </BarChart>
-            </ResponsiveContainer>
+        <Card style={{padding:'20px 22px',display:'flex',flexDirection:'column',gap:6}}>
+          <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)'}}>Conversion Rate</p>
+          <p style={{fontSize:42,fontWeight:800,color:'var(--primary)',lineHeight:1}}>{conversionRateF.toFixed(1)}<span style={{fontSize:22,fontWeight:600}}>%</span></p>
+          <p style={{fontSize:11,color:'var(--muted-fg)',marginTop:4}}>{paidOffDealsF.length} paid-off projects out of {allDeals.length} total in pipeline</p>
+          <p style={{fontSize:10,color:'var(--muted-fg)',opacity:0.7}}>Clients with $0 outstanding ÷ all pipeline deals × 100</p>
+          <div style={{marginTop:8,height:6,background:'var(--border)',borderRadius:9,overflow:'hidden'}}>
+            <div style={{height:'100%',background:'var(--primary)',borderRadius:9,width:`${Math.min(100,conversionRateF)}%`,transition:'width .5s'}}/>
           </div>
         </Card>
-        <Card style={{display:'flex',flexDirection:'column'}}>
-          <div style={{padding:'10px 14px 6px',fontWeight:600,fontSize:12}}>Leads by Source</div>
-          <div style={{padding:'0 14px 14px',display:'flex',flexDirection:'column',gap:8,flex:1,justifyContent:'center'}}>
-            {LEAD_SOURCES.map(source=>{
-              const count=deals.filter(d=>d.leadSource===source).length;
-              const total=deals.filter(d=>d.leadSource).length||1;
-              return (
-                <div key={source} style={{display:'flex',alignItems:'center',gap:8}}>
-                  <span className={cn('text-xs font-medium px-1.5 rounded-full',LEAD_COLORS[source]||'bg-gray-100 text-gray-600')} style={{minWidth:68,textAlign:'center',fontSize:9}}>{source}</span>
-                  <div style={{flex:1,height:5,background:'var(--muted)',borderRadius:9,overflow:'hidden'}}>
-                    <div style={{height:'100%',background:'var(--primary)',borderRadius:9,width:`${(count/total)*100}%`,transition:'width .3s'}}/>
-                  </div>
-                  <span style={{fontSize:11,fontWeight:600,width:18,textAlign:'right'}}>{count}</span>
-                </div>
-              );
-            })}
-            {deals.filter(d=>d.leadSource).length===0&&<p style={{fontSize:11,color:'var(--muted-fg)'}}>No leads yet.</p>}
+        <Card style={{padding:'20px 22px',display:'flex',flexDirection:'column',gap:6}}>
+          <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)'}}>Profit Margin</p>
+          <p style={{fontSize:42,fontWeight:800,color:profitMarginF>=0?'#22c55e':'#ef4444',lineHeight:1}}>{profitMarginF.toFixed(1)}<span style={{fontSize:22,fontWeight:600}}>%</span></p>
+          <p style={{fontSize:11,color:'var(--muted-fg)',marginTop:4}}>{fmtUSD(totalGP)} gross profit on {fmtUSD(totalRevenue)} revenue</p>
+          <p style={{fontSize:10,color:'var(--muted-fg)',opacity:0.7}}>Gross Profit ÷ Revenue × 100</p>
+          <div style={{marginTop:8,height:6,background:'var(--border)',borderRadius:9,overflow:'hidden'}}>
+            <div style={{height:'100%',background:profitMarginF>=0?'#22c55e':'#ef4444',borderRadius:9,width:`${Math.min(100,Math.max(0,profitMarginF))}%`,transition:'width .5s'}}/>
           </div>
         </Card>
       </div>

@@ -1614,6 +1614,31 @@ function Dashboard({toast}){
           <StatCard label='Avg Project Value' value={fmtUSD(allPipelineDeals.length>0?totalRevenue/allPipelineDeals.length:0)} color='var(--primary)'/>
         </div>
 
+        {/* Row 6 — Leads by Source */}
+        <div style={{background:'var(--card)',border:'1px solid var(--border)',borderRadius:10,padding:'14px 16px',flexShrink:0}}>
+          <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',marginBottom:12}}>Leads by Source</p>
+          <div style={{display:'flex',flexDirection:'column',gap:8}}>
+            {LEAD_SOURCES.map(source=>{
+              const count=deals.filter(d=>d.leadSource===source).length;
+              const total=deals.filter(d=>d.leadSource).length||1;
+              const pct=Math.round((count/total)*100);
+              return (
+                <div key={source} style={{display:'flex',alignItems:'center',gap:8}}>
+                  <span style={{fontSize:11,fontWeight:600,width:76,flexShrink:0,color:'var(--fg)'}}>{source}</span>
+                  <div style={{flex:1,height:8,background:'var(--muted)',borderRadius:9,overflow:'hidden'}}>
+                    <div style={{height:'100%',background:'var(--primary)',borderRadius:9,width:`${pct}%`,transition:'width .4s'}}/>
+                  </div>
+                  <span style={{fontSize:11,fontWeight:700,color:'var(--primary)',width:28,textAlign:'right'}}>{count}</span>
+                  <span style={{fontSize:10,color:'var(--muted-fg)',width:32,textAlign:'right'}}>{pct}%</span>
+                </div>
+              );
+            })}
+            {deals.filter(d=>d.leadSource).length===0&&(
+              <p style={{fontSize:12,color:'var(--muted-fg)'}}>No lead sources assigned yet.</p>
+            )}
+          </div>
+        </div>
+
       </div>
     </div>
   );

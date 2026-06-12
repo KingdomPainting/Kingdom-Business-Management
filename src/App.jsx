@@ -632,7 +632,7 @@ function ContactModal({open,onClose,contact,clients,onSaved,allDeals,allContacts
         </div>
       )}
 
-      <div style={{marginBottom:12}}><Label>Notes</Label><textarea value={f.notes} onChange={e=>setF(x=>({...x,notes:e.target.value}))} rows={3} placeholder='Notes...' style={{...{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%',outline:'none',boxSizing:'border-box'},resize:'vertical'}}/></div>
+      <div style={{marginBottom:12}}><Label>Notes</Label><textarea value={f.notes} onChange={e=>setF(x=>({...x,notes:e.target.value}))} rows={3} placeholder='Notes...' style={{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%',outline:'none',boxSizing:'border-box',resize:'vertical'}}/></div>
       <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
         <button onClick={onClose} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 14px',border:'1px solid var(--border)',borderRadius:6,background:'var(--card)',color:'var(--fg)',fontSize:12,fontWeight:500,cursor:'pointer'}}>Cancel</button>
         <button onClick={save} disabled={!f.fullName} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 14px',border:'1px solid var(--primary)',borderRadius:6,background:'var(--primary)',color:'#fff',fontSize:12,fontWeight:600,cursor:!f.fullName?'not-allowed':'pointer',opacity:!f.fullName?0.6:1}}>Save Contact</button>
@@ -1398,7 +1398,7 @@ function CalendarWeekWidget(){
         end:ev.end?.dateTime||ev.end?.date||'',
         allDay:!ev.start?.dateTime,
         location:ev.location||null,
-      }));
+      })));
     }catch(e){
       if(e.message==='NO_CLIENT_ID'||e.message==='popup_closed_by_user'||e.message==='access_denied'){
         setNeedsAuth(true);
@@ -1994,7 +1994,7 @@ function Contacts({showToast}){
       </div>
       <div style={{position:'relative',marginBottom:16}}>
         <Search size={14} style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',color:'var(--muted-fg)'}}/>
-        <input placeholder='Search contacts...' value={search} onChange={e=>setSearch(e.target.value)} style={{...{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%',outline:'none',boxSizing:'border-box'},paddingLeft:32}}/>
+        <input placeholder='Search contacts...' value={search} onChange={e=>setSearch(e.target.value)} style={{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%',outline:'none',boxSizing:'border-box',paddingLeft:32}}/>
       </div>
       <div style={{display:'flex',flexDirection:'column',gap:10}}>
         {contacts.length===0&&<div style={{textAlign:'center',padding:'48px 0',fontSize:13,color:'var(--muted-fg)',border:'2px dashed var(--border)',borderRadius:12}}>No contacts yet.</div>}

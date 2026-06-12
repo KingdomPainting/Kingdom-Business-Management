@@ -558,23 +558,23 @@ function ContactModal({open,onClose,contact,clients,onSaved,allDeals,allContacts
 
   return (
     <Modal open={open} onClose={onClose} title={contact?'Edit Contact':'New Contact'}>
-      <div style={{marginBottom:12}}><Label>Full Name</Label><Input value={f.fullName} onChange={e=>setF(x=>({...x,fullName:e.target.value}))} placeholder='Full name'/></div>
-      <div style={{marginBottom:12}}><Label>Address</Label><Input value={f.address} onChange={e=>setF(x=>({...x,address:e.target.value}))} placeholder='123 Main St'/></div>
+      <div style={{marginBottom:12}}><Label>Full Name</Label><input value={f.fullName} onChange={e=>setF(x=>{...x,fullName:e.target.value})} placeholder='Full name' style={{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%',outline:'none',boxSizing:'border-box'}}/></div>
+      <div style={{marginBottom:12}}><Label>Address</Label><input value={f.address} onChange={e=>setF(x=>{...x,address:e.target.value})} placeholder='123 Main St' style={{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%',outline:'none',boxSizing:'border-box'}}/></div>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
-        <div><Label>Phone</Label><Input value={f.phone} onChange={e=>{
+        <div><Label>Phone</Label><input value={f.phone} onChange={e=>{
           const digits=e.target.value.replace(/\D/g,'').slice(0,10);
           let fmt='';
           if(digits.length===0) fmt='';
           else if(digits.length<=3) fmt=`(${digits}`;
           else if(digits.length<=6) fmt=`(${digits.slice(0,3)}) ${digits.slice(3)}`;
           else fmt=`(${digits.slice(0,3)}) ${digits.slice(3,6)}-${digits.slice(6)}`;
-          setF(x=>({...x,phone:fmt}));
-        }} placeholder='(416) 555-0000' maxLength={14}/></div>
-        <div><Label>Email</Label><Input type='email' value={f.email} onChange={e=>setF(x=>({...x,email:e.target.value}))} placeholder='email@company.com'/></div>
+          setF(x=>{...x,phone:fmt});
+        }} placeholder='(416) 555-0000' maxLength={14} style={{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%',outline:'none',boxSizing:'border-box'}}/></div>
+        <div><Label>Email</Label><input type='email' value={f.email} onChange={e=>setF(x=>{...x,email:e.target.value})} placeholder='email@company.com' style={{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%',outline:'none',boxSizing:'border-box'}}/></div>
       </div>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
-        <div><Label>Job Title</Label><Input value={f.jobTitle} onChange={e=>setF(x=>({...x,jobTitle:e.target.value}))} placeholder='Job title'/></div>
-        <div><Label>Company</Label><Input value={f.client} onChange={e=>setF(x=>({...x,client:e.target.value}))} placeholder='Company name'/></div>
+        <div><Label>Job Title</Label><input value={f.jobTitle} onChange={e=>setF(x=>{...x,jobTitle:e.target.value})} placeholder='Job title' style={{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%',outline:'none',boxSizing:'border-box'}}/></div>
+        <div><Label>Company</Label><input value={f.client} onChange={e=>setF(x=>{...x,client:e.target.value})} placeholder='Company name' style={{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%',outline:'none',boxSizing:'border-box'}}/></div>
       </div>
 
       {/* All Projects */}
@@ -632,10 +632,10 @@ function ContactModal({open,onClose,contact,clients,onSaved,allDeals,allContacts
         </div>
       )}
 
-      <div style={{marginBottom:12}}><Label>Notes</Label><Textarea value={f.notes} onChange={e=>setF(x=>({...x,notes:e.target.value}))} rows={3}/></div>
+      <div style={{marginBottom:12}}><Label>Notes</Label><textarea value={f.notes} onChange={e=>setF(x=>{...x,notes:e.target.value})} rows={3} placeholder='Notes...' style={{...{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%',outline:'none',boxSizing:'border-box'},resize:'vertical'}}/></div>
       <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
-        <Btn variant='outline' onClick={onClose}>Cancel</Btn>
-        <Btn onClick={save} disabled={!f.fullName}>Save Contact</Btn>
+        <button onClick={onClose} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 14px',border:'1px solid var(--border)',borderRadius:6,background:'var(--card)',color:'var(--fg)',fontSize:12,fontWeight:500,cursor:'pointer'}}>Cancel</button>
+        <button onClick={save} disabled={!f.fullName} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 14px',border:'1px solid var(--primary)',borderRadius:6,background:'var(--primary)',color:'#fff',fontSize:12,fontWeight:600,cursor:!f.fullName?'not-allowed':'pointer',opacity:!f.fullName?0.6:1}}>Save Contact</button>
       </div>
     </Modal>
   );
@@ -1990,11 +1990,11 @@ function Contacts({showToast}){
     <div style={{padding:24,overflowY:'auto',height:'100%'}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
         <div><h1 style={{fontSize:22,fontWeight:700}}>Contacts</h1><p style={{fontSize:13,color:'var(--muted-fg)',marginTop:2}}>{contacts.length} contacts</p></div>
-        <Btn onClick={()=>{setEdit(null);setModal(true);}}><Plus size={14}/>Add Contact</Btn>
+        <button onClick={()=>{setEdit(null);setModal(true);}} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',border:'1px solid var(--border)',borderRadius:6,background:'var(--card)',color:'var(--fg)',fontSize:12,fontWeight:500,cursor:'pointer',transition:'all 0.15s'}}><Plus size={13}/>Add Contact</button>
       </div>
       <div style={{position:'relative',marginBottom:16}}>
         <Search size={14} style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',color:'var(--muted-fg)'}}/>
-        <Input style={{paddingLeft:32}} placeholder='Search contacts...' value={search} onChange={e=>setSearch(e.target.value)}/>
+        <input placeholder='Search contacts...' value={search} onChange={e=>setSearch(e.target.value)} style={{...{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%',outline:'none',boxSizing:'border-box'},paddingLeft:32}}/>
       </div>
       <div style={{display:'flex',flexDirection:'column',gap:10}}>
         {contacts.length===0&&<div style={{textAlign:'center',padding:'48px 0',fontSize:13,color:'var(--muted-fg)',border:'2px dashed var(--border)',borderRadius:12}}>No contacts yet.</div>}
@@ -2020,16 +2020,14 @@ function Contacts({showToast}){
                         <p style={{fontSize:14,fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{contact.fullName}</p>
                         {hasRepeats&&(
                           <span title={`${repeats.length} repeat project${repeats.length!==1?'s':''}`}
-                            className="bg-blue-100 text-blue-700"
-                            style={{display:'inline-flex',alignItems:'center',gap:3,fontSize:10,fontWeight:700,padding:'2px 7px',borderRadius:20,letterSpacing:'0.04em',flexShrink:0}}>
+                            style={{display:'inline-flex',alignItems:'center',gap:3,fontSize:10,fontWeight:700,padding:'2px 8px',borderRadius:20,letterSpacing:'0.04em',flexShrink:0,background:'#dbeafe',color:'#1d4ed8'}}>
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
                             Repeat ×{repeats.length}
                           </span>
                         )}
                         {hasReferrals&&(
                           <span title={referrals.map(d=>{const c=contacts.find(x=>x.id===(d.contact||d.contactId));return c?.fullName||d.contactFreeText||'—';}).join(', ')}
-                            className="bg-purple-100 text-purple-700"
-                            style={{display:'inline-flex',alignItems:'center',gap:3,fontSize:10,fontWeight:700,padding:'2px 7px',borderRadius:20,letterSpacing:'0.04em',flexShrink:0}}>
+                            style={{display:'inline-flex',alignItems:'center',gap:3,fontSize:10,fontWeight:700,padding:'2px 8px',borderRadius:20,letterSpacing:'0.04em',flexShrink:0,background:'#ede9fe',color:'#7c3aed'}}>
                             <Star size={9} fill="currentColor"/>
                             Referral ×{referrals.length}
                           </span>

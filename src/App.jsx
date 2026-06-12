@@ -928,6 +928,12 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead'}){
       scheduleDays:finalDays,address:f.address||null,notes:f.notes||null,
       rooms:f.rooms||undefined,progress:f.progress||0,
       quote_date:f.quote_date||undefined,
+      quote_html:f.quote_html||null,
+      contract_html:f.contract_html||null,
+      change_order_html:f.change_order_html||null,
+      invoice_html:f.invoice_html||null,
+      contract_signed_html:f.contract_signed_html||null,
+      contract_signed_at:f.contract_signed_at||null,
       projectCalEventId:projectCalEventId||undefined,
     },deal?.id);
     setSyncing(false);
@@ -1051,7 +1057,8 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead'}){
                 <span style={{fontSize:12,fontWeight:600,color:'var(--primary)'}}>{d.icon} {d.label}</span>
                 <button onClick={async()=>{
                   if(!window.confirm(`Delete ${d.label}?`))return;
-                  setF(x=>({...x,[d.key]:''}));
+                  // Set to null immediately so UI hides it and save payload sends null
+                  setF(x=>({...x,[d.key]:null}));
                   await api.saveDeal({[d.key]:null},f.id);
                   DB.deals=DB.deals.map(x=>x.id===f.id?{...x,[d.key]:null}:x);
                 }} style={{fontSize:11,padding:'2px 8px',borderRadius:5,border:'1px solid var(--border)',background:'var(--card)',color:'var(--muted-fg)',cursor:'pointer',fontWeight:500}}>

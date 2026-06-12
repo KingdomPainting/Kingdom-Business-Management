@@ -558,8 +558,8 @@ function ContactModal({open,onClose,contact,clients,onSaved,allDeals,allContacts
 
   return (
     <Modal open={open} onClose={onClose} title={contact?'Edit Contact':'New Contact'}>
-      <div style={{marginBottom:12}}><Label>Full Name</Label><input value={f.fullName} onChange={e=>setF(x=>{...x,fullName:e.target.value})} placeholder='Full name' style={{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%',outline:'none',boxSizing:'border-box'}}/></div>
-      <div style={{marginBottom:12}}><Label>Address</Label><input value={f.address} onChange={e=>setF(x=>{...x,address:e.target.value})} placeholder='123 Main St' style={{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%',outline:'none',boxSizing:'border-box'}}/></div>
+      <div style={{marginBottom:12}}><Label>Full Name</Label><input value={f.fullName} onChange={e=>setF(x=>({...x,fullName:e.target.value}))} placeholder='Full name' style={{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%',outline:'none',boxSizing:'border-box'}}/></div>
+      <div style={{marginBottom:12}}><Label>Address</Label><input value={f.address} onChange={e=>setF(x=>({...x,address:e.target.value}))} placeholder='123 Main St' style={{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%',outline:'none',boxSizing:'border-box'}}/></div>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
         <div><Label>Phone</Label><input value={f.phone} onChange={e=>{
           const digits=e.target.value.replace(/\D/g,'').slice(0,10);
@@ -568,13 +568,13 @@ function ContactModal({open,onClose,contact,clients,onSaved,allDeals,allContacts
           else if(digits.length<=3) fmt=`(${digits}`;
           else if(digits.length<=6) fmt=`(${digits.slice(0,3)}) ${digits.slice(3)}`;
           else fmt=`(${digits.slice(0,3)}) ${digits.slice(3,6)}-${digits.slice(6)}`;
-          setF(x=>{...x,phone:fmt});
+          setF(x=>({...x,phone:fmt}));
         }} placeholder='(416) 555-0000' maxLength={14} style={{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%',outline:'none',boxSizing:'border-box'}}/></div>
-        <div><Label>Email</Label><input type='email' value={f.email} onChange={e=>setF(x=>{...x,email:e.target.value})} placeholder='email@company.com' style={{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%',outline:'none',boxSizing:'border-box'}}/></div>
+        <div><Label>Email</Label><input type='email' value={f.email} onChange={e=>setF(x=>({...x,email:e.target.value}))} placeholder='email@company.com' style={{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%',outline:'none',boxSizing:'border-box'}}/></div>
       </div>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
-        <div><Label>Job Title</Label><input value={f.jobTitle} onChange={e=>setF(x=>{...x,jobTitle:e.target.value})} placeholder='Job title' style={{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%',outline:'none',boxSizing:'border-box'}}/></div>
-        <div><Label>Company</Label><input value={f.client} onChange={e=>setF(x=>{...x,client:e.target.value})} placeholder='Company name' style={{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%',outline:'none',boxSizing:'border-box'}}/></div>
+        <div><Label>Job Title</Label><input value={f.jobTitle} onChange={e=>setF(x=>({...x,jobTitle:e.target.value}))} placeholder='Job title' style={{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%',outline:'none',boxSizing:'border-box'}}/></div>
+        <div><Label>Company</Label><input value={f.client} onChange={e=>setF(x=>({...x,client:e.target.value}))} placeholder='Company name' style={{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%',outline:'none',boxSizing:'border-box'}}/></div>
       </div>
 
       {/* All Projects */}
@@ -632,7 +632,7 @@ function ContactModal({open,onClose,contact,clients,onSaved,allDeals,allContacts
         </div>
       )}
 
-      <div style={{marginBottom:12}}><Label>Notes</Label><textarea value={f.notes} onChange={e=>setF(x=>{...x,notes:e.target.value})} rows={3} placeholder='Notes...' style={{...{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%',outline:'none',boxSizing:'border-box'},resize:'vertical'}}/></div>
+      <div style={{marginBottom:12}}><Label>Notes</Label><textarea value={f.notes} onChange={e=>setF(x=>({...x,notes:e.target.value}))} rows={3} placeholder='Notes...' style={{...{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%',outline:'none',boxSizing:'border-box'},resize:'vertical'}}/></div>
       <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
         <button onClick={onClose} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 14px',border:'1px solid var(--border)',borderRadius:6,background:'var(--card)',color:'var(--fg)',fontSize:12,fontWeight:500,cursor:'pointer'}}>Cancel</button>
         <button onClick={save} disabled={!f.fullName} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 14px',border:'1px solid var(--primary)',borderRadius:6,background:'var(--primary)',color:'#fff',fontSize:12,fontWeight:600,cursor:!f.fullName?'not-allowed':'pointer',opacity:!f.fullName?0.6:1}}>Save Contact</button>
@@ -997,8 +997,8 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead'}){
         </div>
       </div>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
-        <div><Label>Lead Source</Label><select value={f.leadSource||'__none'} onChange={e=>setF(x=>{...x,leadSource:e.target.value==='__none'?'':e.target.value})} style={{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%',outline:'none'}}><option value='__none'>None</option>{LEAD_SOURCES.map(s=><option key={s}>{s}</option>)}</select></div>
-        <div><Label>Referral Contact</Label><select value={f.referralContactId||'__none'} onChange={e=>setF(x=>{...x,referralContactId:e.target.value==='__none'?'':e.target.value})} style={{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%',outline:'none'}}><option value='__none'>None</option>{contacts.map(c=><option key={c.id} value={c.id}>{c.fullName}</option>)}</select></div>
+        <div><Label>Lead Source</Label><select value={f.leadSource||'__none'} onChange={e=>setF(x=>({...x,leadSource:e.target.value==='__none'?'':e.target.value}))} style={{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%',outline:'none'}}><option value='__none'>None</option>{LEAD_SOURCES.map(s=><option key={s}>{s}</option>)}</select></div>
+        <div><Label>Referral Contact</Label><select value={f.referralContactId||'__none'} onChange={e=>setF(x=>({...x,referralContactId:e.target.value==='__none'?'':e.target.value}))} style={{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%',outline:'none'}}><option value='__none'>None</option>{contacts.map(c=><option key={c.id} value={c.id}>{c.fullName}</option>)}</select></div>
       </div>
       <div style={{marginBottom:12}}><Label>Description / Notes (shows in calendar)</Label><textarea value={f.description} onChange={e=>setF(x=>({...x,description:e.target.value}))} rows={3} placeholder='Project details...' style={{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'8px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%',outline:'none',resize:'vertical',boxSizing:'border-box'}}/></div>
       {/* Rooms / Progress — pushed from Estimates page */}
@@ -1398,7 +1398,7 @@ function CalendarWeekWidget(){
         end:ev.end?.dateTime||ev.end?.date||'',
         allDay:!ev.start?.dateTime,
         location:ev.location||null,
-      })));
+      }));
     }catch(e){
       if(e.message==='NO_CLIENT_ID'||e.message==='popup_closed_by_user'||e.message==='access_denied'){
         setNeedsAuth(true);

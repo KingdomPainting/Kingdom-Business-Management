@@ -5615,20 +5615,15 @@ function LoginScreen(){
     <div style={{minHeight:'100vh',background:'#262E4B',display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
       <style>{STYLE}</style>
       <div style={{width:'100%',maxWidth:400}}>
-        {/* Logo + name above card */}
-        <div style={{display:'flex',flexDirection:'column',alignItems:'center',marginBottom:28,gap:10}}>
+        {/* Logo above card */}
+        <div style={{display:'flex',flexDirection:'column',alignItems:'center',marginBottom:28}}>
           <KPLogo height={52}/>
-          <div style={{textAlign:'center'}}>
-            <div style={{fontFamily:'Montserrat,sans-serif',fontSize:16,fontWeight:800,color:'#DCB47E',letterSpacing:'0.06em',textTransform:'uppercase',lineHeight:1.2}}>KINGDOM PAINTING</div>
-            <div style={{fontFamily:'Montserrat,sans-serif',fontSize:12,fontWeight:700,color:'#DCB47E',letterSpacing:'0.12em',textTransform:'uppercase',marginTop:1}}>INC.</div>
-          </div>
         </div>
         {/* Card */}
         <div style={{background:'#EDE9DE',borderRadius:16,padding:'32px 28px',boxShadow:'0 8px 40px rgba(0,0,0,.30)'}}>
-          <h2 style={{fontSize:20,fontWeight:700,marginBottom:4,color:'#1a1714'}}>
+          <h2 style={{fontSize:20,fontWeight:700,marginBottom:20,color:'#1a1714'}}>
             {mode==='login' ? 'Sign in' : 'Create account'}
           </h2>
-          <p style={{fontSize:12,color:'#7a6e65',marginBottom:24}}>Kingdom Painting CRM</p>
 
           {message && <div style={{background:'rgba(34,197,94,.1)',border:'1px solid rgba(34,197,94,.3)',borderRadius:8,padding:'10px 12px',fontSize:12,color:'#15803d',marginBottom:16}}>{message}</div>}
           {error && <div style={{background:'rgba(239,68,68,.1)',border:'1px solid rgba(239,68,68,.3)',borderRadius:8,padding:'10px 12px',fontSize:12,color:'#dc2626',marginBottom:16}}>{error}</div>}

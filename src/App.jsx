@@ -928,15 +928,15 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead'}){
   return (
     <Modal open={open} onClose={onClose} title={deal?'Edit Project':'New Project'}>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
-        <div><Label>Project Name</Label><Input value={f.dealName} onChange={e=>setF(x=>({...x,dealName:e.target.value}))} placeholder='Project name'/></div>
+        <div><Label>Project Name</Label><input value={f.dealName} onChange={e=>setF(x=>({...x,dealName:e.target.value}))} placeholder='Project name' style={inp}/></div>
         <div><Label>Contact</Label>
           <ContactCombobox contacts={contacts} value={f.contactId} freeText={f.contactFreeText||''} onChange={(id,txt)=>setF(x=>({...x,contactId:id,contactFreeText:txt||''}))} /></div>
       </div>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
-        <div><Label>Value ($)</Label><Input type='number' value={f.value} onChange={e=>setF(x=>({...x,value:e.target.value}))} placeholder='0'/></div>
-        <div><Label>Quote Date</Label><input type='date' value={f.quote_date||''} onChange={e=>setF(x=>({...x,quote_date:e.target.value}))} style={{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%'}}/></div>
+        <div><Label>Value ($)</Label><input type='number' value={f.value} onChange={e=>setF(x=>({...x,value:e.target.value}))} placeholder='0' style={inp}/></div>
+        <div><Label>Quote Date</Label><input type='date' value={f.quote_date||''} onChange={e=>setF(x=>({...x,quote_date:e.target.value}))} style={inp}/></div>
       </div>
-      <div style={{marginBottom:12}}><Label>Address (for calendar events)</Label><Input value={f.address} onChange={e=>setF(x=>({...x,address:e.target.value}))} placeholder='Job site address'/></div>
+      <div style={{marginBottom:12}}><Label>Address (for calendar events)</Label><input value={f.address} onChange={e=>setF(x=>({...x,address:e.target.value}))} placeholder='Job site address' style={inp}/></div>
       {/* Schedule — start row + end row each with date / start time / end time */}
       <div style={{marginBottom:12,padding:12,background:'rgba(212,169,106,0.08)',borderRadius:8,border:'1px solid rgba(212,169,106,0.2)'}}>
         <p style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',marginBottom:10,display:'flex',alignItems:'center',gap:5}}><CalendarDays size={11}/>Schedule</p>

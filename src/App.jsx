@@ -1625,11 +1625,11 @@ function Dashboard({toast}){
               const pct=Math.round((count/total)*100);
               return (
                 <div key={source} style={{display:'flex',alignItems:'center',gap:8}}>
-                  <span style={{fontSize:11,fontWeight:600,width:76,flexShrink:0,color:'var(--fg)'}}>{source}</span>
+                  <span className={cn('text-xs font-semibold px-2 py-0.5 rounded-md',LEAD_COLORS[source]||'bg-gray-100 text-gray-600')} style={{fontSize:11,width:80,textAlign:'center',flexShrink:0}}>{source}</span>
                   <div style={{flex:1,height:8,background:'var(--muted)',borderRadius:9,overflow:'hidden'}}>
                     <div style={{height:'100%',background:'var(--primary)',borderRadius:9,width:`${pct}%`,transition:'width .4s'}}/>
                   </div>
-                  <span style={{fontSize:11,fontWeight:700,color:'var(--primary)',width:28,textAlign:'right'}}>{count}</span>
+                  <span style={{fontSize:11,fontWeight:700,color:'var(--primary)',width:24,textAlign:'right'}}>{count}</span>
                   <span style={{fontSize:10,color:'var(--muted-fg)',width:32,textAlign:'right'}}>{pct}%</span>
                 </div>
               );
@@ -1758,7 +1758,7 @@ function Pipeline({showToast}){
                       {(deal.labels?.length>0||deal.leadSource)&&(
                         <div style={{display:'flex',flexWrap:'wrap',gap:5,marginBottom:10}}>
                           {(deal.labels||[]).map(l=><span key={l} className={cn('text-xs px-2 py-0.5 rounded-md font-semibold',LABEL_COLORS[l]||'bg-gray-100 text-gray-600')} style={{fontSize:11}}>{l}</span>)}
-                          {deal.leadSource&&<span className={cn('text-xs font-semibold px-2 py-0.5 rounded-md',LEAD_COLORS[deal.leadSource]||'bg-gray-100 text-gray-600')} style={{fontSize:11}}>{deal.leadSource}</span>}
+                          {deal.leadSource&&<span className={cn('text-xs font-bold px-2 py-0.5 rounded-md',LEAD_COLORS[deal.leadSource]||'bg-gray-100 text-gray-600')} style={{fontSize:11,letterSpacing:'0.01em'}}>📍 {deal.leadSource}</span>}
                         </div>
                       )}
                       {/* Title + delete */}

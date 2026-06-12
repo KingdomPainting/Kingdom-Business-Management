@@ -1505,9 +1505,9 @@ function Dashboard({toast}){
   const totalLost = lostDeals.length;
   const totalLostValue = lostDeals.reduce((s,d)=>s+(parseFloat(d.value)||0),0);
 
-  // Conversion Rate: clients with $0 outstanding / all pipeline deals (including lost)
+  // Conversion Rate: clients with $0 outstanding / Scheduled→Archive deals
   const paidOffDeals = invoiceDeals.filter(d=>(parseFloat(d.value)||0)>0 && Math.max(0,(parseFloat(d.value)||0)-(parseFloat(d.invoicePaid)||0))===0);
-  const allPipelineDeals = deals; // includes lost
+  const allPipelineDeals = deals.filter(d=>['Scheduled','Completed','Archive'].includes(d.stage)); // Scheduled→Archive only
   const conversionRate = allPipelineDeals.length>0 ? (paidOffDeals.length/allPipelineDeals.length)*100 : 0;
 
   // Profit Margin: (gross profit / revenue) * 100
@@ -1619,8 +1619,9 @@ function Dashboard({toast}){
           <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',marginBottom:12}}>Leads by Source</p>
           <div style={{display:'flex',flexDirection:'column',gap:8}}>
             {LEAD_SOURCES.map(source=>{
-              const count=deals.filter(d=>d.leadSource===source).length;
-              const total=deals.filter(d=>d.leadSource).length||1;
+              const srcDeals=deals.filter(d=>['Scheduled','Completed','Archive'].includes(d.stage));
+              const count=srcDeals.filter(d=>d.leadSource===source).length;
+              const total=srcDeals.filter(d=>d.leadSource).length||1;
               const pct=Math.round((count/total)*100);
               return (
                 <div key={source} style={{display:'flex',alignItems:'center',gap:8}}>
@@ -1633,7 +1634,7 @@ function Dashboard({toast}){
                 </div>
               );
             })}
-            {deals.filter(d=>d.leadSource).length===0&&(
+            {deals.filter(d=>['Scheduled','Completed','Archive'].includes(d.stage)&&d.leadSource).length===0&&(
               <p style={{fontSize:12,color:'var(--muted-fg)'}}>No lead sources assigned yet.</p>
             )}
           </div>
@@ -5336,10 +5337,11 @@ function Financials({showToast}){
     return 0;
   });
 
-  // Summary stats
-  const totalRevenue=deals.reduce((s,d)=>s+getRow(d).quote,0);
-  const totalGP=deals.reduce((s,d)=>s+getRow(d).grossProfit,0);
-  const totalProjects=deals.length;
+  // Summary stats — Scheduled→Archive only
+  const activeDeals = deals.filter(d=>['Scheduled','Completed','Archive'].includes(d.stage));
+  const totalRevenue=activeDeals.reduce((s,d)=>s+getRow(d).quote,0);
+  const totalGP=activeDeals.reduce((s,d)=>s+getRow(d).grossProfit,0);
+  const totalProjects=activeDeals.length;
 
   // Profit Margin: (gross profit / revenue) * 100
   const profitMarginF = totalRevenue>0 ? (totalGP/totalRevenue)*100 : 0;
@@ -5347,9 +5349,9 @@ function Financials({showToast}){
   // Avg Project Value: revenue / total projects
   const avgProjectValueF = totalProjects>0 ? totalRevenue/totalProjects : 0;
 
-  // Conversion Rate: deals with $0 outstanding / all pipeline deals
-  const allDeals = api.getDeals();
-  const invoiceDealsF = allDeals.filter(d=>['Scheduled','Completed','Archive'].includes(d.stage)&&!(d.labels||[]).includes('Lost'));
+  // Conversion Rate — Scheduled→Archive only
+  const allDeals = api.getDeals().filter(d=>['Scheduled','Completed','Archive'].includes(d.stage));
+  const invoiceDealsF = allDeals.filter(d=>!(d.labels||[]).includes('Lost'));
   const paidOffDealsF = invoiceDealsF.filter(d=>(parseFloat(d.value)||0)>0 && Math.max(0,(parseFloat(d.value)||0)-(parseFloat(d.invoicePaid)||0))===0);
   const conversionRateF = allDeals.length>0 ? (paidOffDealsF.length/allDeals.length)*100 : 0;
 
@@ -5359,7 +5361,7 @@ function Financials({showToast}){
     const d=new Date(now); d.setMonth(d.getMonth()-5+i);
     const yr=d.getFullYear(); const mo=d.getMonth();
     const month=d.toLocaleString('en',{month:'short'});
-    const monthDeals=deals.filter(dd=>{
+    const monthDeals=activeDeals.filter(dd=>{
       const dt=dealDate(dd);
       return dt && dt.getTime()!==0 && dt.getFullYear()===yr && dt.getMonth()===mo;
     });

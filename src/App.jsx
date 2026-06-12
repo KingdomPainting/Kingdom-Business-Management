@@ -471,9 +471,21 @@ function Toast({msg,onDone}){
 // ─── STATUS COLORS ────────────────────────────────────────────────────────────
 const CLIENT_STATUS={Active:'#dcfce7 text-green-700',Prospect:'#dbeafe text-blue-700',Inactive:'#f3f4f6 text-gray-600',Churned:'#fee2e2 text-red-700'};
 const STAGE_COLORS={Lead:'bg-gray-100 text-gray-600',Proposal:'bg-blue-100 text-blue-700',Scheduled:'bg-purple-100 text-purple-700',Completed:'bg-green-100 text-green-700',Archive:'bg-amber-100 text-amber-700'};
-const LABEL_COLORS={Residential:'bg-blue-100 text-blue-700',Commercial:'bg-orange-100 text-orange-700',Exterior:'bg-emerald-100 text-emerald-700',Lost:'bg-red-100 text-red-700'};
+const LABEL_COLORS={
+  Residential: {bg:'#dbeafe',color:'#1d4ed8'},
+  Commercial:  {bg:'#ffedd5',color:'#ea580c'},
+  Exterior:    {bg:'#d1fae5',color:'#065f46'},
+  Lost:        {bg:'#fee2e2',color:'#dc2626'},
+};
 const TYPE_COLORS={Call:'bg-blue-100 text-blue-700',Email:'bg-purple-100 text-purple-700',Meeting:'bg-green-100 text-green-700',Note:'bg-gray-100 text-gray-600',Task:'bg-orange-100 text-orange-700'};
-const LEAD_COLORS={Referral:'bg-purple-100 text-purple-700',Repeat:'bg-blue-100 text-blue-700',Google:'bg-red-100 text-red-700',Site:'bg-yellow-100 text-yellow-700','Home Depot':'bg-orange-100 text-orange-700',MBT:'bg-teal-100 text-teal-700'};
+const LEAD_COLORS={
+  Referral:  {bg:'#ede9fe',color:'#7c3aed'},
+  Repeat:    {bg:'#dbeafe',color:'#1d4ed8'},
+  Google:    {bg:'#fee2e2',color:'#dc2626'},
+  Site:      {bg:'#fef9c3',color:'#a16207'},
+  'Home Depot':{bg:'#ffedd5',color:'#ea580c'},
+  MBT:       {bg:'#ccfbf1',color:'#0f766e'},
+};
 const STAGES=['Lead','Proposal','Scheduled','Completed','Archive'];
 const LEAD_SOURCES=['Referral','Repeat','Google','Site','Home Depot','MBT'];
 
@@ -1625,7 +1637,7 @@ function Dashboard({toast}){
               const pct=Math.round((count/total)*100);
               return (
                 <div key={source} style={{display:'flex',alignItems:'center',gap:8}}>
-                  <span className={cn('text-xs font-semibold px-2 py-0.5 rounded-md',LEAD_COLORS[source]||'bg-gray-100 text-gray-600')} style={{fontSize:11,width:80,textAlign:'center',flexShrink:0}}>{source}</span>
+                  <span style={{fontSize:11,fontWeight:700,width:84,textAlign:'center',flexShrink:0,padding:'2px 10px',borderRadius:20,background:(LEAD_COLORS[source]||{bg:'#f3f4f6'}).bg,color:(LEAD_COLORS[source]||{color:'#374151'}).color}}>{source}</span>
                   <div style={{flex:1,height:8,background:'var(--muted)',borderRadius:9,overflow:'hidden'}}>
                     <div style={{height:'100%',background:'var(--primary)',borderRadius:9,width:`${pct}%`,transition:'width .4s'}}/>
                   </div>
@@ -1757,8 +1769,8 @@ function Pipeline({showToast}){
                       {/* Labels + lead source */}
                       {(deal.labels?.length>0||deal.leadSource)&&(
                         <div style={{display:'flex',flexWrap:'wrap',gap:5,marginBottom:10}}>
-                          {(deal.labels||[]).map(l=><span key={l} className={cn('text-xs px-2 py-0.5 rounded-md font-semibold',LABEL_COLORS[l]||'bg-gray-100 text-gray-600')} style={{fontSize:11}}>{l}</span>)}
-                          {deal.leadSource&&<span className={cn('text-xs font-bold px-2 py-0.5 rounded-md',LEAD_COLORS[deal.leadSource]||'bg-gray-100 text-gray-600')} style={{fontSize:11,letterSpacing:'0.01em'}}>📍 {deal.leadSource}</span>}
+                          {(deal.labels||[]).map(l=><span key={l} style={{fontSize:11,fontWeight:600,padding:'2px 9px',borderRadius:20,background:(LABEL_COLORS[l]||{bg:'#f3f4f6'}).bg,color:(LABEL_COLORS[l]||{color:'#374151'}).color}}>{l}</span>)}
+                          {deal.leadSource&&<span style={{fontSize:11,fontWeight:700,padding:'2px 9px',borderRadius:20,background:(LEAD_COLORS[deal.leadSource]||{bg:'#f3f4f6'}).bg,color:(LEAD_COLORS[deal.leadSource]||{color:'#374151'}).color,letterSpacing:'0.01em'}}>📍 {deal.leadSource}</span>}
                         </div>
                       )}
                       {/* Title + delete */}

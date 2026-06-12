@@ -934,7 +934,12 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead'}){
     onSaved();onClose();
   };
 
-  const LABEL_OPTIONS=[{v:'Residential',cl:'bg-blue-100 text-blue-700'},{v:'Commercial',cl:'bg-orange-100 text-orange-700'},{v:'Exterior',cl:'bg-emerald-100 text-emerald-700'},{v:'Lost',cl:'bg-red-100 text-red-700'}];
+  const LABEL_OPTIONS=[
+    {v:'Residential', bg:'#dbeafe',color:'#1d4ed8'},
+    {v:'Commercial',  bg:'#ffedd5',color:'#ea580c'},
+    {v:'Exterior',    bg:'#d1fae5',color:'#065f46'},
+    {v:'Lost',        bg:'#fee2e2',color:'#dc2626'},
+  ];
   const inp={background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%'};
 
   return (
@@ -979,16 +984,17 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead'}){
       <div style={{marginBottom:12}}>
         <Label>Labels</Label>
         <div style={{display:'flex',gap:8}}>
-          {LABEL_OPTIONS.map(({v,cl})=>(
-            <button key={v} onClick={()=>toggleLabel(v)} className={cn('flex-1 text-xs font-medium py-1.5 px-2 rounded-md border transition-all',cl,f.labels.includes(v)?'ring-2 ring-offset-1':'opacity-60')} style={{borderColor:'transparent'}}>{v}</button>
-          ))}
+          {LABEL_OPTIONS.map(({v,bg,color})=>{
+            const active=f.labels.includes(v);
+            return <button key={v} onClick={()=>toggleLabel(v)} style={{flex:1,fontSize:11,fontWeight:600,padding:'6px 4px',borderRadius:20,border:'2px solid '+(active?color:'transparent'),background:active?bg:'var(--muted)',color:active?color:'var(--muted-fg)',cursor:'pointer',transition:'all .15s',opacity:active?1:0.65}}>{v}</button>;
+          })}
         </div>
       </div>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
-        <div><Label>Lead Source</Label><Select value={f.leadSource||'__none'} onChange={e=>setF(x=>({...x,leadSource:e.target.value==='__none'?'':e.target.value}))}><option value='__none'>None</option>{LEAD_SOURCES.map(s=><option key={s}>{s}</option>)}</Select></div>
-        <div><Label>Referral Contact</Label><Select value={f.referralContactId||'__none'} onChange={e=>setF(x=>({...x,referralContactId:e.target.value==='__none'?'':e.target.value}))}><option value='__none'>None</option>{contacts.map(c=><option key={c.id} value={c.id}>{c.fullName}</option>)}</Select></div>
+        <div><Label>Lead Source</Label><select value={f.leadSource||'__none'} onChange={e=>setF(x=>{...x,leadSource:e.target.value==='__none'?'':e.target.value})} style={{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%',outline:'none'}}><option value='__none'>None</option>{LEAD_SOURCES.map(s=><option key={s}>{s}</option>)}</select></div>
+        <div><Label>Referral Contact</Label><select value={f.referralContactId||'__none'} onChange={e=>setF(x=>{...x,referralContactId:e.target.value==='__none'?'':e.target.value})} style={{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%',outline:'none'}}><option value='__none'>None</option>{contacts.map(c=><option key={c.id} value={c.id}>{c.fullName}</option>)}</select></div>
       </div>
-      <div style={{marginBottom:12}}><Label>Description / Notes (shows in calendar)</Label><Textarea value={f.description} onChange={e=>setF(x=>({...x,description:e.target.value}))} rows={3} placeholder='Project details...'/></div>
+      <div style={{marginBottom:12}}><Label>Description / Notes (shows in calendar)</Label><textarea value={f.description} onChange={e=>setF(x=>({...x,description:e.target.value}))} rows={3} placeholder='Project details...' style={{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'8px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%',outline:'none',resize:'vertical',boxSizing:'border-box'}}/></div>
       {/* Rooms / Progress — pushed from Estimates page */}
       {f.rooms&&f.rooms.length>0&&(
         <div style={{marginBottom:12,padding:12,background:'rgba(212,169,106,0.06)',borderRadius:8,border:'1px solid rgba(212,169,106,0.2)'}}>
@@ -1071,8 +1077,8 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead'}){
         </div>
       )}
       <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
-        <Btn variant='outline' onClick={onClose}>Cancel</Btn>
-        <Btn onClick={save} disabled={!f.dealName||syncing}>{syncing?'Syncing…':'Save Project'}</Btn>
+        <button onClick={onClose} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 14px',border:'1px solid var(--border)',borderRadius:6,background:'var(--card)',color:'var(--fg)',fontSize:12,fontWeight:500,cursor:'pointer'}}>Cancel</button>
+        <button onClick={save} disabled={!f.dealName||syncing} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 14px',border:'1px solid var(--primary)',borderRadius:6,background:'var(--primary)',color:'#fff',fontSize:12,fontWeight:600,cursor:(!f.dealName||syncing)?'not-allowed':'pointer',opacity:(!f.dealName||syncing)?0.6:1}}>{syncing?'Syncing…':'Save Project'}</button>
       </div>
     </Modal>
   );
@@ -1726,7 +1732,7 @@ function Pipeline({showToast}){
             style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',border:'1px solid var(--border)',borderRadius:6,background:showArchive?'var(--primary)':'var(--card)',color:showArchive?'#fff':'var(--fg)',fontSize:12,fontWeight:500,cursor:'pointer',transition:'all 0.15s'}}>
             <ArchiveIcon size={13}/>Archive{showArchive?' (on)':''}
           </button>
-          <Btn onClick={()=>{setEditDeal(null);setDefaultStage('Lead');setModalOpen(true);}}><Plus size={14}/>New Project</Btn>
+          <button onClick={()=>{setEditDeal(null);setDefaultStage('Lead');setModalOpen(true);}} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',border:'1px solid var(--border)',borderRadius:6,background:'var(--card)',color:'var(--fg)',fontSize:12,fontWeight:500,cursor:'pointer',transition:'all 0.15s'}}><Plus size={13}/>New Project</button>
         </div>
       </div>
       <div style={{display:'flex',gap:16,overflowX:'auto',flex:1,paddingBottom:12,scrollSnapType:'x mandatory',WebkitOverflowScrolling:'touch'}}>
@@ -1770,7 +1776,7 @@ function Pipeline({showToast}){
                       {(deal.labels?.length>0||deal.leadSource)&&(
                         <div style={{display:'flex',flexWrap:'wrap',gap:5,marginBottom:10}}>
                           {(deal.labels||[]).map(l=><span key={l} style={{fontSize:11,fontWeight:600,padding:'2px 9px',borderRadius:20,background:(LABEL_COLORS[l]||{bg:'#f3f4f6'}).bg,color:(LABEL_COLORS[l]||{color:'#374151'}).color}}>{l}</span>)}
-                          {deal.leadSource&&<span style={{fontSize:11,fontWeight:700,padding:'2px 9px',borderRadius:20,background:(LEAD_COLORS[deal.leadSource]||{bg:'#f3f4f6'}).bg,color:(LEAD_COLORS[deal.leadSource]||{color:'#374151'}).color,letterSpacing:'0.01em'}}>📍 {deal.leadSource}</span>}
+                          {deal.leadSource&&<span style={{fontSize:11,fontWeight:700,padding:'2px 9px',borderRadius:20,background:(LEAD_COLORS[deal.leadSource]||{bg:'#f3f4f6'}).bg,color:(LEAD_COLORS[deal.leadSource]||{color:'#374151'}).color,letterSpacing:'0.01em'}}>{deal.leadSource}</span>}
                         </div>
                       )}
                       {/* Title + delete */}

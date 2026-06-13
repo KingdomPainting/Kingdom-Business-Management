@@ -3481,22 +3481,30 @@ function renderRoomBody(r){
       return '<div class="field" style="margin:0"><label>Seg '+(i+1)+' length (ft)</label>'
         +'<input type="number" min="0" step="0.5" value="'+(seg.l||'')+'" placeholder="0" oninput="updSeg('+r.id+','+i+',this.value)"></div>';
     }).join('');
+    var stuccoRate=(STANDARDS.removeStucco&&STANDARDS.removeStucco.rate)||0.75;
+    var irrStuccoCost=irrCeilSqft*stuccoRate;
     irregHtml=
       '<div style="background:var(--cream2);border-radius:var(--r);padding:10px 12px;margin-bottom:12px">'
       +'<div style="font-size:11px;font-weight:600;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Wall Segments — each length \\u00d7 height = sqft</div>'
       +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:6px">'+segInputs+'</div>'
       +'<div style="font-size:12px;color:var(--gold2);font-weight:600">Wall area: '+fmtN(irrWallSqft)+' sqft</div>'
       +'</div>'
-      +'<div style="background:var(--cream2);border-radius:var(--r);padding:10px 12px;margin-bottom:12px">'
-      +'<div style="font-size:11px;font-weight:600;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Ceiling Sections \\u2014 two rectangles added together</div>'
-      +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:6px">'
-      +'<div class="field" style="margin:0"><label>Sec 1 Length</label><input type="number" min="0" step="0.5" value="'+(csegs[0].l||'')+'" placeholder="0" oninput="updCeilSeg('+r.id+',0,\\'l\\',this.value)"></div>'
-      +'<div class="field" style="margin:0"><label>Sec 1 Width</label><input type="number" min="0" step="0.5" value="'+(csegs[0].w||'')+'" placeholder="0" oninput="updCeilSeg('+r.id+',0,\\'w\\',this.value)"></div>'
-      +'<div class="field" style="margin:0"><label>Sec 2 Length</label><input type="number" min="0" step="0.5" value="'+(csegs[1].l||'')+'" placeholder="0" oninput="updCeilSeg('+r.id+',1,\\'l\\',this.value)"></div>'
-      +'<div class="field" style="margin:0"><label>Sec 2 Width</label><input type="number" min="0" step="0.5" value="'+(csegs[1].w||'')+'" placeholder="0" oninput="updCeilSeg('+r.id+',1,\\'w\\',this.value)"></div>'
-      +'</div>'
-      +'<div style="font-size:12px;color:var(--gold2);font-weight:600">Ceiling area: '+fmtN(irrCeilSqft)+' sqft</div>'
-      +'</div>';
+      +(r.ceiling?(
+        '<div style="background:var(--cream2);border-radius:var(--r);padding:10px 12px;margin-bottom:12px">'
+        +'<div style="font-size:11px;font-weight:600;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Ceiling Sections \\u2014 two rectangles added together</div>'
+        +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:6px">'
+        +'<div class="field" style="margin:0"><label>Sec 1 Length</label><input type="number" min="0" step="0.5" value="'+(csegs[0].l||'')+'" placeholder="0" oninput="updCeilSeg('+r.id+',0,\\'l\\',this.value)"></div>'
+        +'<div class="field" style="margin:0"><label>Sec 1 Width</label><input type="number" min="0" step="0.5" value="'+(csegs[0].w||'')+'" placeholder="0" oninput="updCeilSeg('+r.id+',0,\\'w\\',this.value)"></div>'
+        +'<div class="field" style="margin:0"><label>Sec 2 Length</label><input type="number" min="0" step="0.5" value="'+(csegs[1].l||'')+'" placeholder="0" oninput="updCeilSeg('+r.id+',1,\\'l\\',this.value)"></div>'
+        +'<div class="field" style="margin:0"><label>Sec 2 Width</label><input type="number" min="0" step="0.5" value="'+(csegs[1].w||'')+'" placeholder="0" oninput="updCeilSeg('+r.id+',1,\\'w\\',this.value)"></div>'
+        +'</div>'
+        +'<div style="font-size:12px;color:var(--gold2);font-weight:600;margin-bottom:8px">Ceiling area: '+fmtN(irrCeilSqft)+' sqft</div>'
+        +'<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;background:var(--cream);padding:6px 10px;border-radius:var(--r)">'
+        +'<input type="checkbox" '+(r.removeStucco?'checked':'')+' onchange="upd('+r.id+',\\'removeStucco\\',this.checked)" style="accent-color:var(--gold)">'
+        +' Remove stucco ($'+stuccoRate.toFixed(2)+'/sqft)'+(r.removeStucco&&irrCeilSqft>0?' \u2014 $'+irrStuccoCost.toFixed(2):'')
+        +'</label>'
+        +'</div>'
+      ):'');
   }
 
   return '<div style="padding-top:14px">'

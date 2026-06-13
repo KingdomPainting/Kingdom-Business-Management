@@ -4890,9 +4890,11 @@ function MasterEstimate(){
         }catch(e){console.warn('KP_PATCH_DEAL error:',e);}
       }
       if(ev.data?.type==='KP_LOAD_PAINT_SETTINGS'){
-        // Fetch paint settings from Supabase and send back to iframe
         (async()=>{
           try{
+            if(!_session?.access_token){
+              try{const stored=localStorage.getItem('kp_session');if(stored){const s=JSON.parse(stored);if(s?.access_token)setSession(s);}}catch(e2){}
+            }
             const session=_session;
             if(!session?.access_token||!session?.user?.id)return;
             const rows=await supaFetch(`/rest/v1/paint_settings?user_id=eq.${session.user.id}&select=data,labour,standards`);
@@ -4906,13 +4908,20 @@ function MasterEstimate(){
         const {data,labour,standards}=ev.data;
         if(!data)return;
         try{
+          // Ensure we have a session — try restoring from localStorage if needed
+          if(!_session?.access_token){
+            try{
+              const stored=localStorage.getItem('kp_session');
+              if(stored){ const s=JSON.parse(stored); if(s?.access_token) setSession(s); }
+            }catch(e2){}
+          }
           const session=_session;
-          if(!session?.access_token)return;
+          if(!session?.access_token){console.warn('KP_SAVE_PAINT_SETTINGS: no session');return;}
           const uid=session.user?.id||null;
-          if(!uid)return;
+          if(!uid){console.warn('KP_SAVE_PAINT_SETTINGS: no uid');return;}
           const payload={user_id:uid,data,labour,standards,updated_at:new Date().toISOString()};
           // Single upsert — POST with merge-duplicates on user_id unique constraint
-          await fetch(`${SUPA_URL}/rest/v1/paint_settings?on_conflict=user_id`,{
+          const res=await fetch(`${SUPA_URL}/rest/v1/paint_settings?on_conflict=user_id`,{
             method:'POST',
             headers:{
               'apikey':SUPA_KEY,
@@ -4922,6 +4931,7 @@ function MasterEstimate(){
             },
             body:JSON.stringify(payload)
           });
+          if(!res.ok){const t=await res.text();console.warn('KP_SAVE_PAINT_SETTINGS failed:',res.status,t.slice(0,120));}
         }catch(e){console.warn('KP_SAVE_PAINT_SETTINGS error:',e);}
       }
     };
@@ -4932,21 +4942,29 @@ function MasterEstimate(){
     try{
       const win=ref.current?.contentWindow;
       if(!win)return;
-      // Inject session
-      if(_session?.access_token){
-        win._session={access_token:_session.access_token,user:_session.user};
-        win.postMessage({type:'KP_SESSION',session:{access_token:_session.access_token,user:_session.user}},'*');
+      const injectAndLoad=()=>{
+        try{
+          // Inject session
+          if(_session?.access_token){
+            win._session={access_token:_session.access_token,user:_session.user};
+            win.postMessage({type:'KP_SESSION',session:{access_token:_session.access_token,user:_session.user}},'*');
+          }
+          // Post deals + contacts directly — most reliable approach
+          const deals=api.getDeals();
+          const contacts=api.getContacts();
+          win.postMessage({type:'KP_DEALS',deals,contacts},'*');
+          if(win.loadContactsDropdown) win.loadContactsDropdown();
+          // Load paint settings
+          if(win.loadPaintSettings) win.loadPaintSettings(function(){
+            if(win.initPaintInputs) win.initPaintInputs();
+          });
+        }catch(e){console.warn('injectAndLoad error:',e);}
+      };
+      injectAndLoad();
+      // If session wasn't ready, retry after 800ms
+      if(!_session?.access_token){
+        setTimeout(injectAndLoad, 800);
       }
-      // Post deals + contacts directly — most reliable approach
-      const deals=api.getDeals();
-      const contacts=api.getContacts();
-      win.postMessage({type:'KP_DEALS',deals,contacts},'*');
-      // Also call loadContactsDropdown as fallback
-      if(win.loadContactsDropdown) win.loadContactsDropdown();
-      // Load paint settings
-      if(win.loadPaintSettings) win.loadPaintSettings(function(){
-        if(win.initPaintInputs) win.initPaintInputs();
-      });
     }catch(e){console.warn('MasterEstimate onLoad error:',e);}
   },[]);
   return (

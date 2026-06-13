@@ -4909,20 +4909,20 @@ function MasterEstimate(){
         try{
           const session=_session;
           if(!session?.access_token)return;
-          const token=session.access_token;
           const uid=session.user?.id||null;
           if(!uid)return;
           const payload={user_id:uid,data,labour,standards,updated_at:new Date().toISOString()};
-          // PATCH first, then POST if no rows updated
-          const r=await supaFetch(`/rest/v1/paint_settings?user_id=eq.${uid}`,'PATCH',payload);
-          // If PATCH updated 0 rows, insert
-          const check=await fetch(`${SUPA_URL}/rest/v1/paint_settings?user_id=eq.${uid}&select=id`,{
-            headers:{apikey:SUPA_KEY,'Authorization':`Bearer ${token}`}
+          // Single upsert — POST with merge-duplicates on user_id unique constraint
+          await fetch(`${SUPA_URL}/rest/v1/paint_settings?on_conflict=user_id`,{
+            method:'POST',
+            headers:{
+              'apikey':SUPA_KEY,
+              'Authorization':`Bearer ${session.access_token}`,
+              'Content-Type':'application/json',
+              'Prefer':'resolution=merge-duplicates,return=minimal'
+            },
+            body:JSON.stringify(payload)
           });
-          const rows=await check.json();
-          if(!rows||rows.length===0){
-            await supaFetch('/rest/v1/paint_settings','POST',payload);
-          }
         }catch(e){console.warn('KP_SAVE_PAINT_SETTINGS error:',e);}
       }
     };

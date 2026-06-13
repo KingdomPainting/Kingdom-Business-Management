@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
-  LineChart, Line,
+  LineChart, Line, PieChart, Pie, Cell,
 } from "recharts";
 import {
   LayoutDashboard, Kanban, UserRound, Activity, FileText,
@@ -1637,16 +1637,15 @@ function Dashboard({toast}){
         </div>
 
         {/* Row 4 — Financials summary */}
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,flexShrink:0}}>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,flexShrink:0}}>
           <StatCard label='Total Revenue' value={fmtUSD(totalRevenue)}/>
           <StatCard label='Total Profit' value={fmtUSD(totalProfit)} color={totalProfit>=0?'#22c55e':'#ef4444'}/>
-          <StatCard label='Profit Margin' value={profitMargin.toFixed(1)+'%'} color={profitMargin>=0?'#22c55e':'#ef4444'}/>
         </div>
 
         {/* Row 5 — Conversion Rate + Avg Project Value */}
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,flexShrink:0}}>
           <StatCard label='Conversion Rate' value={conversionRate.toFixed(1)+'%'} color='var(--primary)'/>
-          <StatCard label='Avg Project Value' value={fmtUSD(allPipelineDeals.length>0?totalRevenue/allPipelineDeals.length:0)} color='var(--primary)'/>
+          <StatCard label='Avg Project Value' value={'$'+(allPipelineDeals.length>0?totalRevenue/allPipelineDeals.length:0).toFixed(2)} color='var(--primary)'/>
         </div>
 
         {/* Row 6 — Leads by Source */}
@@ -5422,23 +5421,7 @@ function Financials({showToast}){
         <p style={{fontSize:13,color:'var(--muted-fg)',marginTop:2}}>{totalProjects} projects · Enter Materials & Wages to calculate profit</p>
       </div>
 
-      {/* ── Row 1: Conversion Rate + Profit Margin + Avg Project Value ── */}
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:14}}>
-        <Card style={{padding:'20px 22px',display:'flex',flexDirection:'column',gap:6}}>
-          <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)'}}>Conversion Rate</p>
-          <p style={{fontSize:42,fontWeight:800,color:'var(--primary)',lineHeight:1}}>{conversionRateF.toFixed(1)}<span style={{fontSize:22,fontWeight:600}}>%</span></p>
-        </Card>
-        <Card style={{padding:'20px 22px',display:'flex',flexDirection:'column',gap:6}}>
-          <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)'}}>Profit Margin</p>
-          <p style={{fontSize:42,fontWeight:800,color:profitMarginF>=0?'#22c55e':'#ef4444',lineHeight:1}}>{profitMarginF.toFixed(1)}<span style={{fontSize:22,fontWeight:600}}>%</span></p>
-        </Card>
-        <Card style={{padding:'20px 22px',display:'flex',flexDirection:'column',gap:6}}>
-          <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)'}}>Avg Project Value</p>
-          <p style={{fontSize:36,fontWeight:800,color:'var(--primary)',lineHeight:1}}>{fmtUSD(avgProjectValueF)}</p>
-        </Card>
-      </div>
-
-      {/* ── Stat cards ── */}
+      {/* ── Stat cards (Row 1) ── */}
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:14,flexShrink:0}}>
         {[
           {label:'Total Revenue',value:fmtUSD(totalRevenue),color:'var(--primary)'},
@@ -5451,6 +5434,83 @@ function Financials({showToast}){
           </Card>
         ))}
       </div>
+
+      {/* ── Row 2: Conversion Rate pie + Labour/Materials/Wages pie + Avg Project Value bar ── */}
+      {(()=>{
+        const totalLabour=activeDeals.reduce((s,d)=>s+getRow(d).labour,0);
+        const totalMaterials=activeDeals.reduce((s,d)=>s+getRow(d).materials,0);
+        const totalWages=activeDeals.reduce((s,d)=>s+getRow(d).wages,0);
+        const pieTotal=totalLabour+totalMaterials+totalWages;
+        const costPieData=[
+          {name:'Labour',value:pieTotal>0?Math.round(totalLabour/pieTotal*100):0,color:'#C4922A'},
+          {name:'Materials',value:pieTotal>0?Math.round(totalMaterials/pieTotal*100):0,color:'#3b82f6'},
+          {name:'Wages',value:pieTotal>0?Math.round(totalWages/pieTotal*100):0,color:'#22c55e'},
+        ];
+        const convPieData=[
+          {name:'Paid Off',value:paidOffDealsF.length,color:'#C4922A'},
+          {name:'In Progress',value:Math.max(0,allDeals.length-paidOffDealsF.length),color:'var(--border)'},
+        ];
+        const projectValues=activeDeals.map(d=>parseFloat(d.value)||0).filter(v=>v>0);
+        const highestVal=projectValues.length?Math.max(...projectValues):0;
+        const lowestVal=projectValues.length?Math.min(...projectValues):0;
+        const avgVal=avgProjectValueF;
+        const barData=[
+          {label:'Lowest',value:lowestVal,fill:'#3b82f6'},
+          {label:'Average',value:avgVal,fill:'#C4922A'},
+          {label:'Highest',value:highestVal,fill:'#22c55e'},
+        ];
+        return (
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:14}}>
+            <Card style={{padding:'14px 18px',display:'flex',flexDirection:'column',gap:4}}>
+              <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)'}}>Conversion Rate</p>
+              <div style={{display:'flex',alignItems:'center',gap:12}}>
+                <PieChart width={90} height={90}>
+                  <Pie data={convPieData} cx={40} cy={40} innerRadius={26} outerRadius={40} dataKey='value' startAngle={90} endAngle={-270} strokeWidth={0}>
+                    {convPieData.map((e,i)=><Cell key={i} fill={e.color}/>)}
+                  </Pie>
+                </PieChart>
+                <div>
+                  <p style={{fontSize:32,fontWeight:800,color:'var(--primary)',lineHeight:1}}>{conversionRateF.toFixed(1)}<span style={{fontSize:16,fontWeight:600}}>%</span></p>
+                  <p style={{fontSize:11,color:'var(--muted-fg)',marginTop:4}}>{paidOffDealsF.length} paid of {allDeals.length}</p>
+                </div>
+              </div>
+            </Card>
+            <Card style={{padding:'14px 18px',display:'flex',flexDirection:'column',gap:4}}>
+              <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)'}}>Cost Breakdown (Avg)</p>
+              <div style={{display:'flex',alignItems:'center',gap:12}}>
+                <PieChart width={90} height={90}>
+                  <Pie data={costPieData} cx={40} cy={40} innerRadius={26} outerRadius={40} dataKey='value' startAngle={90} endAngle={-270} strokeWidth={0}>
+                    {costPieData.map((e,i)=><Cell key={i} fill={e.color}/>)}
+                  </Pie>
+                </PieChart>
+                <div style={{display:'flex',flexDirection:'column',gap:3}}>
+                  {costPieData.map(d=>(
+                    <div key={d.name} style={{display:'flex',alignItems:'center',gap:5,fontSize:11}}>
+                      <span style={{width:8,height:8,borderRadius:'50%',background:d.color,flexShrink:0,display:'inline-block'}}/>
+                      <span style={{color:'var(--muted-fg)'}}>{d.name}</span>
+                      <span style={{fontWeight:700,marginLeft:'auto'}}>{d.value}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </Card>
+            <Card style={{padding:'14px 18px',display:'flex',flexDirection:'column',gap:4}}>
+              <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)'}}>Project Value Range</p>
+              <ResponsiveContainer width='100%' height={100}>
+                <BarChart data={barData} margin={{top:4,right:4,left:0,bottom:4}}>
+                  <XAxis dataKey='label' tick={{fontSize:9}}/>
+                  <YAxis tick={{fontSize:9}} tickFormatter={v=>`$${(v/1000).toFixed(0)}k`} width={36}/>
+                  <Tooltip formatter={v=>['$'+v.toFixed(2),'Value']} contentStyle={{background:'var(--card)',border:'1px solid var(--border)',borderRadius:8,fontSize:11}}/>
+                  <Bar dataKey='value' radius={[3,3,0,0]}>
+                    {barData.map((e,i)=><Cell key={i} fill={e.fill}/>)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+              <p style={{fontSize:11,color:'var(--primary)',fontWeight:700,textAlign:'center'}}>Avg: ${avgVal.toFixed(2)}</p>
+            </Card>
+          </div>
+        );
+      })()}
 
       {/* ── Row 2: charts ── */}
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:14}}>

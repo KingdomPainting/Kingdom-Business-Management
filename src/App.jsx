@@ -1626,17 +1626,17 @@ function Dashboard({toast}){
           <StatCard label='Outstanding Amount' value={fmtUSD(outstandingAmt)} color='#ef4444'/>
         </div>
 
-        {/* Row 4 — Conversion Rate + Avg Project Value */}
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,flexShrink:0}}>
-          <StatCard label='Conversion Rate' value={conversionRate.toFixed(1)+'%'} color='var(--primary)'/>
-          <StatCard label='Avg Project Value' value={fmtUSD(allPipelineDeals.length>0?totalRevenue/allPipelineDeals.length:0)} color='var(--primary)'/>
-        </div>
-
-        {/* Row 5 — Financials summary */}
+        {/* Row 4 — Financials summary */}
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,flexShrink:0}}>
           <StatCard label='Total Revenue' value={fmtUSD(totalRevenue)}/>
           <StatCard label='Total Profit' value={fmtUSD(totalProfit)} color={totalProfit>=0?'#22c55e':'#ef4444'}/>
           <StatCard label='Profit Margin' value={profitMargin.toFixed(1)+'%'} color={profitMargin>=0?'#22c55e':'#ef4444'}/>
+        </div>
+
+        {/* Row 5 — Conversion Rate + Avg Project Value */}
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,flexShrink:0}}>
+          <StatCard label='Conversion Rate' value={conversionRate.toFixed(1)+'%'} color='var(--primary)'/>
+          <StatCard label='Avg Project Value' value={fmtUSD(allPipelineDeals.length>0?totalRevenue/allPipelineDeals.length:0)} color='var(--primary)'/>
         </div>
 
         {/* Row 6 — Leads by Source */}
@@ -5404,6 +5404,22 @@ function Financials({showToast}){
         <p style={{fontSize:13,color:'var(--muted-fg)',marginTop:2}}>{totalProjects} projects · Enter Materials & Wages to calculate profit</p>
       </div>
 
+      {/* ── Row 1: Conversion Rate + Profit Margin + Avg Project Value ── */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:14}}>
+        <Card style={{padding:'20px 22px',display:'flex',flexDirection:'column',gap:6}}>
+          <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)'}}>Conversion Rate</p>
+          <p style={{fontSize:42,fontWeight:800,color:'var(--primary)',lineHeight:1}}>{conversionRateF.toFixed(1)}<span style={{fontSize:22,fontWeight:600}}>%</span></p>
+        </Card>
+        <Card style={{padding:'20px 22px',display:'flex',flexDirection:'column',gap:6}}>
+          <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)'}}>Profit Margin</p>
+          <p style={{fontSize:42,fontWeight:800,color:profitMarginF>=0?'#22c55e':'#ef4444',lineHeight:1}}>{profitMarginF.toFixed(1)}<span style={{fontSize:22,fontWeight:600}}>%</span></p>
+        </Card>
+        <Card style={{padding:'20px 22px',display:'flex',flexDirection:'column',gap:6}}>
+          <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)'}}>Avg Project Value</p>
+          <p style={{fontSize:36,fontWeight:800,color:'var(--primary)',lineHeight:1}}>{fmtUSD(avgProjectValueF)}</p>
+        </Card>
+      </div>
+
       {/* ── Stat cards ── */}
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:14,flexShrink:0}}>
         {[
@@ -5416,28 +5432,6 @@ function Financials({showToast}){
             <p style={{fontSize:28,fontWeight:700,color,lineHeight:1}}>{value}</p>
           </Card>
         ))}
-      </div>
-
-      {/* ── Row 1: Conversion Rate + Profit Margin + Avg Project Value ── */}
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:14}}>
-        <Card style={{padding:'20px 22px',display:'flex',flexDirection:'column',gap:6}}>
-          <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)'}}>Conversion Rate</p>
-          <p style={{fontSize:42,fontWeight:800,color:'var(--primary)',lineHeight:1}}>{conversionRateF.toFixed(1)}<span style={{fontSize:22,fontWeight:600}}>%</span></p>
-          <div style={{marginTop:8,height:6,background:'var(--border)',borderRadius:9,overflow:'hidden'}}>
-            <div style={{height:'100%',background:'var(--primary)',borderRadius:9,width:`${Math.min(100,conversionRateF)}%`,transition:'width .5s'}}/>
-          </div>
-        </Card>
-        <Card style={{padding:'20px 22px',display:'flex',flexDirection:'column',gap:6}}>
-          <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)'}}>Profit Margin</p>
-          <p style={{fontSize:42,fontWeight:800,color:profitMarginF>=0?'#22c55e':'#ef4444',lineHeight:1}}>{profitMarginF.toFixed(1)}<span style={{fontSize:22,fontWeight:600}}>%</span></p>
-          <div style={{marginTop:8,height:6,background:'var(--border)',borderRadius:9,overflow:'hidden'}}>
-            <div style={{height:'100%',background:profitMarginF>=0?'#22c55e':'#ef4444',borderRadius:9,width:`${Math.min(100,Math.max(0,profitMarginF))}%`,transition:'width .5s'}}/>
-          </div>
-        </Card>
-        <Card style={{padding:'20px 22px',display:'flex',flexDirection:'column',gap:6}}>
-          <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)'}}>Avg Project Value</p>
-          <p style={{fontSize:36,fontWeight:800,color:'var(--primary)',lineHeight:1}}>{fmtUSD(avgProjectValueF)}</p>
-        </Card>
       </div>
 
       {/* ── Row 2: charts ── */}

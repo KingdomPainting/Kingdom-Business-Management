@@ -5659,6 +5659,14 @@ function LoginScreen(){
               {mode==='login' ? 'Create one' : 'Sign in'}
             </button>
           </div>
+          <div style={{textAlign:'center',marginTop:8,fontSize:12,color:'#7a6e65'}}>
+            Client Portal{' '}
+            <a href="https://kingdom-crm-kingdompaintings-projects.vercel.app/portal"
+              target="_blank" rel="noopener noreferrer"
+              style={{color:'#C4922A',fontWeight:700,textDecoration:'none'}}>
+              click here
+            </a>
+          </div>
         </div>
       </div>
     </div>

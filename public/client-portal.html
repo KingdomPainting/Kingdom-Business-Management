@@ -297,14 +297,17 @@ async function sendMagicLink(){
     const{data,error}=await sb.auth.signInWithOtp({
       email:email,
       options:{
-        shouldCreateUser:false,
+        shouldCreateUser:true,
         emailRedirectTo:redirectUrl
       }
     });
     if(btn){btn.disabled=false;btn.textContent='Send Confirmation Email';}
     if(error){
-      console.error('OTP error:',error.message,error.status);
-      showMsg(error.message||'Could not send email. Please try again.','error');
+      console.error('OTP error:',error.message,error.status,error.code);
+      var msg=error.message||'Could not send email.';
+      if(error.message&&error.message.toLowerCase().includes('redirect'))msg='Setup required: redirect URL not whitelisted in Supabase. Contact admin.';
+      if(error.message&&error.message.toLowerCase().includes('email'))msg='Email not registered. Please contact Kingdom Painting to get portal access.';
+      showMsg(msg,'error');
       return;
     }
     var emailStep=document.getElementById('email-step');

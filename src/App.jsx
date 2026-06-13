@@ -1052,20 +1052,30 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead'}){
               {key:'contract_html',label:'Contract',icon:'📋'},
               {key:'change_order_html',label:'Change Order',icon:'📝'},
               {key:'invoice_html',label:'Invoice',icon:'🧾'},
-            ].filter(d=>f[d.key]).map(d=>(
-              <div key={d.key} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'4px 8px',background:'rgba(212,169,106,0.12)',borderRadius:6}}>
-                <span style={{fontSize:12,fontWeight:600,color:'var(--primary)'}}>{d.icon} {d.label}</span>
-                <button onClick={async()=>{
-                  if(!window.confirm(`Delete ${d.label}?`))return;
-                  // Set to null immediately so UI hides it and save payload sends null
-                  setF(x=>({...x,[d.key]:null}));
-                  await api.saveDeal({[d.key]:null},f.id);
-                  DB.deals=DB.deals.map(x=>x.id===f.id?{...x,[d.key]:null}:x);
-                }} style={{fontSize:11,padding:'2px 8px',borderRadius:5,border:'1px solid var(--border)',background:'var(--card)',color:'var(--muted-fg)',cursor:'pointer',fontWeight:500}}>
-                  🗑 Delete
-                </button>
+            ].filter(d=>f[d.key]).map(d=>{
+              const isSigned=d.key==='contract_html'&&!!f.contract_signed_html;
+              return (
+              <div key={d.key} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'4px 8px',background:isSigned?'rgba(34,197,94,0.08)':'rgba(212,169,106,0.12)',borderRadius:6,border:isSigned?'1px solid rgba(34,197,94,0.25)':'1px solid transparent'}}>
+                <span style={{fontSize:12,fontWeight:600,color:isSigned?'#16a34a':'var(--primary)',display:'flex',alignItems:'center',gap:5}}>
+                  {d.icon} {d.label}
+                  {isSigned&&<span title={f.contract_signed_at?`Signed ${new Date(f.contract_signed_at).toLocaleDateString()}`:'Signed'} style={{fontSize:13}}>✅</span>}
+                </span>
+                <div style={{display:'flex',gap:6,alignItems:'center'}}>
+                  {isSigned&&(
+                    <button onClick={()=>{const w=window.open('','_blank');if(w){w.document.write(f.contract_signed_html);w.document.close();setTimeout(()=>w.print(),500);}}} style={{fontSize:11,padding:'2px 8px',borderRadius:5,border:'1px solid #16a34a',background:'transparent',color:'#16a34a',cursor:'pointer',fontWeight:600}}>⬇ Download</button>
+                  )}
+                  <button onClick={async()=>{
+                    if(!window.confirm(`Delete ${d.label}?`))return;
+                    setF(x=>({...x,[d.key]:null}));
+                    await api.saveDeal({[d.key]:null},f.id);
+                    DB.deals=DB.deals.map(x=>x.id===f.id?{...x,[d.key]:null}:x);
+                  }} style={{fontSize:11,padding:'2px 8px',borderRadius:5,border:'1px solid var(--border)',background:'var(--card)',color:'var(--muted-fg)',cursor:'pointer',fontWeight:500}}>
+                    🗑 Delete
+                  </button>
+                </div>
               </div>
-            ))}
+              );
+            })}
             {f.contract_signed_html&&(
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'4px 8px',background:'rgba(34,197,94,0.08)',borderRadius:6}}>
                 <span style={{fontSize:12,fontWeight:600,color:'#16a34a'}}>✅ Signed Contract</span>

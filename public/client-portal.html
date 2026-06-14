@@ -41,8 +41,8 @@ body.authed #portal{display:flex}
 .prog-label{font-size:11px;color:#7a6e65;margin-bottom:4px}
 .prog-bar{height:6px;background:#e5e1d8;border-radius:9px;overflow:hidden}
 .prog-fill{height:100%;background:#C4922A;border-radius:9px}
-.proj-docs{border-top:1px solid #ede9df;padding:16px 20px;background:#faf8f4}
-.doc-row{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#fff;border:1px solid #e5e1d8;border-radius:8px;margin-bottom:8px}
+.proj-docs{border-top:1px solid #ede9df;padding:14px 16px;background:#faf8f4}
+.doc-row{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:#fff;border:1px solid #e5e1d8;border-radius:8px;margin-bottom:8px;cursor:pointer;transition:background .12s,border-color .12s}.doc-row:hover{background:#f5f3ef;border-color:#C4922A}
 .doc-label{font-size:13px;font-weight:600;color:#262E4B;display:flex;align-items:center;gap:8px}
 .doc-signed{font-size:11px;color:#16a34a;font-weight:600}
 .doc-btn{padding:5px 12px;border-radius:6px;font-size:11px;font-weight:700;font-family:inherit;cursor:pointer;border:none}
@@ -235,8 +235,11 @@ function docRows(d){
     const isSigned=doc.signable&&signed;
     const badge=isSigned?`<span class="doc-signed">&#9989; Signed ${signedDate}</span>`:'';
     const canSign=doc.signable&&!isSigned;
-    const signBtn=canSign?`<button class="doc-btn sign" onclick="openDoc('${doc.key}','${doc.label}','${d.id}',true)">&#9997; Sign</button>`:'';
-    return `<div class="doc-row"><span class="doc-label">${doc.icon} ${doc.label} ${badge}</span><span style="display:flex;gap:6px">${signBtn}<button class="doc-btn view" onclick="openDoc('${doc.key}','${doc.label}','${d.id}',false)">View</button></span></div>`;
+    const signBadge=canSign?'<span style="font-size:10px;font-weight:700;color:#C4922A;background:#fff8ee;border:1px solid #C4922A;padding:1px 7px;border-radius:20px;margin-left:6px">Sign</span>':'';
+    return `<div class="doc-row" onclick="openDoc('${doc.key}','${doc.label}','${d.id}',${canSign})" style="cursor:pointer">
+      <span class="doc-label">${doc.icon} ${doc.label}${signBadge} ${badge}</span>
+      <span style="font-size:11px;color:#7a6e65;font-weight:600">Open &#8599;</span>
+    </div>`;
   }).join('');
 }
 
@@ -244,14 +247,14 @@ function projCard(d,past){
   const pct=Math.min(100,Math.max(0,d.progress||0));
   const hasDocs=d.quote_html||d.contract_html||d.change_order_html||d.invoice_html;
   return `<div class="proj-card">
-    <div class="proj-card-head" onclick="toggleDocs('${d.id}')">
+    <div class="proj-card-head">
       <div class="proj-stage-pill" style="${stageStyle(d.stage)}">${d.stage||'Lead'}</div>
       <div class="proj-name">${d.dealName||'Project'}</div>
       ${d.address?`<div class="proj-addr">&#128205; ${d.address}</div>`:''}
       ${d.value?`<div class="proj-val">$${parseFloat(d.value).toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>`:''}
       ${!past?`<div class="proj-progress"><div class="prog-label">Progress &mdash; ${pct}%</div><div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div></div>`:''}
     </div>
-    ${hasDocs?`<div class="proj-docs" id="docs-${d.id}" style="display:none">${docRows(d)}</div>`:''}
+    <div class="proj-docs">${hasDocs?docRows(d):'<p class="no-docs">No documents yet.</p>'}</div>
   </div>`;
 }
 
@@ -266,7 +269,7 @@ async function loadProjects(email){
   if(past.length){document.getElementById('past-sep').style.display='';document.getElementById('past-projects').innerHTML=past.map(d=>projCard(d,true)).join('');}
 }
 
-window.toggleDocs=function(id){const el=document.getElementById('docs-'+id);if(el)el.style.display=el.style.display==='none'?'block':'none';};
+
 
 function wrapDocHtml(html){
   // If already a full HTML document, inject base styles then use as-is

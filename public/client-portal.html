@@ -225,15 +225,20 @@ async function loadProjects(email){
 window.toggleDocs=function(id){const el=document.getElementById('docs-'+id);if(el)el.style.display=el.style.display==='none'?'block':'none';};
 
 function wrapDocHtml(html){
-  // Inject CSS variables and base styles so the document renders correctly outside the estimates page
+  // If already a full HTML document, inject base styles then use as-is
+  if(html&&(html.trim().toLowerCase().startsWith('<!doctype')||html.trim().toLowerCase().startsWith('<html'))){
+    // Inject font + body padding into the existing <head> if possible
+    const fontLink='<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet"/>';
+    const baseStyle='<style>body{padding:32px;max-width:860px;margin:0 auto;}@media print{body{padding:16px}}</style>';
+    if(html.includes('</head>')){
+      return html.replace('</head>',fontLink+baseStyle+'</head>');
+    }
+    return html;
+  }
+  // Fragment — wrap in a full document
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
 <style>
-:root{
-  --bg:#ede9de;--fg:#2e3557;--ink:#1a1714;--ink2:#3a3530;--ink3:#7a6e65;
-  --cream:#ede9de;--cream2:#e0dbd0;--cream3:#c8bfb4;
-  --gold:#C4922A;--gold2:#b07e20;
-  --r:6px;--r2:12px;--sans:'Montserrat',sans-serif;
-}
+:root{--bg:#ede9de;--fg:#2e3557;--ink:#1a1714;--ink2:#3a3530;--ink3:#7a6e65;--cream:#ede9de;--cream2:#e0dbd0;--cream3:#c8bfb4;--gold:#C4922A;--gold2:#b07e20;--r:6px;--r2:12px;--sans:'Montserrat',sans-serif;}
 *{box-sizing:border-box}
 body{font-family:'Montserrat',Georgia,sans-serif;background:#fff;color:#1a1714;padding:32px;max-width:860px;margin:0 auto;font-size:13px;line-height:1.7}
 </style>

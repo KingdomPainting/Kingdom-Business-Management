@@ -4919,7 +4919,18 @@ function MasterEstimate(){
           if(existing) Object.assign(existing,data);
         }catch(e){console.warn('KP_PATCH_DEAL error:',e);}
       }
-      if(ev.data?.type==='KP_LOAD_PAINT_SETTINGS'){
+      if(ev.data?.type==='KP_CONTRACT_SIGNED'){
+        const {dealId}=ev.data;
+        // Reload deal from DB to get updated contract_signed fields
+        if(dealId){
+          supaFetch(`/rest/v1/deals?id=eq.${dealId}&select=*`).then(rows=>{
+            if(rows&&rows[0]){DB.deals=DB.deals.map(d=>d.id===dealId?{...d,...rows[0]}:d);}
+          }).catch(()=>{});
+        }
+        // Show toast notification
+        const toastFn=window.__kpToast;
+        if(toastFn)toastFn('Contract signed by client!');
+      }
         (async()=>{
           try{
             if(!_session?.access_token){
@@ -5792,7 +5803,7 @@ export default function App(){
   const [toast,setToast]=useState(null);
   const [ready,setReady]=useState(false);
   const [session,setSessionState]=useState(_session);
-  const showToast=msg=>setToast(msg);
+  const showToast=msg=>{setToast(msg);window.__kpToast=msg=>setToast(msg);};
 
   // Listen for auth changes
   useEffect(()=>{

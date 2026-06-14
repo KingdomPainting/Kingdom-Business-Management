@@ -4931,6 +4931,7 @@ function MasterEstimate(){
         const toastFn=window.__kpToast;
         if(toastFn)toastFn('Contract signed by client!');
       }
+      if(ev.data?.type==='KP_LOAD_PAINT_SETTINGS'){
         (async()=>{
           try{
             if(!_session?.access_token){

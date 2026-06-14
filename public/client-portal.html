@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>My Projects — Kingdom Painting Inc.</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onload="initSupabase()" onerror="document.body.innerHTML='<p style=color:red;padding:20px>Failed to load auth library. Check your internet connection and refresh.</p>'"></script>
 
 <style>
   :root{
@@ -335,6 +335,7 @@ function showMsg(msg,type){const el=document.getElementById('login-msg');el.text
 function hideMsg(){document.getElementById('login-msg').style.display='none';}
 
 async function sendMagicLink(){
+  if(!checkSb())return;
   const emailEl=document.getElementById('email-input');
   const email=(emailEl&&emailEl.value||'').trim().toLowerCase();
   if(!email||!email.includes('@')){showMsg('Please enter a valid email address.','error');return;}
@@ -456,11 +457,14 @@ document.getElementById('email-input').addEventListener('keydown',e=>{if(e.key==
 
 
 
-// Init on DOM ready
-if(document.readyState==='loading'){
-  document.addEventListener('DOMContentLoaded',initSupabase);
-}else{
-  initSupabase();
+// initSupabase() is called by the CDN script's onload attribute above
+// Defensive: if sb not ready when button clicked, show error
+function checkSb(){
+  if(typeof sb==='undefined'||!sb){
+    showMsg('Auth library not ready. Please refresh the page.','error');
+    return false;
+  }
+  return true;
 }
 </script>
 </body>

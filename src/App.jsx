@@ -3918,7 +3918,7 @@ function updStd(surface,coats,val){if(!val||val<1)return;STANDARDS[surface][coat
 // ─── SUPABASE SAVE/LOAD ──────────────────────────
 var _session=null; // injected by React parent via win._session
 const SUPA_URL='https://cyzvmcmlpnozwrqifrdt.supabase.co';
-const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN5enZtY21scG56dndycWlmcmR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2Mzk1MzEsImV4cCI6MjA5NDIxNTUzMX0.IeZRx5xcPddSQcL77vhKjOgAKFi8bKpj3dMfajHpV3c';
+const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN5enZtY21scG5vendycWlmcmR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2Mzk1MzEsImV4cCI6MjA5NDIxNTUzMX0.IeZRx5xcPddSQcL77vhKjOgAKFi8bKpj3dMfajHpV3c';
 
 async function supaFetch(path,method,body){
   try{

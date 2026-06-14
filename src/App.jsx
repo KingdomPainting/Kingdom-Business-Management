@@ -3040,9 +3040,13 @@ button.tab.active{color:var(--gold2);border-bottom-color:var(--gold2)}
           <tr><td>1 coat</td><td class="right"><input type="number" min="1" value="84" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('doors',1,+this.value)"></td></tr>
           <tr><td>2 coats</td><td class="right"><input type="number" min="1" value="42" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('doors',2,+this.value)"></td></tr>
           <tr><td>Primer &amp; 2 coats</td><td class="right"><input type="number" min="1" value="21" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('doors',3,+this.value)"></td></tr>
+        </tbody>
+      </table>
+    </div>
 <div style="margin-top:18px;display:flex;align-items:center;gap:12px">
   <button onclick="doSaveSettings(this)" style="padding:9px 24px;background:#C4922A;color:#fff;border:none;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--sans);letter-spacing:.02em">Save Settings</button>
   <span class="save-status-msg" style="font-size:12px;font-weight:600;display:none"></span>
+</div>
 </div>
 <script>// ─── DATA ───────────────────────────────────────
 const STANDARDS={
@@ -5010,8 +5014,10 @@ function MasterEstimate(){
       if(ev.data?.type==='KP_SAVE_PAINT_SETTINGS'){
         const {data,labour,standards}=ev.data;
         if(!data)return;
-        const iframeWin=ref.current?.contentWindow;
-        const reply=(ok)=>{if(iframeWin)iframeWin.postMessage({type:'KP_SAVE_DONE',ok},'*');};
+        // Broadcast to all estimate iframes (both MasterEstimate and MasterEstimateOnTab)
+        const reply=(ok)=>{
+          document.querySelectorAll('iframe').forEach(fr=>{try{fr.contentWindow?.postMessage({type:'KP_SAVE_DONE',ok},'*');}catch(e){}});
+        };
         const doSave=async(attempt=0)=>{
           try{
             if(!_session?.access_token){

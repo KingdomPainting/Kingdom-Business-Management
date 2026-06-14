@@ -2954,7 +2954,7 @@ button.tab.active{color:var(--gold2);border-bottom-color:var(--gold2)}
   </div>
 <div style="margin-top:18px;display:flex;align-items:center;gap:12px">
   <button onclick="doSaveSettings(this)" style="padding:9px 24px;background:#C4922A;color:#fff;border:none;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--sans);letter-spacing:.02em">Save Settings</button>
-  <span id="save-status-msg" style="font-size:12px;color:#22c55e;font-weight:600;display:none"></span>
+  <span class="save-status-msg" style="font-size:12px;font-weight:600;display:none"></span>
 </div>
 </div>
 
@@ -2968,7 +2968,7 @@ button.tab.active{color:var(--gold2);border-bottom-color:var(--gold2)}
   </div>
 <div style="margin-top:18px;display:flex;align-items:center;gap:12px">
   <button onclick="doSaveSettings(this)" style="padding:9px 24px;background:#C4922A;color:#fff;border:none;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--sans);letter-spacing:.02em">Save Settings</button>
-  <span id="save-status-msg" style="font-size:12px;color:#22c55e;font-weight:600;display:none"></span>
+  <span class="save-status-msg" style="font-size:12px;font-weight:600;display:none"></span>
 </div>
 </div>
 
@@ -3042,7 +3042,7 @@ button.tab.active{color:var(--gold2);border-bottom-color:var(--gold2)}
           <tr><td>Primer &amp; 2 coats</td><td class="right"><input type="number" min="1" value="21" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('doors',3,+this.value)"></td></tr>
 <div style="margin-top:18px;display:flex;align-items:center;gap:12px">
   <button onclick="doSaveSettings(this)" style="padding:9px 24px;background:#C4922A;color:#fff;border:none;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--sans);letter-spacing:.02em">Save Settings</button>
-  <span id="save-status-msg" style="font-size:12px;color:#22c55e;font-weight:600;display:none"></span>
+  <span class="save-status-msg" style="font-size:12px;font-weight:600;display:none"></span>
 </div>
 <script>// ─── DATA ───────────────────────────────────────
 const STANDARDS={
@@ -3852,15 +3852,39 @@ function renderColoursList(){
 var _piSaveTimer=null;
 function schedulePaintSave(){clearTimeout(_piSaveTimer);_piSaveTimer=setTimeout(upsertPaintSettings,1200);}
 function doSaveSettings(btn){
-  var orig=btn.textContent;
-  btn.disabled=true;btn.textContent='Saving…';
-  var statusEl=document.getElementById('save-status-msg');
-  upsertPaintSettings();
-  // Show feedback — postMessage is fire-and-forget so we simulate after 1.5s
-  setTimeout(function(){
-    btn.disabled=false;btn.textContent=orig;
-    if(statusEl){statusEl.textContent='✓ Saved';statusEl.style.display='inline';setTimeout(function(){statusEl.style.display='none';},3000);}
-  },1500);
+  btn.disabled=true;btn.textContent='Saving\u2026';
+  // Find status element — could be next sibling span
+  var statusEl=btn.parentNode?btn.parentNode.querySelector('.save-status-msg'):null;
+  // Build payload
+  var pdata={paints:PAINTS,ceilPaints:CEILING_PAINTS,primers:PRIMERS,colours:COLOURS,supplies:SUPPLIES};
+  var labourData=getLabourData();
+  var standardsData=JSON.parse(JSON.stringify(STANDARDS));
+  // Get session
+  var sess=_session;
+  if(!sess||!sess.access_token){
+    try{var s=JSON.parse(localStorage.getItem('kp_session')||'null');if(s&&s.access_token)sess=s;}catch(e2){}
+  }
+  function done(ok){
+    btn.disabled=false;btn.textContent='Save Settings';
+    if(statusEl){
+      statusEl.textContent=ok?'\u2713 Saved':'Save failed \u2014 try again';
+      statusEl.style.color=ok?'#22c55e':'#ef4444';
+      statusEl.style.display='inline';
+      setTimeout(function(){statusEl.style.display='none';},3000);
+    }
+  }
+  if(sess&&sess.access_token&&sess.user&&sess.user.id){
+    var payload={user_id:sess.user.id,data:pdata,labour:labourData,standards:standardsData,updated_at:new Date().toISOString()};
+    fetch(SUPA_URL+'/rest/v1/paint_settings?on_conflict=user_id',{
+      method:'POST',
+      headers:{apikey:SUPA_KEY,'Authorization':'Bearer '+sess.access_token,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates,return=minimal'},
+      body:JSON.stringify(payload)
+    }).then(function(r){done(r.ok);}).catch(function(){done(false);});
+  } else {
+    // Fall back to postMessage and optimistically show saved
+    window.parent.postMessage({type:'KP_SAVE_PAINT_SETTINGS',data:pdata,labour:labourData,standards:standardsData},'*');
+    setTimeout(function(){done(true);},1200);
+  }
 }
 function waitForSession(cb,attempts){
   attempts=attempts||0;

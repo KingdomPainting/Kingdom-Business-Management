@@ -2520,134 +2520,142 @@ const KP_MASTER_HTML = `<!DOCTYPE html>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --ink:#2e3354;--ink2:#4a5080;--ink3:#8a90b0;--ink4:#b8bcd4;
-  --cream:#faf8f4;--cream2:#f0f1f6;--cream3:#dfe0ea;
-  --gold:#c4922a;--gold2:#e8b84b;--gold3:#f5e0a8;
-  --red:#c0392b;--green:#27704a;
+  /* Map iframe vars to match the React app's design tokens */
+  --bg:#f4f5f7;--card:#ffffff;--border:#e2e5eb;--fg:#1a1d23;
+  --muted:#f4f5f7;--muted-fg:#64748b;--shadow:0 1px 4px rgba(0,0,0,.07);
+  /* Keep legacy names aliased so all existing code still works */
+  --ink:#1a1d23;--ink2:#374151;--ink3:#64748b;--ink4:#94a3b8;
+  --cream:var(--bg);--cream2:var(--muted);--cream3:var(--border);
+  --gold:#C4922A;--gold2:#d4a843;--gold3:#f5e0a8;
+  --red:#ef4444;--green:#22c55e;
+  --primary:#C4922A;
   --serif:'Montserrat',sans-serif;--sans:'Montserrat',sans-serif;
-  --r:8px;--r2:12px;
+  --r:6px;--r2:10px;
 }
-html{font-family:var(--sans);background:var(--cream);color:var(--ink);font-size:14px}
+html{font-family:var(--sans);background:var(--bg);color:var(--fg);font-size:14px}
 body{overflow:hidden;font-family:'Montserrat',sans-serif}
 .shell{display:flex;flex-direction:column;height:100vh}
-.topbar{background:var(--ink);color:var(--cream);display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:56px;flex-shrink:0}
-.topbar-brand{display:flex;align-items:center;gap:12px}
-.topbar-logo{width:40px;height:40px;border-radius:8px;background:transparent;display:flex;align-items:center;justify-content:center;overflow:hidden}
-.topbar-name{font-family:var(--serif);font-size:16px;letter-spacing:.02em}
-.topbar-sub{font-size:11px;color:var(--ink4);margin-top:1px}
-.topbar-date{font-size:12px;color:var(--ink4)}
-.tabs-wrap{background:var(--ink);border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0}
-.tabs{display:flex;overflow-x:auto;padding:0 24px;gap:2px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+/* Topbar — matches app's card/border style (React app has no topbar in iframe context) */
+.topbar{background:var(--card);color:var(--fg);display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:52px;flex-shrink:0;border-bottom:1px solid var(--border)}
+.topbar-brand{display:flex;align-items:center;gap:10px}
+.topbar-logo{width:32px;height:32px;border-radius:6px;background:transparent;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.topbar-name{font-family:var(--serif);font-size:14px;font-weight:700;color:var(--fg);letter-spacing:.01em}
+.topbar-sub{font-size:11px;color:var(--muted-fg);margin-top:1px}
+.topbar-date{font-size:12px;color:var(--muted-fg)}
+/* Tabs — match app tab style */
+.tabs-wrap{background:var(--card);border-bottom:1px solid var(--border);flex-shrink:0}
+.tabs{display:flex;overflow-x:auto;padding:0 20px;gap:0;scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .tabs::-webkit-scrollbar{display:none}
-.tab{padding:10px 16px;font-size:12px;font-weight:500;color:var(--ink4);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:color .15s,border-color .15s;letter-spacing:.03em;text-transform:uppercase}
-.tab:hover{color:var(--cream3)}
-.tab.active{color:var(--gold2);border-bottom-color:var(--gold2)}
-.main{padding:24px;padding-top:16px;max-width:1100px;margin:0 auto;width:100%;flex:1;overflow-y:auto}
+.tab{padding:10px 14px;font-size:11px;font-weight:600;color:var(--muted-fg);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:color .15s,border-color .15s;letter-spacing:.04em;text-transform:uppercase;background:none;border-top:none;border-left:none;border-right:none;font-family:var(--sans)}
+.tab:hover{color:var(--fg)}
+.tab.active{color:var(--primary);border-bottom-color:var(--primary)}
+.main{padding:20px 24px;max-width:1100px;margin:0 auto;width:100%;flex:1;overflow-y:auto}
 .page{display:none}.page.active{display:block}
-.card{background:#fff;border:1px solid var(--cream3);border-radius:var(--r2);padding:20px;margin-bottom:16px}
-.card-title{font-size:11px;font-weight:500;color:var(--ink3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px}
-.card-header{font-family:var(--serif);font-size:22px;color:var(--ink);margin-bottom:4px}
+/* Cards — match React Card component */
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow);padding:18px 20px;margin-bottom:14px}
+.card-title{font-size:10px;font-weight:700;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px}
+.card-header{font-family:var(--serif);font-size:20px;font-weight:700;color:var(--fg);margin-bottom:4px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
 .grid4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px}
 .field{display:flex;flex-direction:column;gap:4px}
-.field label{font-size:11px;color:var(--ink3);font-weight:500;letter-spacing:.04em;text-transform:uppercase}
-.field input,.field select,.field textarea{font-family:var(--sans);font-size:13px;padding:8px 10px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);color:var(--ink);width:100%;transition:border-color .15s}
-.field input:focus,.field select:focus{outline:none;border-color:var(--gold);background:#fff}
+.field label{font-size:11px;color:var(--muted-fg);font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+.field input,.field select,.field textarea{font-family:var(--sans);font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:var(--r);background:var(--card);color:var(--fg);width:100%;transition:border-color .15s,box-shadow .15s;outline:none}
+.field input:focus,.field select:focus{border-color:var(--primary);box-shadow:0 0 0 2px rgba(196,146,42,.15)}
 .field textarea{resize:vertical;min-height:60px}
 .toggle-row{display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px 0}
-.toggle-row input[type=checkbox]{width:16px;height:16px;accent-color:var(--gold);cursor:pointer}
-.toggle-row span{font-size:13px;color:var(--ink2)}
-.room-card{background:#fff;border:1px solid var(--cream3);border-radius:var(--r2);margin-bottom:10px;overflow:hidden;transition:box-shadow .2s}
+.toggle-row input[type=checkbox]{width:16px;height:16px;accent-color:var(--primary);cursor:pointer}
+.toggle-row span{font-size:13px;color:var(--fg)}
+.room-card{background:#fff;border:1px solid var(--border);border-radius:var(--r2);margin-bottom:10px;overflow:hidden;transition:box-shadow .2s}
 .room-card:hover{box-shadow:0 2px 12px rgba(0,0,0,.06)}
 .room-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;cursor:pointer;user-select:none}
 .room-head-left{display:flex;align-items:center;gap:10px}
-.room-arrow{font-size:10px;color:var(--ink4);transition:transform .2s;display:inline-block}
+.room-arrow{font-size:10px;color:var(--muted-fg);transition:transform .2s;display:inline-block}
 .room-arrow.open{transform:rotate(90deg)}
-.room-name-input{font-family:var(--serif);font-size:15px;border:none;background:transparent;color:var(--ink);padding:0;width:180px;cursor:text}
+.room-name-input{font-family:var(--serif);font-size:15px;border:none;background:transparent;color:var(--fg);padding:0;width:180px;cursor:text}
 .room-name-input:focus{outline:none;border-bottom:1px solid var(--gold)}
-.room-badge{font-size:11px;color:var(--ink3);background:var(--cream2);border-radius:20px;padding:3px 10px}
-.room-del{background:none;border:none;cursor:pointer;color:var(--ink4);font-size:18px;line-height:1;padding:2px 6px}
+.room-badge{font-size:11px;color:var(--muted-fg);background:var(--muted);border-radius:20px;padding:3px 10px}
+.room-del{background:none;border:none;cursor:pointer;color:var(--muted-fg);font-size:18px;line-height:1;padding:2px 6px}
 .room-del:hover{color:var(--red)}
 .room-body{display:none;padding:0 18px 18px;border-top:1px solid var(--cream2)}
 .room-body.open{display:block}
 .surf-grid{display:grid;grid-template-columns:160px 80px 80px 90px;gap:8px;align-items:center;margin-bottom:6px}
-.surf-label{font-size:12px;color:var(--ink2);display:flex;align-items:center;gap:6px}
-.surf-label input[type=checkbox]{width:14px;height:14px;accent-color:var(--gold)}
-.coats-sel{font-size:12px;padding:5px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);color:var(--ink);min-width:150px}
-.lf-input{font-size:12px;padding:5px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);color:var(--ink);width:80px}
+.surf-label{font-size:12px;color:var(--fg);display:flex;align-items:center;gap:6px}
+.surf-label input[type=checkbox]{width:14px;height:14px;accent-color:var(--primary)}
+.coats-sel{font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card);color:var(--fg);min-width:150px}
+.lf-input{font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card);color:var(--fg);width:80px}
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
-.stat{background:#fff;border:1px solid var(--cream3);border-radius:var(--r2);padding:14px}
-.stat .lbl{font-size:11px;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em}
-.stat .val{font-size:24px;font-weight:300;color:var(--ink);margin-top:4px;font-variant-numeric:tabular-nums}
-.stat .val.gold{color:var(--gold)}
-.quote-box{border:1px solid var(--cream3);border-radius:var(--r2);overflow:hidden}
+.stat{background:#fff;border:1px solid var(--border);border-radius:var(--r2);padding:14px}
+.stat .lbl{font-size:11px;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.06em}
+.stat .val{font-size:24px;font-weight:300;color:var(--fg);margin-top:4px;font-variant-numeric:tabular-nums}
+.stat .val.gold{color:var(--primary)}
+.quote-box{border:1px solid var(--border);border-radius:var(--r2);overflow:hidden}
 .q-row{display:flex;justify-content:space-between;align-items:center;padding:11px 16px;border-bottom:1px solid var(--cream2);font-size:13px}
 .q-row:last-child{border-bottom:none}
 .q-row.total-row{background:var(--ink);color:#fff;font-size:15px;font-weight:500}
-.q-label{color:var(--ink2)}
+.q-label{color:var(--fg)}
 .q-val{font-variant-numeric:tabular-nums;font-weight:500}
 .pay-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
-.pay-card{background:var(--cream2);border-radius:var(--r2);padding:14px;text-align:center}
-.pay-step{font-size:10px;color:var(--gold);font-weight:500;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px}
-.pay-amount{font-family:var(--serif);font-size:20px;color:var(--ink)}
-.pay-desc{font-size:11px;color:var(--ink3);margin-top:3px}
+.pay-card{background:var(--muted);border-radius:var(--r2);padding:14px;text-align:center}
+.pay-step{font-size:10px;color:var(--primary);font-weight:500;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px}
+.pay-amount{font-family:var(--serif);font-size:20px;color:var(--fg)}
+.pay-desc{font-size:11px;color:var(--muted-fg);margin-top:3px}
 .doc-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:20px;border-bottom:2px solid var(--ink)}
-.doc-company{font-family:var(--serif);font-size:26px;color:var(--gold)}
-.doc-type{font-size:11px;color:var(--ink);font-weight:500;text-transform:uppercase;letter-spacing:.12em;margin-top:2px}
-.doc-meta{text-align:right;font-size:12px;color:var(--ink2);line-height:1.8}
-.doc-meta strong{color:var(--ink)}
+.doc-company{font-family:var(--serif);font-size:26px;color:var(--primary)}
+.doc-type{font-size:11px;color:var(--fg);font-weight:500;text-transform:uppercase;letter-spacing:.12em;margin-top:2px}
+.doc-meta{text-align:right;font-size:12px;color:var(--fg);line-height:1.8}
+.doc-meta strong{color:var(--fg)}
 .doc-section{margin-bottom:20px}
-.doc-section-title{font-size:10px;font-weight:500;color:var(--ink3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--cream3)}
+.doc-section-title{font-size:10px;font-weight:500;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border)}
 .doc-table{width:100%;border-collapse:collapse;font-size:12px}
-.doc-table th{text-align:left;padding:8px 10px;background:var(--cream2);font-weight:500;color:var(--ink2);font-size:11px;text-transform:uppercase;letter-spacing:.05em}
-.doc-table td{padding:8px 10px;border-bottom:1px solid var(--cream2);color:var(--ink)}
+.doc-table th{text-align:left;padding:8px 10px;background:var(--muted);font-weight:700;color:var(--muted-fg);font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+.doc-table td{padding:8px 10px;border-bottom:1px solid var(--cream2);color:var(--fg)}
 .doc-table .right{text-align:right}
 .doc-total-row{background:var(--ink);color:#fff;font-weight:500}
 .doc-total-row td{padding:10px 10px;border:none}
 .prep-checks{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}
-.prep-check{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink2);padding:6px 10px;background:var(--cream2);border-radius:var(--r);cursor:pointer}
-.prep-check input{accent-color:var(--gold);width:14px;height:14px}
+.prep-check{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--fg);padding:6px 10px;background:var(--muted);border-radius:var(--r);cursor:pointer}
+.prep-check input{accent-color:var(--primary);width:14px;height:14px}
 .breakdown-table{width:100%;border-collapse:collapse;font-size:12px}
 .breakdown-table th{padding:8px 12px;background:var(--ink);color:var(--cream3);text-align:left;font-weight:400;font-size:11px;text-transform:uppercase;letter-spacing:.06em}
 .breakdown-table td{padding:8px 12px;border-bottom:1px solid var(--cream2);overflow:hidden;text-overflow:ellipsis}
-.breakdown-table tr:hover td{background:var(--cream)}
-.breakdown-table .subtotal-row td{background:var(--cream2);font-weight:500}
+.breakdown-table tr:hover td{background:var(--card)}
+.breakdown-table .subtotal-row td{background:var(--muted);font-weight:500}
 .breakdown-table .grand-row td{background:var(--ink);color:#fff;font-weight:500}
 .num{text-align:right;font-variant-numeric:tabular-nums}
 .breakdown-table th.num,.breakdown-table td.num{text-align:center}
 .rates-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
 .rates-table td{padding:7px 10px;border-bottom:1px solid var(--cream2)}
 .rates-table td:last-child{text-align:right;font-weight:500;font-variant-numeric:tabular-nums}
-.colour-chip{display:inline-flex;align-items:center;gap:6px;font-size:11px;background:var(--cream2);border-radius:20px;padding:3px 10px;margin:2px}
+.colour-chip{display:inline-flex;align-items:center;gap:6px;font-size:11px;background:var(--muted);border-radius:20px;padding:3px 10px;margin:2px}
 .chip-dot{width:12px;height:12px;border-radius:50%;border:1px solid rgba(0,0,0,.12);flex-shrink:0}
-hr.divider{border:none;border-top:1px solid var(--cream3);margin:16px 0}
-.add-btn{width:100%;padding:10px;border:1px dashed var(--ink4);border-radius:var(--r2);background:transparent;color:var(--ink3);font-size:13px;cursor:pointer;font-family:var(--sans);transition:all .15s}
-.add-btn:hover{background:var(--cream2);color:var(--ink);border-color:var(--gold)}
-.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--r);border:1px solid var(--cream3);background:var(--cream);color:var(--ink);font-size:12px;font-family:var(--sans);cursor:pointer;transition:all .15s;font-weight:500}
-.btn:hover{background:#fff;border-color:var(--gold);color:var(--gold)}
-.btn-dark{background:var(--ink);color:var(--cream);border-color:var(--ink)}
+hr.divider{border:none;border-top:1px solid var(--border);margin:14px 0}
+.add-btn{width:100%;padding:10px;border:1px dashed var(--ink4);border-radius:var(--r2);background:transparent;color:var(--muted-fg);font-size:13px;cursor:pointer;font-family:var(--sans);transition:all .15s}
+.add-btn:hover{background:var(--muted);color:var(--fg);border-color:var(--primary)}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--r);border:1px solid var(--border);background:var(--card);color:var(--fg);font-size:12px;font-family:var(--sans);cursor:pointer;transition:all .15s;font-weight:500}
+.btn:hover{background:#fff;border-color:var(--primary);color:var(--primary)}
+.btn-dark{background:var(--ink);color:var(--cream);border-color:var(--fg)}
 .btn-dark:hover{background:#2d2720}
 .paint-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
-.section-badge{display:inline-block;font-size:10px;font-weight:500;color:var(--gold);background:var(--gold3);border-radius:20px;padding:2px 8px;text-transform:uppercase;letter-spacing:.06em}
+.section-badge{display:inline-block;font-size:10px;font-weight:500;color:var(--primary);background:rgba(196,146,42,.1);border-radius:20px;padding:2px 8px;text-transform:uppercase;letter-spacing:.06em}
 .workers-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.worker-tag{display:flex;align-items:center;gap:6px;background:var(--cream2);border-radius:var(--r);padding:6px 12px;font-size:12px}
-.worker-tag input[type=checkbox]{accent-color:var(--gold)}
+.worker-tag{display:flex;align-items:center;gap:6px;background:var(--muted);border-radius:var(--r);padding:6px 12px;font-size:12px}
+.worker-tag input[type=checkbox]{accent-color:var(--primary)}
 .change-item{display:grid;grid-template-columns:100px 1fr 130px;gap:8px;align-items:start;margin-bottom:8px}
-.export-btn{display:inline-flex;align-items:center;gap:7px;padding:8px 18px;border-radius:var(--r);border:1px solid var(--gold);background:var(--gold);color:#fff;font-size:12px;font-family:var(--sans);cursor:pointer;font-weight:500;letter-spacing:.03em;transition:all .15s;margin-bottom:16px}
+.export-btn{display:inline-flex;align-items:center;gap:7px;padding:8px 18px;border-radius:var(--r);border:1px solid var(--gold);background:var(--primary);color:#fff;font-size:12px;font-family:var(--sans);cursor:pointer;font-weight:500;letter-spacing:.03em;transition:all .15s;margin-bottom:16px}
 .export-btn:hover{background:#b0821f;border-color:#b0821f}
 .save-btn{display:inline-flex;align-items:center;gap:7px;padding:7px 14px;border-radius:var(--r);border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:#fff;font-size:11px;font-family:var(--sans);cursor:pointer;font-weight:500;letter-spacing:.03em;transition:all .15s;margin-left:8px}
 .save-btn:hover{background:rgba(255,255,255,.2)}
-#save-indicator{font-size:11px;color:var(--ink4);margin-left:8px}
-.gd-panel{display:none;position:fixed;top:64px;right:16px;z-index:200;background:#fff;border:1px solid var(--cream3);border-radius:var(--r2);padding:16px;width:320px;box-shadow:0 8px 32px rgba(0,0,0,.12)}
+#save-indicator{font-size:11px;color:var(--muted-fg);margin-left:8px}
+.gd-panel{display:none;position:fixed;top:64px;right:16px;z-index:200;background:#fff;border:1px solid var(--border);border-radius:var(--r2);padding:16px;width:320px;box-shadow:0 8px 32px rgba(0,0,0,.12)}
 .gd-panel.open{display:block}
-.gd-panel h3{font-size:13px;font-weight:500;color:var(--ink);margin-bottom:12px}
+.gd-panel h3{font-size:13px;font-weight:500;color:var(--fg);margin-bottom:12px}
 .gd-panel .field{margin-bottom:10px}
-.gd-panel label{font-size:11px;color:var(--ink3);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px}
-.gd-panel input{font-size:13px;padding:7px 10px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);color:var(--ink);width:100%}
-.gd-panel-btn{width:100%;padding:9px;background:var(--gold);color:#fff;border:none;border-radius:var(--r);font-size:13px;font-weight:500;cursor:pointer;font-family:var(--sans);margin-top:4px}
+.gd-panel label{font-size:11px;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px}
+.gd-panel input{font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:var(--r);background:var(--card);color:var(--fg);width:100%}
+.gd-panel-btn{width:100%;padding:9px;background:var(--primary);color:#fff;border:none;border-radius:var(--r);font-size:13px;font-weight:500;cursor:pointer;font-family:var(--sans);margin-top:4px}
 .gd-panel-btn:hover{background:#b0821f}
-.gd-panel-btn.secondary{background:transparent;color:var(--ink2);border:1px solid var(--cream3);margin-top:6px}
+.gd-panel-btn.secondary{background:transparent;color:var(--fg);border:1px solid var(--border);margin-top:6px}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 .page.active{animation:fadeIn .2s ease}
 @media(max-width:700px){
@@ -2672,8 +2680,8 @@ hr.divider{border:none;border-top:1px solid var(--cream3);margin:16px 0}
   @page{margin:12mm 14mm;size:A4}
 }
 
-button.tab{font-family:var(--sans);background:none;border:none;border-bottom:2px solid transparent;padding:10px 16px;font-size:12px;font-weight:500;color:var(--ink4);cursor:pointer;white-space:nowrap;transition:color .15s,border-color .15s;letter-spacing:.03em;text-transform:uppercase}
-button.tab.active{color:var(--gold2);border-bottom-color:var(--gold2)}
+button.tab{font-family:var(--sans);background:none;border:none;border-bottom:2px solid transparent;padding:10px 16px;font-size:12px;font-weight:500;color:var(--muted-fg);cursor:pointer;white-space:nowrap;transition:color .15s,border-color .15s;letter-spacing:.03em;text-transform:uppercase}
+button.tab.active{color:var(--primary);border-bottom-color:var(--primary)}
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
@@ -2685,7 +2693,7 @@ button.tab.active{color:var(--gold2);border-bottom-color:var(--gold2)}
     <div class="topbar-date" id="topDate"></div>
     <span id="save-indicator" style="font-size:11px;margin-right:8px;transition:opacity .3s"></span>
     <button onclick="openLoadPanel()" style="margin-right:6px;font-size:12px;padding:6px 12px;border:1px solid rgba(255,255,255,.25);border-radius:var(--r);background:transparent;color:var(--cream);cursor:pointer">&#8679; Load</button>
-    <button onclick="pushDocsToProject()" style="margin-right:6px;font-size:12px;padding:6px 14px;border:none;border-radius:var(--r);background:var(--gold);color:var(--ink);cursor:pointer;font-weight:600">&#8599; Push</button>
+    <button onclick="pushDocsToProject()" style="margin-right:6px;font-size:12px;padding:6px 14px;border:none;border-radius:var(--r);background:var(--gold);color:var(--fg);cursor:pointer;font-weight:600">&#8599; Push</button>
     <button onclick="newEstimate()" style="margin-right:6px;font-size:12px;padding:6px 12px;border:1px solid rgba(255,255,255,.25);border-radius:var(--r);background:transparent;color:var(--cream);cursor:pointer">+ New</button>
     <button class="save-btn" onclick="exportInfoPackage()">
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" width="14" height="14"><path d="M2 12v2h12v-2M8 2v8m0 0l-3-3m3 3l3-3"/></svg>
@@ -2730,7 +2738,7 @@ button.tab.active{color:var(--gold2);border-bottom-color:var(--gold2)}
     <div class="card-title">Client information</div>
     <div class="field" style="margin-bottom:12px">
       <label>Select project</label>
-      <select id="ci-contact-select" onchange="fillFromContact(this.value)" style="font-family:var(--sans);font-size:13px;padding:8px 10px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);color:var(--ink);width:100%">
+      <select id="ci-contact-select" onchange="fillFromContact(this.value)" style="font-family:var(--sans);font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:var(--r);background:var(--card);color:var(--fg);width:100%">
         <option value="">— Select a project —</option>
       </select>
     </div>
@@ -2807,7 +2815,7 @@ button.tab.active{color:var(--gold2);border-bottom-color:var(--gold2)}
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" width="14" height="14"><path d="M2 12v2h12v-2M8 2v8m0 0l-3-3m3 3l3-3"/></svg>
     Export PDF
   </button>
-  <button class="export-btn" onclick="pushToProject()" style="background:var(--gold);color:var(--ink);border:none;margin-left:8px">
+  <button class="export-btn" onclick="pushToProject()" style="background:var(--gold);color:var(--fg);border:none;margin-left:8px">
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" width="14" height="14"><path d="M8 2v12M2 8l6-6 6 6"/></svg>
     Project $
   </button>
@@ -2831,21 +2839,21 @@ button.tab.active{color:var(--gold2);border-bottom-color:var(--gold2)}
       <tbody id="q-line-tbody"></tbody>
       <tfoot>
         <tr id="q-disc-row" style="display:none"><td colspan="2" style="text-align:right"><span id="q-disc-label">Discount</span></td><td class="right"><span id="q-disc-val">-$0.00</span></td></tr>
-        <tr><td colspan="2" style="text-align:right;font-size:12px;color:var(--ink3)">Subtotal</td><td class="right" id="q-subtotal">$0.00</td></tr>
-        <tr><td colspan="2" style="text-align:right;font-size:12px;color:var(--ink3)" id="q-tax-label">HST (13%)</td><td class="right" id="q-tax">$0.00</td></tr>
+        <tr><td colspan="2" style="text-align:right;font-size:12px;color:var(--muted-fg)">Subtotal</td><td class="right" id="q-subtotal">$0.00</td></tr>
+        <tr><td colspan="2" style="text-align:right;font-size:12px;color:var(--muted-fg)" id="q-tax-label">HST (13%)</td><td class="right" id="q-tax">$0.00</td></tr>
         <tr><td colspan="2" style="text-align:right;font-size:13px;font-weight:500">TOTAL</td><td class="right" id="q-total" style="font-size:15px;font-weight:600">$0.00</td></tr>
       </tfoot>
     </table>
     <div class="doc-section">
       <div class="doc-section-title">Payment terms</div>
-      <div style="font-size:12px;color:var(--ink2);line-height:1.8;margin-bottom:12px">An initial deposit of 10% is required on the first day, followed by 45% midway through the project, and the balance on completion.</div>
+      <div style="font-size:12px;color:var(--fg);line-height:1.8;margin-bottom:12px">An initial deposit of 10% is required on the first day, followed by 45% midway through the project, and the balance on completion.</div>
       <div class="pay-grid">
         <div class="pay-card"><div class="pay-step">Step 1 · Deposit</div><div class="pay-amount" id="q-pay1">$0.00</div><div class="pay-desc">10% due on first day</div></div>
         <div class="pay-card"><div class="pay-step">Step 2 · Midway</div><div class="pay-amount" id="q-pay2">$0.00</div><div class="pay-desc">45% due midway</div></div>
         <div class="pay-card"><div class="pay-step">Step 3 · Completion</div><div class="pay-amount" id="q-pay3">$0.00</div><div class="pay-desc">Balance on completion</div></div>
       </div>
     </div>
-    <div style="margin-top:16px;padding:12px;background:var(--cream2);border-radius:var(--r);font-size:12px;color:var(--ink2);line-height:1.7">
+    <div style="margin-top:16px;padding:12px;background:var(--muted);border-radius:var(--r);font-size:12px;color:var(--fg);line-height:1.7">
       Thank you for your business! E-transfer payments: <strong>info@kingdompainting.ca</strong>
     </div>
   </div>
@@ -2863,7 +2871,7 @@ button.tab.active{color:var(--gold2);border-bottom-color:var(--gold2)}
         <span style="font-family:var(--sans);font-size:13px;font-weight:700;color:#C4922A;letter-spacing:0.04em;white-space:nowrap">KINGDOM PAINTING INC.</span><div class="doc-type">Painting Service Agreement</div></div>
       <div class="doc-meta"><div><strong>Date</strong> <span id="con-date"></span></div></div>
     </div>
-    <div style="font-size:13px;color:var(--ink2);line-height:1.9" id="contract-body"></div>
+    <div style="font-size:13px;color:var(--fg);line-height:1.9" id="contract-body"></div>
   </div>
 </div>
 
@@ -2888,7 +2896,7 @@ button.tab.active{color:var(--gold2);border-bottom-color:var(--gold2)}
       <div class="q-row"><span class="q-label">HST (13%)</span><span class="q-val" id="co-tax">$0.00</span></div>
       <div class="q-row total-row"><span>Total</span><span id="co-total">$0.00</span></div>
     </div>
-    <div style="margin-top:12px;font-size:12px;color:var(--ink2)">E-transfer: <strong>info@kingdompainting.ca</strong></div>
+    <div style="margin-top:12px;font-size:12px;color:var(--fg)">E-transfer: <strong>info@kingdompainting.ca</strong></div>
   </div>
 </div>
 
@@ -2904,21 +2912,21 @@ button.tab.active{color:var(--gold2);border-bottom-color:var(--gold2)}
       <hr class="divider">
       <div class="toggle-row"><input type="checkbox" id="lr-taxes" checked onchange="recalcRates();schedulePaintSave()"><span>Apply payroll taxes</span></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">
-        <div style="background:var(--cream2);border-radius:var(--r);padding:10px 12px">
+        <div style="background:var(--muted);border-radius:var(--r);padding:10px 12px">
           <div class="toggle-row" style="margin-bottom:6px"><input type="checkbox" id="lr-discount" onchange="recalcRates();schedulePaintSave()"><span style="font-weight:600">Discount %</span></div>
           <div class="field" style="margin:0"><label>Percentage</label><input type="number" id="lr-disc-pct" value="10" min="0" max="100" oninput="recalcRates();schedulePaintSave()"></div>
         </div>
-        <div style="background:var(--cream2);border-radius:var(--r);padding:10px 12px">
+        <div style="background:var(--muted);border-radius:var(--r);padding:10px 12px">
           <div class="toggle-row" style="margin-bottom:6px"><input type="checkbox" id="lr-discount-amt" onchange="recalcRates();schedulePaintSave()"><span style="font-weight:600">Discount $</span></div>
           <div class="field" style="margin:0"><label>Amount</label><input type="number" id="lr-disc-amt" value="0" min="0" oninput="recalcRates();schedulePaintSave()"></div>
         </div>
       </div>
       <hr class="divider">
       <table class="rates-table">
-        <tr><td style="color:var(--ink3)">Overhead / hr</td><td id="lr-oh-hr">$0</td></tr>
-        <tr><td style="color:var(--ink3)">Field wage / worker</td><td id="lr-wage">$0</td></tr>
-        <tr style="font-weight:500"><td>Profit / hr</td><td id="lr-total-hr" style="color:var(--gold)">$0</td></tr>
-        <tr style="font-weight:500;border-top:2px solid var(--cream3)"><td>Total hourly rate (all workers)</td><td id="lr-total-all" style="color:var(--gold);font-size:15px">$0</td></tr>
+        <tr><td style="color:var(--muted-fg)">Overhead / hr</td><td id="lr-oh-hr">$0</td></tr>
+        <tr><td style="color:var(--muted-fg)">Field wage / worker</td><td id="lr-wage">$0</td></tr>
+        <tr style="font-weight:500"><td>Profit / hr</td><td id="lr-total-hr" style="color:var(--primary)">$0</td></tr>
+        <tr style="font-weight:500;border-top:2px solid var(--border)"><td>Total hourly rate (all workers)</td><td id="lr-total-all" style="color:var(--primary);font-size:15px">$0</td></tr>
       </table>
     </div>
     <div class="card">
@@ -2926,16 +2934,16 @@ button.tab.active{color:var(--gold2);border-bottom-color:var(--gold2)}
       <div id="lr-overhead-fields"></div>
       <hr class="divider">
       <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:500">
-        <span>Total overhead</span><span id="lr-oh-sum" style="color:var(--gold)">$0</span>
+        <span>Total overhead</span><span id="lr-oh-sum" style="color:var(--primary)">$0</span>
       </div>
     </div>
   </div>
   <div class="card">
     <div class="card-title">Field workers</div>
     <div id="lr-workers"></div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid var(--cream3)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
       <div style="font-size:13px">Active workers: <strong id="lr-active-count">0</strong></div>
-      <div style="font-size:15px;font-weight:500;color:var(--gold)"><span id="lr-total-all-workers">$0</span><span style="font-size:11px;color:var(--ink3);margin-left:4px">/hr field wage</span></div>
+      <div style="font-size:15px;font-weight:500;color:var(--primary)"><span id="lr-total-all-workers">$0</span><span style="font-size:11px;color:var(--muted-fg);margin-left:4px">/hr field wage</span></div>
     </div>
   </div>
   <div class="card" style="margin-top:12px">
@@ -2945,12 +2953,12 @@ button.tab.active{color:var(--gold2);border-bottom-color:var(--gold2)}
         <label>Target profit ($)</label>
         <input type="number" id="lr-profit-target" value="0" min="0" step="100" oninput="recalcRates();schedulePaintSave()" placeholder="e.g. 5000">
       </div>
-      <div style="background:var(--cream2);border-radius:var(--r);padding:10px 14px;display:flex;justify-content:space-between;align-items:center">
-        <span style="font-size:12px;color:var(--ink3)">Profit / hr</span>
-        <span id="lr-profit" style="font-size:15px;font-weight:600;color:var(--gold)">$0/hr</span>
+      <div style="background:var(--muted);border-radius:var(--r);padding:10px 14px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:var(--muted-fg)">Profit / hr</span>
+        <span id="lr-profit" style="font-size:15px;font-weight:600;color:var(--primary)">$0/hr</span>
       </div>
     </div>
-    <div style="font-size:11px;color:var(--ink4);margin-top:8px">Target profit ÷ (billable hours × active workers) = profit / hr added to rate</div>
+    <div style="font-size:11px;color:var(--muted-fg);margin-top:8px">Target profit ÷ (billable hours × active workers) = profit / hr added to rate</div>
   </div>
 <div style="margin-top:18px;display:flex;align-items:center;gap:12px">
   <button onclick="doSaveSettings(this)" style="padding:9px 24px;background:#C4922A;color:#fff;border:none;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--sans);letter-spacing:.02em">Save Settings</button>
@@ -2974,7 +2982,7 @@ button.tab.active{color:var(--gold2);border-bottom-color:var(--gold2)}
 
 <!-- STANDARDS -->
 <div class="page" id="page-standards">
-  <div style="font-size:12px;color:var(--ink3);margin-bottom:14px;padding:10px 14px;background:var(--cream2);border-radius:var(--r);border-left:3px solid var(--gold)">
+  <div style="font-size:12px;color:var(--muted-fg);margin-bottom:14px;padding:10px 14px;background:var(--muted);border-radius:var(--r);border-left:3px solid var(--gold)">
     All values are editable and update labour calculations in real time.
   </div>
   <div class="grid2">
@@ -2982,54 +2990,54 @@ button.tab.active{color:var(--gold2);border-bottom-color:var(--gold2)}
       <div class="card-title">Walls — sqft per hour</div>
       <table class="doc-table"><thead><tr><th>Coats</th><th class="right">Sqft/Hr</th></tr></thead>
         <tbody>
-          <tr><td>1 coat</td><td class="right"><input type="number" min="1" value="200" style="width:80px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('walls',1,+this.value)"></td></tr>
-          <tr><td>2 coats</td><td class="right"><input type="number" min="1" value="120" style="width:80px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('walls',2,+this.value)"></td></tr>
-          <tr><td>Primer &amp; 2 coats</td><td class="right"><input type="number" min="1" value="75" style="width:80px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('walls',3,+this.value)"></td></tr>
+          <tr><td>1 coat</td><td class="right"><input type="number" min="1" value="200" style="width:80px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card)" oninput="updStd('walls',1,+this.value)"></td></tr>
+          <tr><td>2 coats</td><td class="right"><input type="number" min="1" value="120" style="width:80px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card)" oninput="updStd('walls',2,+this.value)"></td></tr>
+          <tr><td>Primer &amp; 2 coats</td><td class="right"><input type="number" min="1" value="75" style="width:80px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card)" oninput="updStd('walls',3,+this.value)"></td></tr>
         </tbody>
       </table>
     </div>
     <div class="card">
       <div class="card-title">Ceiling — sqft per hour</div>
-      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin:4px 0 6px">Flat / Drywall</div>
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted-fg);margin:4px 0 6px">Flat / Drywall</div>
       <table class="doc-table"><thead><tr><th>Coats</th><th class="right">Sqft/Hr</th></tr></thead>
         <tbody>
-          <tr><td>1 coat</td><td class="right"><input type="number" min="1" value="150" style="width:80px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('flatCeiling',1,+this.value)"></td></tr>
-          <tr><td>2 coats</td><td class="right"><input type="number" min="1" value="90" style="width:80px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('flatCeiling',2,+this.value)"></td></tr>
-          <tr><td>Primer &amp; 2 coats</td><td class="right"><input type="number" min="1" value="55" style="width:80px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('flatCeiling',3,+this.value)"></td></tr>
+          <tr><td>1 coat</td><td class="right"><input type="number" min="1" value="150" style="width:80px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card)" oninput="updStd('flatCeiling',1,+this.value)"></td></tr>
+          <tr><td>2 coats</td><td class="right"><input type="number" min="1" value="90" style="width:80px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card)" oninput="updStd('flatCeiling',2,+this.value)"></td></tr>
+          <tr><td>Primer &amp; 2 coats</td><td class="right"><input type="number" min="1" value="55" style="width:80px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card)" oninput="updStd('flatCeiling',3,+this.value)"></td></tr>
         </tbody>
       </table>
       <hr class="divider" style="margin:12px 0 10px">
-      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin-bottom:6px">Stucco</div>
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted-fg);margin-bottom:6px">Stucco</div>
       <table class="doc-table"><thead><tr><th>Coats</th><th class="right">Sqft/Hr</th></tr></thead>
         <tbody>
-          <tr><td>1 coat</td><td class="right"><input type="number" min="1" value="80" style="width:80px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('stuccoCeiling',1,+this.value)"></td></tr>
-          <tr><td>2 coats</td><td class="right"><input type="number" min="1" value="50" style="width:80px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('stuccoCeiling',2,+this.value)"></td></tr>
-          <tr><td>Primer &amp; 2 coats</td><td class="right"><input type="number" min="1" value="35" style="width:80px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('stuccoCeiling',3,+this.value)"></td></tr>
+          <tr><td>1 coat</td><td class="right"><input type="number" min="1" value="80" style="width:80px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card)" oninput="updStd('stuccoCeiling',1,+this.value)"></td></tr>
+          <tr><td>2 coats</td><td class="right"><input type="number" min="1" value="50" style="width:80px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card)" oninput="updStd('stuccoCeiling',2,+this.value)"></td></tr>
+          <tr><td>Primer &amp; 2 coats</td><td class="right"><input type="number" min="1" value="35" style="width:80px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card)" oninput="updStd('stuccoCeiling',3,+this.value)"></td></tr>
         </tbody>
       </table>
       <hr class="divider" style="margin:12px 0 10px">
-      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin-bottom:8px">Remove Stucco — rate per sqft</div>
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted-fg);margin-bottom:8px">Remove Stucco — rate per sqft</div>
       <div class="field" style="margin:0">
         <label>$ per sqft</label>
-        <input type="number" min="0" step="0.05" value="0.75" style="width:100px;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="if(+this.value>0){STANDARDS.removeStucco={rate:+this.value};recalcAll();schedulePaintSave();}">
+        <input type="number" min="0" step="0.05" value="0.75" style="width:100px;font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card)" oninput="if(+this.value>0){STANDARDS.removeStucco={rate:+this.value};recalcAll();schedulePaintSave();}">
       </div>
     </div>
     <div class="card">
       <div class="card-title">Trims — linear feet per hour</div>
       <table class="doc-table"><thead><tr><th>Surface</th><th>Coats</th><th class="right">LF/Hr</th></tr></thead>
         <tbody>
-          <tr><td rowspan="3">Baseboards</td><td>1</td><td class="right"><input type="number" min="1" value="100" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('baseboards',1,+this.value)"></td></tr>
-          <tr><td>2</td><td class="right"><input type="number" min="1" value="60" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('baseboards',2,+this.value)"></td></tr>
-          <tr><td>Primer &amp; 2 Coats</td><td class="right"><input type="number" min="1" value="40" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('baseboards',3,+this.value)"></td></tr>
-          <tr><td rowspan="3">Crown</td><td>1</td><td class="right"><input type="number" min="1" value="90" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('crown',1,+this.value)"></td></tr>
-          <tr><td>2</td><td class="right"><input type="number" min="1" value="55" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('crown',2,+this.value)"></td></tr>
-          <tr><td>Primer &amp; 2 Coats</td><td class="right"><input type="number" min="1" value="35" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('crown',3,+this.value)"></td></tr>
-          <tr><td rowspan="3">Door Frames</td><td>1</td><td class="right"><input type="number" min="1" value="170" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('doorFrames',1,+this.value)"></td></tr>
-          <tr><td>2</td><td class="right"><input type="number" min="1" value="102" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('doorFrames',2,+this.value)"></td></tr>
-          <tr><td>Primer &amp; 2 Coats</td><td class="right"><input type="number" min="1" value="65" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('doorFrames',3,+this.value)"></td></tr>
-          <tr><td rowspan="3">Windows</td><td>1</td><td class="right"><input type="number" min="1" value="100" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('windows',1,+this.value)"></td></tr>
-          <tr><td>2</td><td class="right"><input type="number" min="1" value="60" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('windows',2,+this.value)"></td></tr>
-          <tr><td>Primer &amp; 2 Coats</td><td class="right"><input type="number" min="1" value="40" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('windows',3,+this.value)"></td></tr>
+          <tr><td rowspan="3">Baseboards</td><td>1</td><td class="right"><input type="number" min="1" value="100" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card)" oninput="updStd('baseboards',1,+this.value)"></td></tr>
+          <tr><td>2</td><td class="right"><input type="number" min="1" value="60" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card)" oninput="updStd('baseboards',2,+this.value)"></td></tr>
+          <tr><td>Primer &amp; 2 Coats</td><td class="right"><input type="number" min="1" value="40" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card)" oninput="updStd('baseboards',3,+this.value)"></td></tr>
+          <tr><td rowspan="3">Crown</td><td>1</td><td class="right"><input type="number" min="1" value="90" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card)" oninput="updStd('crown',1,+this.value)"></td></tr>
+          <tr><td>2</td><td class="right"><input type="number" min="1" value="55" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card)" oninput="updStd('crown',2,+this.value)"></td></tr>
+          <tr><td>Primer &amp; 2 Coats</td><td class="right"><input type="number" min="1" value="35" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card)" oninput="updStd('crown',3,+this.value)"></td></tr>
+          <tr><td rowspan="3">Door Frames</td><td>1</td><td class="right"><input type="number" min="1" value="170" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card)" oninput="updStd('doorFrames',1,+this.value)"></td></tr>
+          <tr><td>2</td><td class="right"><input type="number" min="1" value="102" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card)" oninput="updStd('doorFrames',2,+this.value)"></td></tr>
+          <tr><td>Primer &amp; 2 Coats</td><td class="right"><input type="number" min="1" value="65" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card)" oninput="updStd('doorFrames',3,+this.value)"></td></tr>
+          <tr><td rowspan="3">Windows</td><td>1</td><td class="right"><input type="number" min="1" value="100" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card)" oninput="updStd('windows',1,+this.value)"></td></tr>
+          <tr><td>2</td><td class="right"><input type="number" min="1" value="60" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card)" oninput="updStd('windows',2,+this.value)"></td></tr>
+          <tr><td>Primer &amp; 2 Coats</td><td class="right"><input type="number" min="1" value="40" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card)" oninput="updStd('windows',3,+this.value)"></td></tr>
         </tbody>
       </table>
     </div>
@@ -3037,9 +3045,9 @@ button.tab.active{color:var(--gold2);border-bottom-color:var(--gold2)}
       <div class="card-title">Doors — sqft per hour</div>
       <table class="doc-table"><thead><tr><th>Coats</th><th class="right">Sqft/Hr</th></tr></thead>
         <tbody>
-          <tr><td>1 coat</td><td class="right"><input type="number" min="1" value="84" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('doors',1,+this.value)"></td></tr>
-          <tr><td>2 coats</td><td class="right"><input type="number" min="1" value="42" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('doors',2,+this.value)"></td></tr>
-          <tr><td>Primer &amp; 2 coats</td><td class="right"><input type="number" min="1" value="21" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('doors',3,+this.value)"></td></tr>
+          <tr><td>1 coat</td><td class="right"><input type="number" min="1" value="84" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card)" oninput="updStd('doors',1,+this.value)"></td></tr>
+          <tr><td>2 coats</td><td class="right"><input type="number" min="1" value="42" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card)" oninput="updStd('doors',2,+this.value)"></td></tr>
+          <tr><td>Primer &amp; 2 coats</td><td class="right"><input type="number" min="1" value="21" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card)" oninput="updStd('doors',3,+this.value)"></td></tr>
         </tbody>
       </table>
     </div>
@@ -3479,7 +3487,7 @@ function surfLFRow(rid,key,en,coats,label,ck,lfVal,autoLF){
   const display=en?(autoLF>0?autoLF:lfVal||0):0;
   return '<div class="surf-grid"><label class="surf-label"><input type="checkbox" '+(en?'checked':'')+' onchange="upd('+rid+',\\''+key+'\\',this.checked)"> '+label+'</label>'
     +'<select class="coats-sel" onchange="upd('+rid+',\\''+ck+'\\',+this.value)"><option value="1" '+(coats===1?'selected':'')+'>1 coat</option><option value="2" '+(coats===2?'selected':'')+'>2 coats</option><option value="3" '+(coats===3?'selected':'')+'>Primer &amp; 2 Coats</option></select>'
-    +'<span style="font-size:11px;color:var(--ink3);padding:5px 8px;background:var(--cream2);border-radius:var(--r)">'+(en&&display?fmtN(display)+' lf':'\\u2014')+'</span><span></span></div>';
+    +'<span style="font-size:11px;color:var(--muted-fg);padding:5px 8px;background:var(--muted);border-radius:var(--r)">'+(en&&display?fmtN(display)+' lf':'\\u2014')+'</span><span></span></div>';
 }
 
 
@@ -3529,23 +3537,23 @@ function renderRoomBody(r){
     var stuccoRate=(STANDARDS.removeStucco&&STANDARDS.removeStucco.rate)||0.75;
     var irrStuccoCost=irrCeilSqft*stuccoRate;
     irregHtml=
-      '<div style="background:var(--cream2);border-radius:var(--r);padding:10px 12px;margin-bottom:12px">'
-      +'<div style="font-size:11px;font-weight:600;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Wall Segments — each length \\u00d7 height = sqft</div>'
+      '<div style="background:var(--muted);border-radius:var(--r);padding:10px 12px;margin-bottom:12px">'
+      +'<div style="font-size:11px;font-weight:600;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Wall Segments — each length \\u00d7 height = sqft</div>'
       +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:6px">'+segInputs+'</div>'
-      +'<div style="font-size:12px;color:var(--gold2);font-weight:600">Wall area: '+fmtN(irrWallSqft)+' sqft</div>'
+      +'<div style="font-size:12px;color:var(--primary);font-weight:600">Wall area: '+fmtN(irrWallSqft)+' sqft</div>'
       +'</div>'
       +(r.ceiling?(
-        '<div style="background:var(--cream2);border-radius:var(--r);padding:10px 12px;margin-bottom:12px">'
-        +'<div style="font-size:11px;font-weight:600;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Ceiling Sections \\u2014 two rectangles added together</div>'
+        '<div style="background:var(--muted);border-radius:var(--r);padding:10px 12px;margin-bottom:12px">'
+        +'<div style="font-size:11px;font-weight:600;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Ceiling Sections \\u2014 two rectangles added together</div>'
         +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:6px">'
         +'<div class="field" style="margin:0"><label>Sec 1 Length</label><input type="number" min="0" step="0.5" value="'+(csegs[0].l||'')+'" placeholder="0" oninput="updCeilSeg('+r.id+',0,\\'l\\',this.value)"></div>'
         +'<div class="field" style="margin:0"><label>Sec 1 Width</label><input type="number" min="0" step="0.5" value="'+(csegs[0].w||'')+'" placeholder="0" oninput="updCeilSeg('+r.id+',0,\\'w\\',this.value)"></div>'
         +'<div class="field" style="margin:0"><label>Sec 2 Length</label><input type="number" min="0" step="0.5" value="'+(csegs[1].l||'')+'" placeholder="0" oninput="updCeilSeg('+r.id+',1,\\'l\\',this.value)"></div>'
         +'<div class="field" style="margin:0"><label>Sec 2 Width</label><input type="number" min="0" step="0.5" value="'+(csegs[1].w||'')+'" placeholder="0" oninput="updCeilSeg('+r.id+',1,\\'w\\',this.value)"></div>'
         +'</div>'
-        +'<div style="font-size:12px;color:var(--gold2);font-weight:600;margin-bottom:8px">Ceiling area: '+fmtN(irrCeilSqft)+' sqft</div>'
-        +'<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;background:var(--cream);padding:6px 10px;border-radius:var(--r)">'
-        +'<input type="checkbox" '+(r.removeStucco?'checked':'')+' onchange="upd('+r.id+',\\'removeStucco\\',this.checked)" style="accent-color:var(--gold)">'
+        +'<div style="font-size:12px;color:var(--primary);font-weight:600;margin-bottom:8px">Ceiling area: '+fmtN(irrCeilSqft)+' sqft</div>'
+        +'<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;background:var(--card);padding:6px 10px;border-radius:var(--r)">'
+        +'<input type="checkbox" '+(r.removeStucco?'checked':'')+' onchange="upd('+r.id+',\\'removeStucco\\',this.checked)" style="accent-color:var(--primary)">'
         +' Remove stucco ($'+stuccoRate.toFixed(2)+'/sqft)'+(r.removeStucco&&irrCeilSqft>0?' \u2014 $'+irrStuccoCost.toFixed(2):'')
         +'</label>'
         +'</div>'
@@ -3562,29 +3570,29 @@ function renderRoomBody(r){
     +'<div class="field"><label>Doors</label><input type="number" min="0" step="1" value="'+(r.doorCount||'')+'" placeholder="0" oninput="upd('+r.id+',\\'doorCount\\',+this.value)"></div>'
     +'</div>'
     +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">'
-    +'<input type="checkbox" id="irreg_'+r.id+'" '+(r.irregular?'checked':'')+' onchange="upd('+r.id+',\\'irregular\\',this.checked);" style="accent-color:var(--gold);width:14px;height:14px">'
-    +'<label for="irreg_'+r.id+'" style="font-size:12px;font-weight:600;color:var(--ink2);cursor:pointer">Irregular Room</label>'
+    +'<input type="checkbox" id="irreg_'+r.id+'" '+(r.irregular?'checked':'')+' onchange="upd('+r.id+',\\'irregular\\',this.checked);" style="accent-color:var(--primary);width:14px;height:14px">'
+    +'<label for="irreg_'+r.id+'" style="font-size:12px;font-weight:600;color:var(--fg);cursor:pointer">Irregular Room</label>'
     +'</div>'
     +irregHtml
     +'<div class="card-title">Prep</div>'
     +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px">'
-    +['furniture','plastic','outlets','drywall','caulking','cleanup'].map(function(k){return '<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink2);background:var(--cream2);padding:6px 10px;border-radius:var(--r);cursor:pointer"><input type="checkbox" '+(r.prep[k]?'checked':'')+' onchange="updPrep('+r.id+',\\''+k+'\\',this.checked)" style="accent-color:var(--gold);width:13px;height:13px"> '+{furniture:'Move furniture',plastic:'Plastic cover',outlets:'Remove outlets',drywall:'Drywall repairs',caulking:'Caulking',cleanup:'Clean up'}[k]+'</label>';}).join('')
+    +['furniture','plastic','outlets','drywall','caulking','cleanup'].map(function(k){return '<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--fg);background:var(--muted);padding:6px 10px;border-radius:var(--r);cursor:pointer"><input type="checkbox" '+(r.prep[k]?'checked':'')+' onchange="updPrep('+r.id+',\\''+k+'\\',this.checked)" style="accent-color:var(--primary);width:13px;height:13px"> '+{furniture:'Move furniture',plastic:'Plastic cover',outlets:'Remove outlets',drywall:'Drywall repairs',caulking:'Caulking',cleanup:'Clean up'}[k]+'</label>';}).join('')
     +'</div>'
     +'<div class="field" style="margin-bottom:12px"><label>Additional prep notes</label><input type="text" value="'+(r.prep.custom||'')+'" placeholder="Type any additional prep..." oninput="updPrep('+r.id+',\\'custom\\',this.value)"></div>'
     +'<div class="card-title">Surfaces</div>'
     +sfRow('walls',r.walls,'wallCoats','Walls')
     +sfRow('ceiling',r.ceiling,'ceilCoats','Ceiling')
 +(r.ceiling?(
-  '<div style="background:var(--cream2);border-radius:var(--r);padding:10px 12px;margin:4px 0 8px 24px">'
-  +'<div style="font-size:11px;font-weight:600;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Ceiling Type</div>'
+  '<div style="background:var(--muted);border-radius:var(--r);padding:10px 12px;margin:4px 0 8px 24px">'
+  +'<div style="font-size:11px;font-weight:600;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Ceiling Type</div>'
   +'<div style="display:flex;gap:16px;margin-bottom:8px">'
   +'<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">'
   +'<input type="radio" name="ctype_'+r.id+'" value="flat" '+((!r.ceilType||r.ceilType==="flat")?'checked':'')+' onchange="upd('+r.id+',\\'ceilType\\',\\'flat\\')"> Flat / Drywall</label>'
   +'<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">'
   +'<input type="radio" name="ctype_'+r.id+'" value="stucco" '+(r.ceilType==="stucco"?'checked':'')+' onchange="upd('+r.id+',\\'ceilType\\',\\'stucco\\')"> Stucco</label>'
   +'</div>'
-  +'<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;background:var(--cream);padding:6px 10px;border-radius:var(--r)">'
-  +'<input type="checkbox" '+(r.removeStucco?'checked':'')+' onchange="upd('+r.id+',\\'removeStucco\\',this.checked)" style="accent-color:var(--gold)">'
+  +'<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;background:var(--card);padding:6px 10px;border-radius:var(--r)">'
+  +'<input type="checkbox" '+(r.removeStucco?'checked':'')+' onchange="upd('+r.id+',\\'removeStucco\\',this.checked)" style="accent-color:var(--primary)">'
   +' Remove stucco ($'+((STANDARDS.removeStucco.rate||0.75))+'/sqft)</label>'
   +'</div>'
 ):'')
@@ -3605,17 +3613,17 @@ function renderRoomBody(r){
           +'<input type="number" min="0" step="0.5" value="'+(+(d.l)||'')+'" placeholder="0" oninput="updWinDimIdx('+r.id+','+i+',\\'l\\',this.value)"></div>'
           +'<div class="field" style="margin:0"><label>Window '+(i+1)+' Width (ft)</label>'
           +'<input type="number" min="0" step="0.5" value="'+(+(d.w)||'')+'" placeholder="0" oninput="updWinDimIdx('+r.id+','+i+',\\'w\\',this.value)"></div>'
-          +'<div style="padding:8px 10px;background:var(--cream);border-radius:var(--r);text-align:center;min-width:56px">'
-          +'<div style="font-size:9px;font-weight:600;color:var(--ink4);text-transform:uppercase">LF</div>'
-          +'<div style="font-size:13px;font-weight:700;color:var(--gold2)">'+fmtN(lf)+'</div></div>'
-          +(wDims.length>1?'<button onclick="updWinRemove('+r.id+','+i+')" style="background:none;border:none;cursor:pointer;color:var(--ink4);font-size:16px;padding:4px">&times;</button>':'<span></span>')
+          +'<div style="padding:8px 10px;background:var(--card);border-radius:var(--r);text-align:center;min-width:56px">'
+          +'<div style="font-size:9px;font-weight:600;color:var(--muted-fg);text-transform:uppercase">LF</div>'
+          +'<div style="font-size:13px;font-weight:700;color:var(--primary)">'+fmtN(lf)+'</div></div>'
+          +(wDims.length>1?'<button onclick="updWinRemove('+r.id+','+i+')" style="background:none;border:none;cursor:pointer;color:var(--muted-fg);font-size:16px;padding:4px">&times;</button>':'<span></span>')
           +'</div>';
       }).join('');
-      return '<div style="background:var(--cream2);border-radius:var(--r);padding:10px 12px;margin:4px 0 8px 24px">'
-        +'<div style="font-size:11px;font-weight:600;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Window Dimensions — LF = (L+W)×2 per window</div>'
+      return '<div style="background:var(--muted);border-radius:var(--r);padding:10px 12px;margin:4px 0 8px 24px">'
+        +'<div style="font-size:11px;font-weight:600;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Window Dimensions — LF = (L+W)×2 per window</div>'
         +winRows
-        +'<button onclick="updWinAdd('+r.id+')" style="font-size:12px;padding:5px 12px;border:1px dashed var(--ink4);border-radius:var(--r);background:transparent;color:var(--ink3);cursor:pointer;margin-top:4px;font-family:var(--sans)">+ Add window</button>'
-        +'<div style="font-size:12px;color:var(--gold2);font-weight:600;margin-top:8px">Total: '+fmtN(totalLF)+' lf</div>'
+        +'<button onclick="updWinAdd('+r.id+')" style="font-size:12px;padding:5px 12px;border:1px dashed var(--ink4);border-radius:var(--r);background:transparent;color:var(--muted-fg);cursor:pointer;margin-top:4px;font-family:var(--sans)">+ Add window</button>'
+        +'<div style="font-size:12px;color:var(--primary);font-weight:600;margin-top:8px">Total: '+fmtN(totalLF)+' lf</div>'
         +'</div>';
     }()):'')
     +'<hr class="divider">'
@@ -3625,19 +3633,19 @@ function renderRoomBody(r){
     +'<div class="field"><label>Wall colour</label><select onchange="upd('+r.id+',\\'wallColour\\',this.value)"><option value="">\\u2014 Colour \\u2014</option>'+colourOpts(r.wallColour)+'</select></div>'
     +'<div class="field"><label>Wall sheen</label><select onchange="upd('+r.id+',\\'wallSheen\\',this.value)"><option value="">\\u2014 Sheen \\u2014</option>'+sheenOpts(r.wallSheen)+'</select></div>'
     +'</div>'
-    +(r.wallCoats==3?'<div class="field" style="margin-bottom:8px"><label style="color:var(--gold2);font-weight:600">Wall primer</label><select onchange="upd('+r.id+',\\'wallsPrimer\\',this.value)">'+primerOpts(r.wallsPrimer)+'</select></div>':'')
+    +(r.wallCoats==3?'<div class="field" style="margin-bottom:8px"><label style="color:var(--primary);font-weight:600">Wall primer</label><select onchange="upd('+r.id+',\\'wallsPrimer\\',this.value)">'+primerOpts(r.wallsPrimer)+'</select></div>':'')
     +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:4px">'
     +'<div class="field"><label>Ceiling paint</label><select onchange="upd('+r.id+',\\'ceilPaint\\',this.value)">'+ceilPaintOpts(r.ceilPaint)+'</select></div>'
     +'<div class="field"><label>Ceiling colour</label><select onchange="upd('+r.id+',\\'ceilColour\\',this.value)"><option value="">\\u2014 Colour \\u2014</option>'+colourOpts(r.ceilColour)+'</select></div>'
     +'<div class="field"><label>Ceiling sheen</label><select onchange="upd('+r.id+',\\'ceilSheen\\',this.value)"><option value="">\\u2014 Sheen \\u2014</option>'+sheenOpts(r.ceilSheen)+'</select></div>'
     +'</div>'
-    +(r.ceilCoats==3?'<div class="field" style="margin-bottom:8px"><label style="color:var(--gold2);font-weight:600">Ceiling primer</label><select onchange="upd('+r.id+',\\'ceilingPrimer\\',this.value)">'+primerOpts(r.ceilingPrimer)+'</select></div>':'')
+    +(r.ceilCoats==3?'<div class="field" style="margin-bottom:8px"><label style="color:var(--primary);font-weight:600">Ceiling primer</label><select onchange="upd('+r.id+',\\'ceilingPrimer\\',this.value)">'+primerOpts(r.ceilingPrimer)+'</select></div>':'')
     +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:4px">'
     +'<div class="field"><label>Trim paint</label><select onchange="upd('+r.id+',\\'trimPaint\\',this.value)">'+paintOpts(r.trimPaint)+'</select></div>'
     +'<div class="field"><label>Trim colour</label><select onchange="upd('+r.id+',\\'trimColour\\',this.value)"><option value="">\\u2014 Colour \\u2014</option>'+colourOpts(r.trimColour)+'</select></div>'
     +'<div class="field"><label>Trim sheen</label><select onchange="upd('+r.id+',\\'trimSheen\\',this.value)"><option value="">\\u2014 Sheen \\u2014</option>'+sheenOpts(r.trimSheen)+'</select></div>'
     +'</div>'
-    +((r.baseCoats==3||r.crownCoats==3||r.doorCoats==3||r.dfCoats==3||r.winCoats==3)?'<div class="field" style="margin-bottom:8px"><label style="color:var(--gold2);font-weight:600">Trim primer</label><select onchange="upd('+r.id+',\\'trimPrimer\\',this.value)">'+primerOpts(r.trimPrimer)+'</select></div>':'')
+    +((r.baseCoats==3||r.crownCoats==3||r.doorCoats==3||r.dfCoats==3||r.winCoats==3)?'<div class="field" style="margin-bottom:8px"><label style="color:var(--primary);font-weight:600">Trim primer</label><select onchange="upd('+r.id+',\\'trimPrimer\\',this.value)">'+primerOpts(r.trimPrimer)+'</select></div>':'')
     +colourChips(r)
     +(function(){
       var sups=r.supplies||[];
@@ -3645,12 +3653,12 @@ function renderRoomBody(r){
       sups.forEach(function(item,i){
         var selOpts=SUPPLIES.map(function(sup){return '<option value="'+sup.n+'"'+(item.name===sup.n?' selected':'')+'>'+sup.n+' ($'+sup.p.toFixed(2)+')</option>';}).join('');
         rows+='<div style="display:grid;grid-template-columns:1fr 60px 28px;gap:6px;align-items:center;margin-bottom:6px">'
-          +'<select style="font-size:12px;padding:5px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);color:var(--ink)" onchange="(function(v){var r2=rooms.find(function(x){return x.id=='+r.id+';});if(!r2)return;var a=[].concat(r2.supplies||[]);a['+i+']={name:v,qty:a['+i+']?a['+i+'].qty:1};r2.supplies=a;renderRooms();recalcAll();})(this.value)"><option value="">\\u2014 Select supply \\u2014</option>'+selOpts+'</select>'
-          +'<input type="number" min="1" step="1" value="'+(item.qty||1)+'" style="font-size:12px;padding:5px 6px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);text-align:center" oninput="(function(v){var r2=rooms.find(function(x){return x.id=='+r.id+';});if(!r2)return;var a=[].concat(r2.supplies||[]);a['+i+']={name:a['+i+'].name,qty:+v||1};r2.supplies=a;recalcAll();})(this.value)">'  
-          +'<button style="background:none;border:none;cursor:pointer;color:var(--ink4);font-size:14px" onclick="(function(){var r2=rooms.find(function(x){return x.id=='+r.id+';});if(!r2)return;var a=[].concat(r2.supplies||[]);a.splice('+i+',1);r2.supplies=a;renderRooms();recalcAll();})()">&times;</button>'
+          +'<select style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card);color:var(--fg)" onchange="(function(v){var r2=rooms.find(function(x){return x.id=='+r.id+';});if(!r2)return;var a=[].concat(r2.supplies||[]);a['+i+']={name:v,qty:a['+i+']?a['+i+'].qty:1};r2.supplies=a;renderRooms();recalcAll();})(this.value)"><option value="">\\u2014 Select supply \\u2014</option>'+selOpts+'</select>'
+          +'<input type="number" min="1" step="1" value="'+(item.qty||1)+'" style="font-size:12px;padding:5px 6px;border:1px solid var(--border);border-radius:var(--r);background:var(--card);text-align:center" oninput="(function(v){var r2=rooms.find(function(x){return x.id=='+r.id+';});if(!r2)return;var a=[].concat(r2.supplies||[]);a['+i+']={name:a['+i+'].name,qty:+v||1};r2.supplies=a;recalcAll();})(this.value)">'  
+          +'<button style="background:none;border:none;cursor:pointer;color:var(--muted-fg);font-size:14px" onclick="(function(){var r2=rooms.find(function(x){return x.id=='+r.id+';});if(!r2)return;var a=[].concat(r2.supplies||[]);a.splice('+i+',1);r2.supplies=a;renderRooms();recalcAll();})()">&times;</button>'
           +'</div>';
       });
-      var addBtn='<button style="font-size:12px;padding:6px 14px;border:1px dashed var(--ink4);border-radius:var(--r);background:transparent;color:var(--ink3);cursor:pointer;width:100%;margin-bottom:8px;font-family:var(--sans)" onclick="(function(){var r2=rooms.find(function(x){return x.id=='+r.id+';});if(!r2)return;r2.supplies=[].concat(r2.supplies||[],{name:\\'\\',qty:1});renderRooms();recalcAll();})();">+ Add supply</button>';
+      var addBtn='<button style="font-size:12px;padding:6px 14px;border:1px dashed var(--ink4);border-radius:var(--r);background:transparent;color:var(--muted-fg);cursor:pointer;width:100%;margin-bottom:8px;font-family:var(--sans)" onclick="(function(){var r2=rooms.find(function(x){return x.id=='+r.id+';});if(!r2)return;r2.supplies=[].concat(r2.supplies||[],{name:\\'\\',qty:1});renderRooms();recalcAll();})();">+ Add supply</button>';
       return '<div class="card-title">Supplies</div>'+rows+addBtn;
     }())
     +'<div class="field" style="margin-top:10px"><label>Notes</label><textarea oninput="upd('+r.id+',\\'notes\\',this.value)">'+(r.notes||'')+'</textarea></div>'
@@ -3666,9 +3674,9 @@ function renderChangeItems(){
   const c=sel('co-items');if(!c)return;c.innerHTML='';
   changeItems.forEach(item=>{
     const d=document.createElement('div');d.className='change-item';
-    d.innerHTML='<input type="text" value="'+(item.num||'')+'" placeholder="Item #" style="font-size:13px;padding:7px 9px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);color:var(--ink);width:100%" oninput="changeItems.find(x=>x.id=='+item.id+').num=this.value">'
-      +'<input type="text" value="'+item.desc+'" placeholder="Description" style="font-size:13px;padding:7px 9px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);color:var(--ink)" oninput="changeItems.find(x=>x.id=='+item.id+').desc=this.value">'
-      +'<input type="number" value="'+(item.amount||'')+'" placeholder="0.00" style="font-size:13px;padding:7px 9px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);text-align:right;width:100%" oninput="changeItems.find(x=>x.id=='+item.id+').amount=+this.value;recalcCO()">';
+    d.innerHTML='<input type="text" value="'+(item.num||'')+'" placeholder="Item #" style="font-size:13px;padding:7px 9px;border:1px solid var(--border);border-radius:var(--r);background:var(--card);color:var(--fg);width:100%" oninput="changeItems.find(x=>x.id=='+item.id+').num=this.value">'
+      +'<input type="text" value="'+item.desc+'" placeholder="Description" style="font-size:13px;padding:7px 9px;border:1px solid var(--border);border-radius:var(--r);background:var(--card);color:var(--fg)" oninput="changeItems.find(x=>x.id=='+item.id+').desc=this.value">'
+      +'<input type="number" value="'+(item.amount||'')+'" placeholder="0.00" style="font-size:13px;padding:7px 9px;border:1px solid var(--border);border-radius:var(--r);background:var(--card);text-align:right;width:100%" oninput="changeItems.find(x=>x.id=='+item.id+').amount=+this.value;recalcCO()">';
     c.appendChild(d);
   });
 }
@@ -3727,12 +3735,12 @@ function initLabourRates(){
     let h='';
     overheadItems.forEach((item,i)=>{
       h+='<div style="display:grid;grid-template-columns:1fr 90px 28px;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid var(--cream2)">'
-        +'<input type="text" value="'+item.n+'" oninput="overheadItems['+i+'].n=this.value;schedulePaintSave()" style="font-size:12px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);color:var(--ink);width:100%">'
-        +'<input type="number" value="'+item.v+'" min="0" oninput="overheadItems['+i+'].v=+this.value;recalcRates();schedulePaintSave()" style="font-size:12px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);text-align:right;width:100%">'
-        +'<button onclick="overheadItems.splice('+i+',1);initLabourRates();schedulePaintSave()" style="background:none;border:none;cursor:pointer;color:var(--ink4);font-size:14px">&#215;</button>'
+        +'<input type="text" value="'+item.n+'" oninput="overheadItems['+i+'].n=this.value;schedulePaintSave()" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card);color:var(--fg);width:100%">'
+        +'<input type="number" value="'+item.v+'" min="0" oninput="overheadItems['+i+'].v=+this.value;recalcRates();schedulePaintSave()" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card);text-align:right;width:100%">'
+        +'<button onclick="overheadItems.splice('+i+',1);initLabourRates();schedulePaintSave()" style="background:none;border:none;cursor:pointer;color:var(--muted-fg);font-size:14px">&#215;</button>'
         +'</div>';
     });
-    h+='<button onclick="overheadItems.push({n:\\'New item\\',v:0});initLabourRates();schedulePaintSave()" style="margin-top:8px;width:100%;padding:7px;border:1px dashed var(--ink4);border-radius:var(--r);background:transparent;color:var(--ink3);font-size:12px;cursor:pointer;font-family:var(--sans)">+ Add item</button>';
+    h+='<button onclick="overheadItems.push({n:\\'New item\\',v:0});initLabourRates();schedulePaintSave()" style="margin-top:8px;width:100%;padding:7px;border:1px dashed var(--ink4);border-radius:var(--r);background:transparent;color:var(--muted-fg);font-size:12px;cursor:pointer;font-family:var(--sans)">+ Add item</button>';
     ohC.innerHTML=h;
   }
   const wC=sel('lr-workers');
@@ -3741,14 +3749,14 @@ function initLabourRates(){
     workers.forEach((w,i)=>{
       h+='<div class="worker-tag" style="position:relative;padding-right:28px">'
         +'<input type="checkbox" '+(w.active?'checked':'')+' onchange="workers['+i+'].active=this.checked;recalcRates()">'
-        +'<input type="text" value="'+w.n+'" oninput="workers['+i+'].n=this.value;schedulePaintSave()" style="width:72px;font-size:12px;padding:4px 6px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);color:var(--ink)">'
-        +'<span style="font-size:11px;color:var(--ink3)">$</span>'
-        +'<input type="number" value="'+w.r+'" min="0" oninput="workers['+i+'].r=+this.value;recalcRates();schedulePaintSave()" style="width:52px;font-size:12px;padding:4px 6px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);text-align:right">'
-        +'<span style="font-size:10px;color:var(--ink3)">/hr</span>'
-        +'<button onclick="workers.splice('+i+',1);initLabourRates();schedulePaintSave()" style="position:absolute;top:4px;right:4px;background:none;border:none;cursor:pointer;color:var(--ink4);font-size:13px">&#215;</button>'
+        +'<input type="text" value="'+w.n+'" oninput="workers['+i+'].n=this.value;schedulePaintSave()" style="width:72px;font-size:12px;padding:4px 6px;border:1px solid var(--border);border-radius:var(--r);background:var(--card);color:var(--fg)">'
+        +'<span style="font-size:11px;color:var(--muted-fg)">$</span>'
+        +'<input type="number" value="'+w.r+'" min="0" oninput="workers['+i+'].r=+this.value;recalcRates();schedulePaintSave()" style="width:52px;font-size:12px;padding:4px 6px;border:1px solid var(--border);border-radius:var(--r);background:var(--card);text-align:right">'
+        +'<span style="font-size:10px;color:var(--muted-fg)">/hr</span>'
+        +'<button onclick="workers.splice('+i+',1);initLabourRates();schedulePaintSave()" style="position:absolute;top:4px;right:4px;background:none;border:none;cursor:pointer;color:var(--muted-fg);font-size:13px">&#215;</button>'
         +'</div>';
     });
-    h+='</div><button onclick="workers.push({n:\\'Worker\\',r:25,active:true});initLabourRates();schedulePaintSave()" style="margin-top:10px;width:100%;padding:7px;border:1px dashed var(--ink4);border-radius:var(--r);background:transparent;color:var(--ink3);font-size:12px;cursor:pointer;font-family:var(--sans)">+ Add worker</button>';
+    h+='</div><button onclick="workers.push({n:\\'Worker\\',r:25,active:true});initLabourRates();schedulePaintSave()" style="margin-top:10px;width:100%;padding:7px;border:1px dashed var(--ink4);border-radius:var(--r);background:transparent;color:var(--muted-fg);font-size:12px;cursor:pointer;font-family:var(--sans)">+ Add worker</button>';
     wC.innerHTML=h;
   }
   recalcRates();
@@ -3763,12 +3771,12 @@ function renderPIList(containerId,dataArr,onName,onPrice,onDel,onAdd,addLabel){
     '<line x1="3" y1="5" x2="13" y2="5"/><line x1="3" y1="8" x2="13" y2="8"/><line x1="3" y1="11" x2="13" y2="11"/></svg></td>';
   dataArr.forEach(function(item,i){
     rows+='<tr draggable="false" data-idx="'+i+'">'+dragHandle+
-      '<td style="padding:4px 6px"><input type="text" value="'+(item.n||'')+'" oninput="'+onName(i)+'" style="font-size:12px;padding:5px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);color:var(--ink);width:100%"></td>'+
-      (onPrice?'<td style="padding:4px 6px;width:80px"><input type="number" min="0" step="0.01" value="'+(item.p||'')+'" oninput="'+onPrice(i)+'" style="font-size:12px;padding:5px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);text-align:right;width:100%"></td>':'')+
-      '<td style="padding:4px 6px;width:32px"><button onclick="'+onDel(i)+'" style="background:none;border:none;cursor:pointer;color:var(--ink4);font-size:15px">&#215;</button></td></tr>';
+      '<td style="padding:4px 6px"><input type="text" value="'+(item.n||'')+'" oninput="'+onName(i)+'" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card);color:var(--fg);width:100%"></td>'+
+      (onPrice?'<td style="padding:4px 6px;width:80px"><input type="number" min="0" step="0.01" value="'+(item.p||'')+'" oninput="'+onPrice(i)+'" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card);text-align:right;width:100%"></td>':'')+
+      '<td style="padding:4px 6px;width:32px"><button onclick="'+onDel(i)+'" style="background:none;border:none;cursor:pointer;color:var(--muted-fg);font-size:15px">&#215;</button></td></tr>';
   });
   var colSpan=(onPrice?4:3);
-  var addRow='<tr><td colspan="'+colSpan+'" style="padding:8px 6px 4px"><button onclick="'+onAdd+'" style="width:100%;padding:7px;border:1px dashed var(--ink4);border-radius:var(--r);background:transparent;color:var(--ink3);font-size:12px;cursor:pointer;font-family:var(--sans)">+ '+addLabel+'</button></td></tr>';
+  var addRow='<tr><td colspan="'+colSpan+'" style="padding:8px 6px 4px"><button onclick="'+onAdd+'" style="width:100%;padding:7px;border:1px dashed var(--ink4);border-radius:var(--r);background:transparent;color:var(--muted-fg);font-size:12px;cursor:pointer;font-family:var(--sans)">+ '+addLabel+'</button></td></tr>';
   var priceHeader=onPrice?'<th style="width:80px;text-align:right">Price</th>':'';
   c.innerHTML='<table class="doc-table" style="width:100%"><thead><tr><th style="width:20px"></th><th>Name</th>'+priceHeader+'<th style="width:32px"></th></tr></thead><tbody>'+rows+addRow+'</tbody></table>';
 
@@ -3817,16 +3825,16 @@ function renderColoursList(){
     rows+='<tr draggable="false" data-idx="'+i+'">'+dragHandle
       +'<td style="padding:4px 6px;width:36px">'
       +'<input type="color" value="'+hex+'" oninput="COLOURS['+i+'].h=this.value;renderColoursList();renderRooms();schedulePaintSave()" '
-      +'style="width:30px;height:28px;padding:2px;border:1px solid var(--cream3);border-radius:var(--r);cursor:pointer;background:var(--cream)">'
+      +'style="width:30px;height:28px;padding:2px;border:1px solid var(--border);border-radius:var(--r);cursor:pointer;background:var(--card)">'
       +'</td>'
       +'<td style="padding:4px 6px"><input type="text" value="'+(item.n||'')+'" oninput="COLOURS['+i+'].n=this.value;schedulePaintSave()" '
-      +'style="font-size:12px;padding:5px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);color:var(--ink);width:100%"></td>'
+      +'style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card);color:var(--fg);width:100%"></td>'
       +'<td style="padding:4px 6px;width:32px"><button onclick="COLOURS.splice('+i+',1);renderColoursList();renderRooms();schedulePaintSave()" '
-      +'style="background:none;border:none;cursor:pointer;color:var(--ink4);font-size:15px">&#215;</button></td>'
+      +'style="background:none;border:none;cursor:pointer;color:var(--muted-fg);font-size:15px">&#215;</button></td>'
       +'</tr>';
   });
   var addRow='<tr><td colspan="4" style="padding:8px 6px 4px"><button onclick="COLOURS.push({n:\\'\\',h:\\'#cccccc\\'});renderColoursList();schedulePaintSave()" '
-    +'style="width:100%;padding:7px;border:1px dashed var(--ink4);border-radius:var(--r);background:transparent;color:var(--ink3);font-size:12px;cursor:pointer;font-family:var(--sans)">+ Add colour</button></td></tr>';
+    +'style="width:100%;padding:7px;border:1px dashed var(--ink4);border-radius:var(--r);background:transparent;color:var(--muted-fg);font-size:12px;cursor:pointer;font-family:var(--sans)">+ Add colour</button></td></tr>';
   c.innerHTML='<table class="doc-table" style="width:100%"><thead><tr><th style="width:20px"></th><th style="width:36px">Swatch</th><th>Name</th><th style="width:32px"></th></tr></thead><tbody>'+rows+addRow+'</tbody></table>';
 
   // Drag-and-drop
@@ -3913,22 +3921,22 @@ function initPaintInputs(){
     var c=sel('pi-paints-container');if(!c)return;
     var h='<table style="width:100%;border-collapse:collapse"><thead><tr>'
       +'<th style="width:24px"></th>'
-      +'<th style="text-align:left;font-size:11px;color:var(--ink3);padding:4px 8px;font-weight:600">Product</th>'
-      +'<th style="text-align:right;font-size:11px;color:var(--ink3);padding:4px 8px;font-weight:600">Gallon $</th>'
-      +'<th style="text-align:right;font-size:11px;color:var(--ink3);padding:4px 8px;font-weight:600">Pail $</th>'
+      +'<th style="text-align:left;font-size:11px;color:var(--muted-fg);padding:4px 8px;font-weight:600">Product</th>'
+      +'<th style="text-align:right;font-size:11px;color:var(--muted-fg);padding:4px 8px;font-weight:600">Gallon $</th>'
+      +'<th style="text-align:right;font-size:11px;color:var(--muted-fg);padding:4px 8px;font-weight:600">Pail $</th>'
       +'<th style="width:28px"></th></tr></thead><tbody>';
     PAINTS.forEach(function(item,i){
       h+='<tr style="border-bottom:1px solid var(--cream2)">'
         +'<td style="padding:4px 2px;width:24px;cursor:grab" draggable="true" class="pa-drag" data-idx="'+i+'">'
         +'<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="3" y1="5" x2="13" y2="5"/><line x1="3" y1="8" x2="13" y2="8"/><line x1="3" y1="11" x2="13" y2="11"/></svg></td>'
-        +'<td style="padding:4px 6px"><input type="text" value="'+(item.n||'')+'" oninput="PAINTS['+i+'].n=this.value;renderRooms();schedulePaintSave()" style="font-size:12px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);color:var(--ink);width:100%"></td>'
-        +'<td style="padding:4px 6px;width:80px"><input type="number" min="0" step="0.01" value="'+(item.g||0)+'" oninput="PAINTS['+i+'].g=+this.value;schedulePaintSave()" style="font-size:12px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);text-align:right;width:100%"></td>'
-        +'<td style="padding:4px 6px;width:80px"><input type="number" min="0" step="0.01" value="'+(item.p||0)+'" oninput="PAINTS['+i+'].p=+this.value;schedulePaintSave()" style="font-size:12px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);text-align:right;width:100%"></td>'
-        +'<td style="padding:4px 6px"><button onclick="PAINTS.splice('+i+',1);initPaintInputs();schedulePaintSave()" style="background:none;border:none;cursor:pointer;color:var(--ink4);font-size:14px">&times;</button></td>'
+        +'<td style="padding:4px 6px"><input type="text" value="'+(item.n||'')+'" oninput="PAINTS['+i+'].n=this.value;renderRooms();schedulePaintSave()" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card);color:var(--fg);width:100%"></td>'
+        +'<td style="padding:4px 6px;width:80px"><input type="number" min="0" step="0.01" value="'+(item.g||0)+'" oninput="PAINTS['+i+'].g=+this.value;schedulePaintSave()" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card);text-align:right;width:100%"></td>'
+        +'<td style="padding:4px 6px;width:80px"><input type="number" min="0" step="0.01" value="'+(item.p||0)+'" oninput="PAINTS['+i+'].p=+this.value;schedulePaintSave()" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card);text-align:right;width:100%"></td>'
+        +'<td style="padding:4px 6px"><button onclick="PAINTS.splice('+i+',1);initPaintInputs();schedulePaintSave()" style="background:none;border:none;cursor:pointer;color:var(--muted-fg);font-size:14px">&times;</button></td>'
         +'</tr>';
     });
     h+='</tbody></table>'
-      +'<button onclick="PAINTS.push({n:\\'\\',g:0,p:0});initPaintInputs();schedulePaintSave()" style="margin-top:8px;width:100%;padding:7px;border:1px dashed var(--ink4);border-radius:var(--r);background:transparent;color:var(--ink3);font-size:12px;cursor:pointer;font-family:var(--sans)">+ Add paint</button>';
+      +'<button onclick="PAINTS.push({n:\\'\\',g:0,p:0});initPaintInputs();schedulePaintSave()" style="margin-top:8px;width:100%;padding:7px;border:1px dashed var(--ink4);border-radius:var(--r);background:transparent;color:var(--muted-fg);font-size:12px;cursor:pointer;font-family:var(--sans)">+ Add paint</button>';
     c.innerHTML=h;
     // Drag-to-reorder
     var dragIdx=null;
@@ -3945,22 +3953,22 @@ function initPaintInputs(){
     var c=sel('pi-ceilpaints-container');if(!c)return;
     var h='<table style="width:100%;border-collapse:collapse"><thead><tr>'
       +'<th style="width:24px"></th>'
-      +'<th style="text-align:left;font-size:11px;color:var(--ink3);padding:4px 8px;font-weight:600">Product</th>'
-      +'<th style="text-align:right;font-size:11px;color:var(--ink3);padding:4px 8px;font-weight:600">Gallon $</th>'
-      +'<th style="text-align:right;font-size:11px;color:var(--ink3);padding:4px 8px;font-weight:600">Pail $</th>'
+      +'<th style="text-align:left;font-size:11px;color:var(--muted-fg);padding:4px 8px;font-weight:600">Product</th>'
+      +'<th style="text-align:right;font-size:11px;color:var(--muted-fg);padding:4px 8px;font-weight:600">Gallon $</th>'
+      +'<th style="text-align:right;font-size:11px;color:var(--muted-fg);padding:4px 8px;font-weight:600">Pail $</th>'
       +'<th style="width:28px"></th></tr></thead><tbody>';
     CEILING_PAINTS.forEach(function(item,i){
       h+='<tr style="border-bottom:1px solid var(--cream2)">'
         +'<td style="padding:4px 2px;width:24px;cursor:grab" draggable="true" class="cp-drag" data-idx="'+i+'">'
         +'<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="3" y1="5" x2="13" y2="5"/><line x1="3" y1="8" x2="13" y2="8"/><line x1="3" y1="11" x2="13" y2="11"/></svg></td>'
-        +'<td style="padding:4px 6px"><input type="text" value="'+(item.n||'')+'" oninput="CEILING_PAINTS['+i+'].n=this.value;renderRooms();schedulePaintSave()" style="font-size:12px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);color:var(--ink);width:100%"></td>'
-        +'<td style="padding:4px 6px;width:80px"><input type="number" min="0" step="0.01" value="'+(item.g||0)+'" oninput="CEILING_PAINTS['+i+'].g=+this.value;schedulePaintSave()" style="font-size:12px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);text-align:right;width:100%"></td>'
-        +'<td style="padding:4px 6px;width:80px"><input type="number" min="0" step="0.01" value="'+(item.p||0)+'" oninput="CEILING_PAINTS['+i+'].p=+this.value;schedulePaintSave()" style="font-size:12px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);text-align:right;width:100%"></td>'
-        +'<td style="padding:4px 6px"><button onclick="CEILING_PAINTS.splice('+i+',1);initPaintInputs();schedulePaintSave()" style="background:none;border:none;cursor:pointer;color:var(--ink4);font-size:14px">&times;</button></td>'
+        +'<td style="padding:4px 6px"><input type="text" value="'+(item.n||'')+'" oninput="CEILING_PAINTS['+i+'].n=this.value;renderRooms();schedulePaintSave()" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card);color:var(--fg);width:100%"></td>'
+        +'<td style="padding:4px 6px;width:80px"><input type="number" min="0" step="0.01" value="'+(item.g||0)+'" oninput="CEILING_PAINTS['+i+'].g=+this.value;schedulePaintSave()" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card);text-align:right;width:100%"></td>'
+        +'<td style="padding:4px 6px;width:80px"><input type="number" min="0" step="0.01" value="'+(item.p||0)+'" oninput="CEILING_PAINTS['+i+'].p=+this.value;schedulePaintSave()" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card);text-align:right;width:100%"></td>'
+        +'<td style="padding:4px 6px"><button onclick="CEILING_PAINTS.splice('+i+',1);initPaintInputs();schedulePaintSave()" style="background:none;border:none;cursor:pointer;color:var(--muted-fg);font-size:14px">&times;</button></td>'
         +'</tr>';
     });
     h+='</tbody></table>'
-      +'<button onclick="CEILING_PAINTS.push({n:\\'\\',g:0,p:0});initPaintInputs();schedulePaintSave()" style="margin-top:8px;width:100%;padding:7px;border:1px dashed var(--ink4);border-radius:var(--r);background:transparent;color:var(--ink3);font-size:12px;cursor:pointer;font-family:var(--sans)">+ Add ceiling paint</button>';
+      +'<button onclick="CEILING_PAINTS.push({n:\\'\\',g:0,p:0});initPaintInputs();schedulePaintSave()" style="margin-top:8px;width:100%;padding:7px;border:1px dashed var(--ink4);border-radius:var(--r);background:transparent;color:var(--muted-fg);font-size:12px;cursor:pointer;font-family:var(--sans)">+ Add ceiling paint</button>';
     c.innerHTML=h;
     // Drag-to-reorder
     var dragIdx=null;
@@ -3977,22 +3985,22 @@ function initPaintInputs(){
     var c=sel('pi-primers-container');if(!c)return;
     var h='<table style="width:100%;border-collapse:collapse"><thead><tr>'
       +'<th style="width:24px"></th>'
-      +'<th style="text-align:left;font-size:11px;color:var(--ink3);padding:4px 8px;font-weight:600">Product</th>'
-      +'<th style="text-align:right;font-size:11px;color:var(--ink3);padding:4px 8px;font-weight:600">Gallon $</th>'
-      +'<th style="text-align:right;font-size:11px;color:var(--ink3);padding:4px 8px;font-weight:600">Pail $</th>'
+      +'<th style="text-align:left;font-size:11px;color:var(--muted-fg);padding:4px 8px;font-weight:600">Product</th>'
+      +'<th style="text-align:right;font-size:11px;color:var(--muted-fg);padding:4px 8px;font-weight:600">Gallon $</th>'
+      +'<th style="text-align:right;font-size:11px;color:var(--muted-fg);padding:4px 8px;font-weight:600">Pail $</th>'
       +'<th style="width:28px"></th></tr></thead><tbody>';
     PRIMERS.forEach(function(item,i){
       h+='<tr style="border-bottom:1px solid var(--cream2)">'
         +'<td style="padding:4px 2px;width:24px;cursor:grab" draggable="true" class="pr-drag" data-idx="'+i+'">'
         +'<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="3" y1="5" x2="13" y2="5"/><line x1="3" y1="8" x2="13" y2="8"/><line x1="3" y1="11" x2="13" y2="11"/></svg></td>'
-        +'<td style="padding:4px 6px"><input type="text" value="'+(item.n||'')+'" oninput="PRIMERS['+i+'].n=this.value;renderRooms();schedulePaintSave()" style="font-size:12px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);color:var(--ink);width:100%"></td>'
-        +'<td style="padding:4px 6px;width:80px"><input type="number" min="0" step="0.01" value="'+(item.g||0)+'" oninput="PRIMERS['+i+'].g=+this.value;schedulePaintSave()" style="font-size:12px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);text-align:right;width:100%"></td>'
-        +'<td style="padding:4px 6px;width:80px"><input type="number" min="0" step="0.01" value="'+(item.p||0)+'" oninput="PRIMERS['+i+'].p=+this.value;schedulePaintSave()" style="font-size:12px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);text-align:right;width:100%"></td>'
-        +'<td style="padding:4px 6px"><button onclick="PRIMERS.splice('+i+',1);initPaintInputs();schedulePaintSave()" style="background:none;border:none;cursor:pointer;color:var(--ink4);font-size:14px">&times;</button></td>'
+        +'<td style="padding:4px 6px"><input type="text" value="'+(item.n||'')+'" oninput="PRIMERS['+i+'].n=this.value;renderRooms();schedulePaintSave()" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card);color:var(--fg);width:100%"></td>'
+        +'<td style="padding:4px 6px;width:80px"><input type="number" min="0" step="0.01" value="'+(item.g||0)+'" oninput="PRIMERS['+i+'].g=+this.value;schedulePaintSave()" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card);text-align:right;width:100%"></td>'
+        +'<td style="padding:4px 6px;width:80px"><input type="number" min="0" step="0.01" value="'+(item.p||0)+'" oninput="PRIMERS['+i+'].p=+this.value;schedulePaintSave()" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card);text-align:right;width:100%"></td>'
+        +'<td style="padding:4px 6px"><button onclick="PRIMERS.splice('+i+',1);initPaintInputs();schedulePaintSave()" style="background:none;border:none;cursor:pointer;color:var(--muted-fg);font-size:14px">&times;</button></td>'
         +'</tr>';
     });
     h+='</tbody></table>'
-      +'<button onclick="PRIMERS.push({n:\\'\\',g:0,p:0});initPaintInputs();schedulePaintSave()" style="margin-top:8px;width:100%;padding:7px;border:1px dashed var(--ink4);border-radius:var(--r);background:transparent;color:var(--ink3);font-size:12px;cursor:pointer;font-family:var(--sans)">+ Add primer</button>';
+      +'<button onclick="PRIMERS.push({n:\\'\\',g:0,p:0});initPaintInputs();schedulePaintSave()" style="margin-top:8px;width:100%;padding:7px;border:1px dashed var(--ink4);border-radius:var(--r);background:transparent;color:var(--muted-fg);font-size:12px;cursor:pointer;font-family:var(--sans)">+ Add primer</button>';
     c.innerHTML=h;
     var dragIdx=null;
     c.querySelectorAll('.pr-drag').forEach(function(handle){
@@ -4064,13 +4072,13 @@ function closeLoadPanel(){const p=sel('load-panel');if(p)p.style.display='none';
 async function refreshLoadList(){
   const list=await loadEstimatesList();
   const c=sel('load-list');if(!c)return;
-  if(!list.length){c.innerHTML='<p style="color:var(--ink3);text-align:center;padding:20px">No saved estimates yet.</p>';return;}
-  c.innerHTML=list.map(e=>'<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border:1px solid var(--cream3);border-radius:var(--r);margin-bottom:8px;background:var(--cream)">'
+  if(!list.length){c.innerHTML='<p style="color:var(--muted-fg);text-align:center;padding:20px">No saved estimates yet.</p>';return;}
+  c.innerHTML=list.map(e=>'<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border:1px solid var(--border);border-radius:var(--r);margin-bottom:8px;background:var(--card)">'
     +'<div style="cursor:pointer;flex:1" onclick="loadEstimateById(\\''+e.id+'\\')">'
     +'<div style="font-weight:500;font-size:13px">'+(e.client_name||'Untitled')+'</div>'
-    +'<div style="font-size:11px;color:var(--ink3)">'+(e.addr1||'—')+' &middot; '+new Date(e.updated_at).toLocaleDateString('en-CA',{month:'short',day:'numeric',year:'numeric'})+'</div>'
+    +'<div style="font-size:11px;color:var(--muted-fg)">'+(e.addr1||'—')+' &middot; '+new Date(e.updated_at).toLocaleDateString('en-CA',{month:'short',day:'numeric',year:'numeric'})+'</div>'
     +'</div>'
-    +'<button onclick="deleteEstimate(\\''+e.id+'\\')" style="margin-left:12px;font-size:11px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:transparent;color:var(--ink3);cursor:pointer">Delete</button>'
+    +'<button onclick="deleteEstimate(\\''+e.id+'\\')" style="margin-left:12px;font-size:11px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--r);background:transparent;color:var(--muted-fg);cursor:pointer">Delete</button>'
     +'</div>').join('');
 }
 function newEstimate(){
@@ -4238,9 +4246,9 @@ function recalcAll(){
         const hrs=a/rate;
         const cost=hrs*globalRate*aw*buf;
         rt+=cost;
-        tbody.innerHTML+='<tr><td style=\\"padding-left:20px;font-size:12px;color:var(--ink2)\\">'+s.label+'</td><td class=\\"num\\">'+fmtN(a)+'</td><td class=\\"num\\">'+r[s.ck]+'</td><td class=\\"num\\">'+rate+'</td><td class=\\"num\\">'+hrs.toFixed(1)+'</td><td class=\\"num\\">'+fmt(cost)+'</td></tr>';
+        tbody.innerHTML+='<tr><td style=\\"padding-left:20px;font-size:12px;color:var(--fg)\\">'+s.label+'</td><td class=\\"num\\">'+fmtN(a)+'</td><td class=\\"num\\">'+r[s.ck]+'</td><td class=\\"num\\">'+rate+'</td><td class=\\"num\\">'+hrs.toFixed(1)+'</td><td class=\\"num\\">'+fmt(cost)+'</td></tr>';
       });
-      if(r.prepHrs>0){const cost=r.prepHrs*globalRate*aw*buf;rt+=cost;tbody.innerHTML+='<tr><td style=\\"padding-left:20px;font-size:12px;color:var(--ink2)\\">Prep</td><td class=\\"num\\">'+r.prepHrs+'</td><td class=\\"num\\">\\u2014</td><td class=\\"num\\">\\u2014</td><td class=\\"num\\">'+r.prepHrs.toFixed(1)+'</td><td class=\\"num\\">'+fmt(cost)+'</td></tr>';}
+      if(r.prepHrs>0){const cost=r.prepHrs*globalRate*aw*buf;rt+=cost;tbody.innerHTML+='<tr><td style=\\"padding-left:20px;font-size:12px;color:var(--fg)\\">Prep</td><td class=\\"num\\">'+r.prepHrs+'</td><td class=\\"num\\">\\u2014</td><td class=\\"num\\">\\u2014</td><td class=\\"num\\">'+r.prepHrs.toFixed(1)+'</td><td class=\\"num\\">'+fmt(cost)+'</td></tr>';}
       tbody.innerHTML+='<tr class=\\"subtotal-row\\"><td colspan=\\"5\\" style=\\"text-align:right;padding-right:12px\\">'+(r.name||'Room '+r.id)+' subtotal</td><td class=\\"num\\">'+fmt(rt)+'</td></tr>';
     });
     tbody.innerHTML+='<tr class=\\"grand-row\\"><td colspan=\\"5\\" style=\\"text-align:right;padding-right:12px\\">Grand total</td><td class=\\"num\\">'+fmt(labourAmt)+'</td></tr>';
@@ -4359,8 +4367,8 @@ function recalcAll(){
       if(r.prep&&r.prep.custom&&r.prep.custom.trim())prepItems.push(r.prep.custom.trim());
       const prepHtml=prepItems.length
         ?'<div style=\\"margin-bottom:8px\\">'
-          +'<div style=\\"font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);margin-bottom:4px\\">Preparation Services</div>'
-          +prepItems.map(p=>'<div style=\\"font-size:11px;color:var(--ink2);padding-left:8px\\">— '+p+'</div>').join('')
+          +'<div style=\\"font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-fg);margin-bottom:4px\\">Preparation Services</div>'
+          +prepItems.map(p=>'<div style=\\"font-size:11px;color:var(--fg);padding-left:8px\\">— '+p+'</div>').join('')
           +'</div>':'' ;
 
       // ── Painting ──
@@ -4375,15 +4383,15 @@ function recalcAll(){
       if(!paintingItems.length&&!prepItems.length)return;
       const paintingHtml=paintingItems.length
         ?'<div style=\\"margin-bottom:8px\\">'
-          +'<div style=\\"font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);margin-bottom:4px\\">Painting</div>'
-          +paintingItems.map(p=>'<div style=\\"font-size:11px;color:var(--ink2);padding-left:8px\\">— '+p+'</div>').join('')
+          +'<div style=\\"font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-fg);margin-bottom:4px\\">Painting</div>'
+          +paintingItems.map(p=>'<div style=\\"font-size:11px;color:var(--fg);padding-left:8px\\">— '+p+'</div>').join('')
           +'</div>':'';
 
       // ── Materials ──
       function matLine(surface,paint,colour,sheen,primer,primerName){
         const parts=[];
-        if(primerName)parts.push('<div style=\\"font-size:11px;color:var(--ink2);padding-left:8px\\">— '+surface+' Primer: '+(primerName.replace(/\\s*(Gallon|Pail)/gi,'').trim()||primerName)+'</div>');
-        if(paint){const hex=colour?(COLOURS.find(x=>x.n===colour)||{h:'#ccc'}).h:'';const swatch=colour?'<span style=\\"display:inline-block;width:10px;height:10px;border-radius:2px;background:'+hex+';border:1px solid rgba(0,0,0,.15);margin-right:3px;vertical-align:middle\\"></span>':'';parts.push('<div style=\\"font-size:11px;color:var(--ink2);padding-left:8px\\">— '+surface+': '+(paint.replace(/\\s*(Gallon|Pail)/gi,'').trim())+(colour?' · '+swatch+colour:'')+(sheen?' · '+sheen:'')+'</div>');}
+        if(primerName)parts.push('<div style=\\"font-size:11px;color:var(--fg);padding-left:8px\\">— '+surface+' Primer: '+(primerName.replace(/\\s*(Gallon|Pail)/gi,'').trim()||primerName)+'</div>');
+        if(paint){const hex=colour?(COLOURS.find(x=>x.n===colour)||{h:'#ccc'}).h:'';const swatch=colour?'<span style=\\"display:inline-block;width:10px;height:10px;border-radius:2px;background:'+hex+';border:1px solid rgba(0,0,0,.15);margin-right:3px;vertical-align:middle\\"></span>':'';parts.push('<div style=\\"font-size:11px;color:var(--fg);padding-left:8px\\">— '+surface+': '+(paint.replace(/\\s*(Gallon|Pail)/gi,'').trim())+(colour?' · '+swatch+colour:'')+(sheen?' · '+sheen:'')+'</div>');}
         return parts.join('');
       }
       const matItems=[];
@@ -4393,7 +4401,7 @@ function recalcAll(){
       if(hasTrim){const m=matLine('Trim',r.trimPaint,r.trimColour,r.trimSheen,(r.baseCoats==3||r.crownCoats==3||r.dfCoats==3||r.winCoats==3||r.doorCoats==3),r.trimPrimer);if(m)matItems.push(m);}
       const materialsHtml=matItems.length
         ?'<div style=\\"margin-bottom:4px\\">'
-          +'<div style=\\"font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);margin-bottom:4px\\">Materials</div>'
+          +'<div style=\\"font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-fg);margin-bottom:4px\\">Materials</div>'
           +matItems.join('')
           +'</div>':'';
 
@@ -4453,45 +4461,45 @@ function buildContract(total,dep,bal45,fin,days){
     if(dc)d.push(dc+' door'+(dc>1?'s':''));
     if(d.length)roomRows+='<tr>'
       +'<td style=\\"padding:5px 8px;font-weight:500;border-bottom:1px solid var(--cream2);font-size:12px\\">'+(r.name||'Room '+r.id)+'</td>'
-      +'<td style=\\"padding:5px 8px;color:var(--ink2);border-bottom:1px solid var(--cream2);font-size:12px\\">'+d.join(' &middot; ')+'</td>'
+      +'<td style=\\"padding:5px 8px;color:var(--fg);border-bottom:1px solid var(--cream2);font-size:12px\\">'+d.join(' &middot; ')+'</td>'
       +'</tr>';
   });
 
   const scopeTable=roomRows
     ?'<table style=\\"width:100%;border-collapse:collapse;margin:8px 0\\"><thead><tr>'
-      +'<th style=\\"padding:5px 8px;text-align:left;font-size:11px;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;background:var(--cream2)\\">Area</th>'
-      +'<th style=\\"padding:5px 8px;text-align:left;font-size:11px;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;background:var(--cream2)\\">Surfaces</th>'
+      +'<th style=\\"padding:5px 8px;text-align:left;font-size:11px;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.06em;background:var(--muted)\\">Area</th>'
+      +'<th style=\\"padding:5px 8px;text-align:left;font-size:11px;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.06em;background:var(--muted)\\">Surfaces</th>'
       +'</tr></thead><tbody>'+roomRows+'</tbody></table>'
-    :'<p style=\\"color:var(--ink3);font-size:12px\\">No rooms configured.</p>';
+    :'<p style=\\"color:var(--muted-fg);font-size:12px\\">No rooms configured.</p>';
 
   const totalStr=total>0?fmt(total):'$0.00';
 
   function section(title){
-    return '<div style=\\"font-size:10px;font-weight:600;color:var(--ink3);text-transform:uppercase;letter-spacing:.08em;margin:18px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--cream2)\\">'+title+'</div>';
+    return '<div style=\\"font-size:10px;font-weight:600;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.08em;margin:18px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--cream2)\\">'+title+'</div>';
   }
   function para(text){
-    return '<p style=\\"font-size:12px;color:var(--ink2);line-height:1.8;margin-bottom:8px\\">'+text+'</p>';
+    return '<p style=\\"font-size:12px;color:var(--fg);line-height:1.8;margin-bottom:8px\\">'+text+'</p>';
   }
 
 
   var html='';
     // ── Header ──
   html+=para('This Painting Service Agreement (&ldquo;Agreement&rdquo;) is made and entered into on <strong>'+dateStr+'</strong> by and between:');
-  html+='<div style=\\"display:grid;grid-template-columns:1fr 1fr;gap:20px;margin:14px 0;padding:14px 16px;background:var(--cream2);border-radius:var(--r)\\">';
+  html+='<div style=\\"display:grid;grid-template-columns:1fr 1fr;gap:20px;margin:14px 0;padding:14px 16px;background:var(--muted);border-radius:var(--r)\\">';
   html+='<div>';
-  html+='<div style=\\"font-size:10px;font-weight:600;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px\\">Client</div>';
+  html+='<div style=\\"font-size:10px;font-weight:600;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px\\">Client</div>';
   html+='<div style=\\"font-size:13px;font-weight:600\\">'+name+'</div>';
-  html+='<div style=\\"font-size:12px;color:var(--ink2)\\">'+fullAddr+'</div>';
-  html+='<div style=\\"font-size:12px;color:var(--ink2)\\">'+phone+'</div>';
-  html+='<div style=\\"font-size:12px;color:var(--ink2)\\">'+email+'</div>';
+  html+='<div style=\\"font-size:12px;color:var(--fg)\\">'+fullAddr+'</div>';
+  html+='<div style=\\"font-size:12px;color:var(--fg)\\">'+phone+'</div>';
+  html+='<div style=\\"font-size:12px;color:var(--fg)\\">'+email+'</div>';
   html+='</div>';
   html+='<div>';
-  html+='<div style=\\"font-size:10px;font-weight:600;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px\\">Contractor</div>';
+  html+='<div style=\\"font-size:10px;font-weight:600;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px\\">Contractor</div>';
   html+='<div style=\\"font-size:13px;font-weight:600\\">David Truong</div>';
-  html+='<div style=\\"font-size:12px;color:var(--ink2)\\">25 Fieldview Crescent</div>';
-  html+='<div style=\\"font-size:12px;color:var(--ink2)\\">Markham, ON L3R 3H6</div>';
-  html+='<div style=\\"font-size:12px;color:var(--ink2)\\">(647) 449-6611</div>';
-  html+='<div style=\\"font-size:12px;color:var(--ink2)\\">info@kingdompainting.ca</div>';
+  html+='<div style=\\"font-size:12px;color:var(--fg)\\">25 Fieldview Crescent</div>';
+  html+='<div style=\\"font-size:12px;color:var(--fg)\\">Markham, ON L3R 3H6</div>';
+  html+='<div style=\\"font-size:12px;color:var(--fg)\\">(647) 449-6611</div>';
+  html+='<div style=\\"font-size:12px;color:var(--fg)\\">info@kingdompainting.ca</div>';
   html+='</div>';
   html+='</div>';
 
@@ -4499,11 +4507,11 @@ function buildContract(total,dep,bal45,fin,days){
   html+=section('Scope of Work');
   html+=para('The Contractor agrees to perform the following painting services (&ldquo;Services&rdquo;) at the Client\\'s property located at <strong>'+fullAddr+'</strong>.');
   html+=scopeTable;
-  html+='<div style=\\"display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0;padding:10px;background:var(--cream2);border-radius:var(--r)\\">';
-  html+='<div style=\\"text-align:center\\"><div style=\\"font-size:10px;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em\\">Walls</div><div style=\\"font-size:14px;font-weight:600\\">'+fmtN(totWalls)+'</div><div style=\\"font-size:11px;color:var(--ink3)\\">sqft</div></div>';
-  html+='<div style=\\"text-align:center\\"><div style=\\"font-size:10px;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em\\">Ceiling</div><div style=\\"font-size:14px;font-weight:600\\">'+fmtN(totCeil)+'</div><div style=\\"font-size:11px;color:var(--ink3)\\">sqft</div></div>';
-  html+='<div style=\\"text-align:center\\"><div style=\\"font-size:10px;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em\\">Trims</div><div style=\\"font-size:14px;font-weight:600\\">'+fmtN(totTrims)+'</div><div style=\\"font-size:11px;color:var(--ink3)\\">lin ft</div></div>';
-  html+='<div style=\\"text-align:center\\"><div style=\\"font-size:10px;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em\\">Doors</div><div style=\\"font-size:14px;font-weight:600\\">'+totDoors+'</div><div style=\\"font-size:11px;color:var(--ink3)\\">total</div></div>';
+  html+='<div style=\\"display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0;padding:10px;background:var(--muted);border-radius:var(--r)\\">';
+  html+='<div style=\\"text-align:center\\"><div style=\\"font-size:10px;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.06em\\">Walls</div><div style=\\"font-size:14px;font-weight:600\\">'+fmtN(totWalls)+'</div><div style=\\"font-size:11px;color:var(--muted-fg)\\">sqft</div></div>';
+  html+='<div style=\\"text-align:center\\"><div style=\\"font-size:10px;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.06em\\">Ceiling</div><div style=\\"font-size:14px;font-weight:600\\">'+fmtN(totCeil)+'</div><div style=\\"font-size:11px;color:var(--muted-fg)\\">sqft</div></div>';
+  html+='<div style=\\"text-align:center\\"><div style=\\"font-size:10px;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.06em\\">Trims</div><div style=\\"font-size:14px;font-weight:600\\">'+fmtN(totTrims)+'</div><div style=\\"font-size:11px;color:var(--muted-fg)\\">lin ft</div></div>';
+  html+='<div style=\\"text-align:center\\"><div style=\\"font-size:10px;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.06em\\">Doors</div><div style=\\"font-size:14px;font-weight:600\\">'+totDoors+'</div><div style=\\"font-size:11px;color:var(--muted-fg)\\">total</div></div>';
   html+='</div>';
 
     // ── Duration ──
@@ -4514,20 +4522,20 @@ function buildContract(total,dep,bal45,fin,days){
   html+=section('Payment Terms');
   html+=para('The total cost for the Services shall be <strong>'+fmt(total)+'</strong>, which includes labour, materials, and any applicable taxes. A different payment plan can be discussed.');
   html+='<div style=\\"display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:10px 0\\">';
-  html+='<div style=\\"background:var(--cream2);padding:12px;border-radius:var(--r)\\">';
-  html+='<div style=\\"font-size:10px;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em\\">10% Deposit</div>';
-  html+='<div style=\\"font-size:15px;font-weight:600;color:var(--ink);margin:4px 0\\">'+fmt(dep)+'</div>';
-  html+='<div style=\\"font-size:11px;color:var(--ink3)\\">Due on first day</div>';
+  html+='<div style=\\"background:var(--muted);padding:12px;border-radius:var(--r)\\">';
+  html+='<div style=\\"font-size:10px;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.06em\\">10% Deposit</div>';
+  html+='<div style=\\"font-size:15px;font-weight:600;color:var(--fg);margin:4px 0\\">'+fmt(dep)+'</div>';
+  html+='<div style=\\"font-size:11px;color:var(--muted-fg)\\">Due on first day</div>';
   html+='</div>';
-  html+='<div style=\\"background:var(--cream2);padding:12px;border-radius:var(--r)\\">';
-  html+='<div style=\\"font-size:10px;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em\\">45% Balance</div>';
-  html+='<div style=\\"font-size:15px;font-weight:600;color:var(--ink);margin:4px 0\\">'+fmt(bal45)+'</div>';
-  html+='<div style=\\"font-size:11px;color:var(--ink3)\\">Due midway through</div>';
+  html+='<div style=\\"background:var(--muted);padding:12px;border-radius:var(--r)\\">';
+  html+='<div style=\\"font-size:10px;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.06em\\">45% Balance</div>';
+  html+='<div style=\\"font-size:15px;font-weight:600;color:var(--fg);margin:4px 0\\">'+fmt(bal45)+'</div>';
+  html+='<div style=\\"font-size:11px;color:var(--muted-fg)\\">Due midway through</div>';
   html+='</div>';
-  html+='<div style=\\"background:var(--cream2);padding:12px;border-radius:var(--r)\\">';
-  html+='<div style=\\"font-size:10px;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em\\">Final Balance</div>';
-  html+='<div style=\\"font-size:15px;font-weight:600;color:var(--ink);margin:4px 0\\">'+fmt(fin)+'</div>';
-  html+='<div style=\\"font-size:11px;color:var(--ink3)\\">Due on completion</div>';
+  html+='<div style=\\"background:var(--muted);padding:12px;border-radius:var(--r)\\">';
+  html+='<div style=\\"font-size:10px;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.06em\\">Final Balance</div>';
+  html+='<div style=\\"font-size:15px;font-weight:600;color:var(--fg);margin:4px 0\\">'+fmt(fin)+'</div>';
+  html+='<div style=\\"font-size:11px;color:var(--muted-fg)\\">Due on completion</div>';
   html+='</div>';
   html+='</div>';
 
@@ -4566,14 +4574,14 @@ function buildContract(total,dep,bal45,fin,days){
   html+=para('By signing below, the parties agree to the terms and conditions outlined in this Agreement.');
   html+='<div style=\\"display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-top:20px\\">';
   html+='<div>';
-  html+='<canvas id=\\"sig-client\\" width=\\"320\\" height=\\"80\\" style=\\"border:1px solid var(--cream3);border-radius:var(--r);background:#fff;width:100%;cursor:crosshair\\"></canvas>';
-  html+='<div style=\\"font-size:12px;color:var(--ink3);margin-top:4px\\">'+name+' &middot; '+dateStr+'</div>';
-  html+='<button onclick=\\"clearSig(\\'sig-client\\')\\" style=\\"margin-top:4px;font-size:11px;padding:3px 10px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);cursor:pointer;color:var(--ink3)\\">Clear</button>';
+  html+='<canvas id=\\"sig-client\\" width=\\"320\\" height=\\"80\\" style=\\"border:1px solid var(--border);border-radius:var(--r);background:#fff;width:100%;cursor:crosshair\\"></canvas>';
+  html+='<div style=\\"font-size:12px;color:var(--muted-fg);margin-top:4px\\">'+name+' &middot; '+dateStr+'</div>';
+  html+='<button onclick=\\"clearSig(\\'sig-client\\')\\" style=\\"margin-top:4px;font-size:11px;padding:3px 10px;border:1px solid var(--border);border-radius:var(--r);background:var(--card);cursor:pointer;color:var(--muted-fg)\\">Clear</button>';
   html+='</div>';
   html+='<div>';
-  html+='<canvas id=\\"sig-contractor\\" width=\\"320\\" height=\\"80\\" style=\\"border:1px solid var(--cream3);border-radius:var(--r);background:#fff;width:100%;cursor:crosshair\\"></canvas>';
-  html+='<div style=\\"font-size:12px;color:var(--ink3);margin-top:4px\\">David Truong &middot; '+dateStr+'</div>';
-  html+='<button onclick=\\"clearSig(\\'sig-contractor\\')\\" style=\\"margin-top:4px;font-size:11px;padding:3px 10px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);cursor:pointer;color:var(--ink3)\\">Clear</button>';
+  html+='<canvas id=\\"sig-contractor\\" width=\\"320\\" height=\\"80\\" style=\\"border:1px solid var(--border);border-radius:var(--r);background:#fff;width:100%;cursor:crosshair\\"></canvas>';
+  html+='<div style=\\"font-size:12px;color:var(--muted-fg);margin-top:4px\\">David Truong &middot; '+dateStr+'</div>';
+  html+='<button onclick=\\"clearSig(\\'sig-contractor\\')\\" style=\\"margin-top:4px;font-size:11px;padding:3px 10px;border:1px solid var(--border);border-radius:var(--r);background:var(--card);cursor:pointer;color:var(--muted-fg)\\">Clear</button>';
   html+='</div>';
   html+='</div>';;
 

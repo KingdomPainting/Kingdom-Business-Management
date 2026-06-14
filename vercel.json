@@ -1,1 +1,10 @@
-{"buildCommand":"npm run build","outputDirectory":"dist","framework":"vite","rewrites":[{"source":"/portal","destination":"/client-portal.html"},{"source":"/((?!assets/.*).*)", "destination":"/index.html"}]}
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": "vite",
+  "rewrites": [
+    { "source": "/portal", "destination": "/client-portal.html" },
+    { "source": "/portal/:path*", "destination": "/client-portal.html" },
+    { "source": "/((?!assets/|client-portal.html).*)", "destination": "/index.html" }
+  ]
+}

@@ -4598,6 +4598,9 @@ function init(){
   // loadContactsDropdown is called from React onLoad after session is injected
 }
 function showTab(id){
+  // Notify React parent so it can overlay React components for settings tabs
+  window.parent.postMessage({type:'KP_TAB_CHANGE',tab:id},'*');
+
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   const tabMap={cover:0,rooms:1,breakdown:2,quote:3,contract:4,changeorder:5,labourrates:6,paintinputs:7,standards:8};
@@ -4969,6 +4972,299 @@ function pushToProject(){
 </body>
 </html>`;
 
+
+// ─── React Settings Components (Labour Rates / Paint Inputs / Standards) ─────
+// These live in React proper — no iframe, no postMessage, direct supaFetch saves.
+
+const DEFAULT_SETTINGS = {
+  data:{
+    paints:[
+      {n:'Benjamin Moore - Ultra Spec',g:50,p:225},{n:'Benjamin Moore - Ben',g:70,p:0},
+      {n:'Benjamin Moore - Aura',g:115,p:535},{n:'Sherwin Williams - Promar 200',g:50,p:225},
+      {n:'Sherwin Williams - Duration Home',g:70,p:350},{n:'Sherwin Williams - Emerald',g:80,p:400},
+    ],
+    ceilPaints:[
+      {n:'Benjamin Moore - Waterborne Ceiling',g:75,p:0},{n:'Benjamin Moore - Ultra Spec Ceiling',g:50,p:0},
+      {n:'Sherwin Williams - ProMar Ceiling',g:45,p:0},
+    ],
+    primers:[
+      {n:'Benjamin Moore - Drywall Primer',g:35,p:0},{n:'Benjamin Moore - Stix Primer',g:85,p:0},
+      {n:'Kilz - Original Oil Primer',g:70,p:0},{n:'Kilz - PVA Primer',g:25,p:0},
+      {n:'Kilz - 1 Primer',g:35,p:0},{n:'Kilz - 2 Primer',g:55,p:0},
+    ],
+    colours:[],supplies:[],
+  },
+  labour:{
+    billable:1700,buffer:1.25,matBuffer:1.25,taxes:true,discount:false,discountAmt:false,
+    discAmt:0,discPct:10,profitTarget:0,
+    workers:[{n:'Worker 1',wage:25,active:true}],
+    overheadItems:[{n:'Insurance',v:3000},{n:'Vehicle',v:2400},{n:'Tools',v:1200}],
+  },
+  standards:{
+    walls:{1:200,2:120,3:75},flatCeiling:{1:150,2:90,3:55},stuccoCeiling:{1:80,2:50,3:35},
+    removeStucco:{rate:0.75},baseboards:{1:100,2:60,3:40},crown:{1:90,2:55,3:35},
+    doorFrames:{1:170,2:102,3:65},windows:{1:100,2:60,3:40},doors:{1:84,2:42,3:21},
+  },
+};
+
+function useSettingsState(){
+  const [settings,setSettings]=useState(null);
+  const [saving,setSaving]=useState(false);
+  const [saveMsg,setSaveMsg]=useState('');
+
+  useEffect(()=>{
+    (async()=>{
+      if(!_session?.user?.id)return;
+      try{
+        const rows=await supaFetch(`/rest/v1/paint_settings?user_id=eq.${_session.user.id}&select=data,labour,standards`);
+        if(rows&&rows[0]){
+          setSettings({
+            data:{...DEFAULT_SETTINGS.data,...(rows[0].data||{})},
+            labour:{...DEFAULT_SETTINGS.labour,...(rows[0].labour||{})},
+            standards:{...DEFAULT_SETTINGS.standards,...(rows[0].standards||{})},
+          });
+        } else {
+          setSettings(DEFAULT_SETTINGS);
+        }
+      }catch(e){setSettings(DEFAULT_SETTINGS);}
+    })();
+  },[]);
+
+  const save=async(current)=>{
+    if(!_session?.user?.id){setSaveMsg('Not signed in');return;}
+    setSaving(true);setSaveMsg('');
+    try{
+      const res=await fetch(`${SUPA_URL}/rest/v1/paint_settings?on_conflict=user_id`,{
+        method:'POST',
+        headers:{apikey:SUPA_KEY,'Authorization':`Bearer ${_session.access_token}`,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates,return=minimal'},
+        body:JSON.stringify({user_id:_session.user.id,...current,updated_at:new Date().toISOString()}),
+      });
+      setSaveMsg(res.ok?'✓ Saved':'Save failed — try again');
+    }catch(e){setSaveMsg('Error: '+e.message);}
+    setSaving(false);
+    setTimeout(()=>setSaveMsg(''),3000);
+  };
+
+  return {settings,setSettings,saving,saveMsg,save};
+}
+
+const inp={background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'5px 8px',borderRadius:6,border:'1px solid var(--border)',outline:'none',width:'100%',boxSizing:'border-box'};
+const numInp={...inp,width:80,textAlign:'right'};
+const cardS={background:'var(--card)',border:'1px solid var(--border)',borderRadius:10,padding:'16px 18px',marginBottom:14};
+const labelS={fontSize:11,fontWeight:700,color:'var(--muted-fg)',textTransform:'uppercase',letterSpacing:'0.05em',display:'block',marginBottom:5};
+const sectionTitle={fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em',color:'var(--muted-fg)',marginBottom:8,marginTop:12,paddingBottom:4,borderBottom:'1px solid var(--border)'};
+
+function SaveBar({saving,saveMsg,onSave}){
+  return (
+    <div style={{marginTop:20,display:'flex',alignItems:'center',gap:12}}>
+      <button onClick={onSave} disabled={saving} style={{padding:'8px 22px',background:'var(--primary)',color:'#fff',border:'none',borderRadius:7,fontSize:13,fontWeight:700,cursor:saving?'not-allowed':'pointer',opacity:saving?0.7:1,fontFamily:'inherit'}}>
+        {saving?'Saving…':'Save Settings'}
+      </button>
+      {saveMsg&&<span style={{fontSize:12,fontWeight:600,color:saveMsg.startsWith('✓')?'#22c55e':'#ef4444'}}>{saveMsg}</span>}
+    </div>
+  );
+}
+
+function LabourRatesTab(){
+  const {settings,setSettings,saving,saveMsg,save}=useSettingsState();
+  if(!settings)return <div style={{padding:20,color:'var(--muted-fg)'}}>Loading…</div>;
+  const L=settings.labour;
+  const upd=patch=>setSettings(s=>({...s,labour:{...s.labour,...patch}}));
+  const updWorker=(i,patch)=>setSettings(s=>{const w=[...s.labour.workers];w[i]={...w[i],...patch};return{...s,labour:{...s.labour,workers:w}};});
+  const addWorker=()=>setSettings(s=>({...s,labour:{...s.labour,workers:[...s.labour.workers,{n:'New Worker',wage:25,active:true}]}}));
+  const removeWorker=i=>setSettings(s=>{const w=s.labour.workers.filter((_,j)=>j!==i);return{...s,labour:{...s.labour,workers:w}};});
+  const updOH=(i,patch)=>setSettings(s=>{const o=[...s.labour.overheadItems];o[i]={...o[i],...patch};return{...s,labour:{...s.labour,overheadItems:o}};});
+  const addOH=()=>setSettings(s=>({...s,labour:{...s.labour,overheadItems:[...s.labour.overheadItems,{n:'New item',v:0}]}}));
+  const removeOH=i=>setSettings(s=>{const o=s.labour.overheadItems.filter((_,j)=>j!==i);return{...s,labour:{...s.labour,overheadItems:o}};});
+
+  const activeWorkers=L.workers.filter(w=>w.active);
+  const totalOH=L.overheadItems.reduce((s,o)=>s+(+o.v||0),0);
+  const ohPerHr=L.billable>0?totalOH/L.billable:0;
+  const fieldWage=activeWorkers.reduce((s,w)=>s+(+w.wage||0),0);
+  const profitPerHr=L.billable>0&&activeWorkers.length>0?L.profitTarget/(L.billable*activeWorkers.length):0;
+  const totalPerHr=(ohPerHr+fieldWage*+L.buffer+profitPerHr)*activeWorkers.length;
+
+  return (
+    <div style={{padding:'16px 20px',overflowY:'auto',height:'100%'}}>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
+        <div style={cardS}>
+          <div style={sectionTitle}>Rate Calculation</div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}}>
+            <div><label style={labelS}>Billable hrs/yr</label><input style={numInp} type="number" value={L.billable} onChange={e=>upd({billable:+e.target.value})}/></div>
+            <div><label style={labelS}>Labour buffer</label><input style={numInp} type="number" step="0.05" value={L.buffer} onChange={e=>upd({buffer:+e.target.value})}/></div>
+            <div><label style={labelS}>Materials buffer</label><input style={numInp} type="number" step="0.05" value={L.matBuffer} onChange={e=>upd({matBuffer:+e.target.value})}/></div>
+            <div><label style={labelS}>Profit target $</label><input style={numInp} type="number" value={L.profitTarget} onChange={e=>upd({profitTarget:+e.target.value})}/></div>
+          </div>
+          <label style={{display:'flex',alignItems:'center',gap:6,fontSize:12,cursor:'pointer',marginBottom:8}}>
+            <input type="checkbox" checked={L.taxes} onChange={e=>upd({taxes:e.target.checked})}/> Apply payroll taxes
+          </label>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:12}}>
+            <div style={{background:'var(--muted)',borderRadius:6,padding:'8px 10px'}}>
+              <label style={{display:'flex',alignItems:'center',gap:6,fontSize:12,cursor:'pointer',marginBottom:6}}>
+                <input type="checkbox" checked={L.discount} onChange={e=>upd({discount:e.target.checked})}/> <strong>Discount %</strong>
+              </label>
+              <input style={numInp} type="number" value={L.discPct} onChange={e=>upd({discPct:+e.target.value})}/>
+            </div>
+            <div style={{background:'var(--muted)',borderRadius:6,padding:'8px 10px'}}>
+              <label style={{display:'flex',alignItems:'center',gap:6,fontSize:12,cursor:'pointer',marginBottom:6}}>
+                <input type="checkbox" checked={L.discountAmt} onChange={e=>upd({discountAmt:e.target.checked})}/> <strong>Discount $</strong>
+              </label>
+              <input style={numInp} type="number" value={L.discAmt} onChange={e=>upd({discAmt:+e.target.value})}/>
+            </div>
+          </div>
+          <div style={{fontSize:12,color:'var(--muted-fg)',borderTop:'1px solid var(--border)',paddingTop:10,display:'flex',flexDirection:'column',gap:4}}>
+            <div style={{display:'flex',justifyContent:'space-between'}}><span>Overhead / hr</span><span style={{color:'var(--primary)',fontWeight:600}}>${ohPerHr.toFixed(2)}</span></div>
+            <div style={{display:'flex',justifyContent:'space-between'}}><span>Field wage / hr</span><span style={{color:'var(--primary)',fontWeight:600}}>${fieldWage.toFixed(2)}</span></div>
+            <div style={{display:'flex',justifyContent:'space-between'}}><span>Profit / hr</span><span style={{color:'var(--primary)',fontWeight:600}}>${profitPerHr.toFixed(2)}</span></div>
+            <div style={{display:'flex',justifyContent:'space-between',fontWeight:700,fontSize:13,borderTop:'1px solid var(--border)',paddingTop:6,marginTop:2}}><span>Total rate (all workers)</span><span style={{color:'var(--primary)'}}>${totalPerHr.toFixed(2)}/hr</span></div>
+          </div>
+        </div>
+        <div style={cardS}>
+          <div style={sectionTitle}>Overhead Costs</div>
+          {L.overheadItems.map((o,i)=>(
+            <div key={i} style={{display:'grid',gridTemplateColumns:'1fr 100px 28px',gap:6,marginBottom:6,alignItems:'center'}}>
+              <input style={inp} value={o.n} onChange={e=>updOH(i,{n:e.target.value})} placeholder="Item"/>
+              <input style={{...numInp,width:'100%'}} type="number" value={o.v} onChange={e=>updOH(i,{v:+e.target.value})} placeholder="$/yr"/>
+              <button onClick={()=>removeOH(i)} style={{background:'none',border:'none',cursor:'pointer',color:'var(--muted-fg)',fontSize:16,padding:0}}>×</button>
+            </div>
+          ))}
+          <button onClick={addOH} style={{fontSize:12,color:'var(--primary)',background:'none',border:'1px dashed var(--primary)',borderRadius:6,padding:'4px 12px',cursor:'pointer',marginTop:4}}>+ Add item</button>
+          <div style={{marginTop:10,paddingTop:10,borderTop:'1px solid var(--border)',display:'flex',justifyContent:'space-between',fontSize:13,fontWeight:600}}>
+            <span>Total overhead/yr</span><span style={{color:'var(--primary)'}}>${totalOH.toLocaleString()}</span>
+          </div>
+        </div>
+      </div>
+      <div style={cardS}>
+        <div style={sectionTitle}>Field Workers</div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:10}}>
+          {L.workers.map((w,i)=>(
+            <div key={i} style={{background:'var(--muted)',borderRadius:8,padding:'10px 12px'}}>
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:6}}>
+                <label style={{display:'flex',alignItems:'center',gap:6,fontSize:12,cursor:'pointer'}}>
+                  <input type="checkbox" checked={w.active} onChange={e=>updWorker(i,{active:e.target.checked})}/> Active
+                </label>
+                <button onClick={()=>removeWorker(i)} style={{background:'none',border:'none',cursor:'pointer',color:'var(--muted-fg)',fontSize:14}}>×</button>
+              </div>
+              <input style={{...inp,marginBottom:6}} value={w.n} onChange={e=>updWorker(i,{n:e.target.value})} placeholder="Name"/>
+              <div style={{display:'flex',alignItems:'center',gap:6}}>
+                <label style={labelS}>Wage $/hr</label>
+                <input style={{...numInp,flex:1}} type="number" value={w.wage} onChange={e=>updWorker(i,{wage:+e.target.value})}/>
+              </div>
+            </div>
+          ))}
+          <button onClick={addWorker} style={{background:'none',border:'1px dashed var(--border)',borderRadius:8,padding:'10px 12px',cursor:'pointer',color:'var(--muted-fg)',fontSize:12}}>+ Add worker</button>
+        </div>
+      </div>
+      <SaveBar saving={saving} saveMsg={saveMsg} onSave={()=>save({data:settings.data,labour:settings.labour,standards:settings.standards})}/>
+    </div>
+  );
+}
+
+function PaintInputsTab(){
+  const {settings,setSettings,saving,saveMsg,save}=useSettingsState();
+  if(!settings)return <div style={{padding:20,color:'var(--muted-fg)'}}>Loading…</div>;
+  const D=settings.data;
+  const updList=(key,i,patch)=>setSettings(s=>{const arr=[...s.data[key]];arr[i]={...arr[i],...patch};return{...s,data:{...s.data,[key]:arr}};});
+  const addItem=(key,def)=>setSettings(s=>({...s,data:{...s.data,[key]:[...s.data[key],def]}}));
+  const removeItem=(key,i)=>setSettings(s=>({...s,data:{...s.data,[key]:s.data[key].filter((_,j)=>j!==i)}}));
+
+  const PaintList=({label,listKey,hasGallon=true,hasPail=false,addDef})=>(
+    <div style={cardS}>
+      <div style={sectionTitle}>{label}</div>
+      <div style={{display:'grid',gridTemplateColumns:`1fr ${hasGallon?'70px':''} ${hasPail?'70px':''}`,gap:'4px 8px',marginBottom:4}}>
+        <span style={{fontSize:10,color:'var(--muted-fg)',fontWeight:600}}>Name</span>
+        {hasGallon&&<span style={{fontSize:10,color:'var(--muted-fg)',fontWeight:600,textAlign:'right'}}>$/gal</span>}
+        {hasPail&&<span style={{fontSize:10,color:'var(--muted-fg)',fontWeight:600,textAlign:'right'}}>$/pail</span>}
+      </div>
+      {D[listKey].map((item,i)=>(
+        <div key={i} style={{display:'grid',gridTemplateColumns:`1fr ${hasGallon?'70px':''} ${hasPail?'70px':''} 24px`,gap:'4px 8px',marginBottom:6,alignItems:'center'}}>
+          <input style={inp} value={item.n} onChange={e=>updList(listKey,i,{n:e.target.value})}/>
+          {hasGallon&&<input style={{...numInp,width:'100%'}} type="number" value={item.g} onChange={e=>updList(listKey,i,{g:+e.target.value})} placeholder="0"/>}
+          {hasPail&&<input style={{...numInp,width:'100%'}} type="number" value={item.p||0} onChange={e=>updList(listKey,i,{p:+e.target.value})} placeholder="0"/>}
+          <button onClick={()=>removeItem(listKey,i)} style={{background:'none',border:'none',cursor:'pointer',color:'var(--muted-fg)',fontSize:16,padding:0,lineHeight:1}}>×</button>
+        </div>
+      ))}
+      <button onClick={()=>addItem(listKey,addDef||{n:'New',g:0,p:0})} style={{fontSize:12,color:'var(--primary)',background:'none',border:'1px dashed var(--primary)',borderRadius:6,padding:'3px 12px',cursor:'pointer',marginTop:2}}>+ Add</button>
+    </div>
+  );
+
+  return (
+    <div style={{padding:'16px 20px',overflowY:'auto',height:'100%'}}>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
+        <div>
+          <PaintList label="Paints — Walls & Trim ($/gal)" listKey="paints" hasGallon hasPail={false}/>
+          <PaintList label="Paints — Ceiling ($/gal)" listKey="ceilPaints" hasGallon hasPail={false}/>
+        </div>
+        <div>
+          <PaintList label="Primers ($/gal  ·  $/pail)" listKey="primers" hasGallon hasPail/>
+          <PaintList label="Paint Colours" listKey="colours" hasGallon={false} hasPail={false} addDef={{n:'New Colour'}}/>
+          <PaintList label="Supplies" listKey="supplies" hasGallon={false} hasPail={false} addDef={{n:'New Supply',cost:0}}/>
+        </div>
+      </div>
+      <SaveBar saving={saving} saveMsg={saveMsg} onSave={()=>save({data:settings.data,labour:settings.labour,standards:settings.standards})}/>
+    </div>
+  );
+}
+
+function StandardsTab(){
+  const {settings,setSettings,saving,saveMsg,save}=useSettingsState();
+  if(!settings)return <div style={{padding:20,color:'var(--muted-fg)'}}>Loading…</div>;
+  const S=settings.standards;
+  const updS=(key,coat,val)=>setSettings(s=>({...s,standards:{...s.standards,[key]:{...s.standards[key],[coat]:val}}}));
+
+  const StdCard=({title,skey})=>(
+    <div style={cardS}>
+      <div style={sectionTitle}>{title}</div>
+      <table style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
+        <thead><tr><th style={{textAlign:'left',fontWeight:600,color:'var(--muted-fg)',fontSize:11,paddingBottom:6}}>Coats</th><th style={{textAlign:'right',fontWeight:600,color:'var(--muted-fg)',fontSize:11,paddingBottom:6}}>Sqft/Hr</th></tr></thead>
+        <tbody>
+          {[[1,'1 coat'],[2,'2 coats'],[3,'Primer & 2 coats']].map(([coat,label])=>(
+            <tr key={coat}><td style={{padding:'3px 0',color:'var(--fg)'}}>{label}</td><td style={{textAlign:'right'}}><input style={numInp} type="number" min="1" value={(S[skey]&&S[skey][coat])||''} onChange={e=>updS(skey,coat,+e.target.value)}/></td></tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  return (
+    <div style={{padding:'16px 20px',overflowY:'auto',height:'100%'}}>
+      <div style={{fontSize:12,color:'var(--muted-fg)',marginBottom:14,padding:'8px 12px',background:'var(--muted)',borderRadius:6,borderLeft:'3px solid var(--primary)'}}>
+        All values update labour calculations in real time.
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
+        <div>
+          <StdCard title="Walls — sqft/hr" skey="walls"/>
+          <div style={cardS}>
+            <div style={sectionTitle}>Ceiling — sqft/hr</div>
+            <div style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.07em',color:'var(--muted-fg)',marginBottom:6}}>Flat / Drywall</div>
+            <table style={{width:'100%',borderCollapse:'collapse',fontSize:13,marginBottom:10}}>
+              <tbody>{[[1,'1 coat'],[2,'2 coats'],[3,'Primer & 2 coats']].map(([c,l])=>(
+                <tr key={c}><td style={{padding:'3px 0'}}>{l}</td><td style={{textAlign:'right'}}><input style={numInp} type="number" min="1" value={(S.flatCeiling&&S.flatCeiling[c])||''} onChange={e=>updS('flatCeiling',c,+e.target.value)}/></td></tr>
+              ))}</tbody>
+            </table>
+            <div style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.07em',color:'var(--muted-fg)',marginBottom:6,borderTop:'1px solid var(--border)',paddingTop:8}}>Stucco</div>
+            <table style={{width:'100%',borderCollapse:'collapse',fontSize:13,marginBottom:10}}>
+              <tbody>{[[1,'1 coat'],[2,'2 coats'],[3,'Primer & 2 coats']].map(([c,l])=>(
+                <tr key={c}><td style={{padding:'3px 0'}}>{l}</td><td style={{textAlign:'right'}}><input style={numInp} type="number" min="1" value={(S.stuccoCeiling&&S.stuccoCeiling[c])||''} onChange={e=>updS('stuccoCeiling',c,+e.target.value)}/></td></tr>
+              ))}</tbody>
+            </table>
+            <div style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.07em',color:'var(--muted-fg)',marginBottom:6,borderTop:'1px solid var(--border)',paddingTop:8}}>Remove Stucco — $/sqft</div>
+            <input style={{...numInp,width:90}} type="number" step="0.05" value={S.removeStucco?.rate||0.75} onChange={e=>setSettings(s=>({...s,standards:{...s.standards,removeStucco:{rate:+e.target.value}}}))}/>
+          </div>
+        </div>
+        <div>
+          <StdCard title="Baseboards — sqft/hr" skey="baseboards"/>
+          <StdCard title="Crown Moulding — sqft/hr" skey="crown"/>
+          <StdCard title="Door Frames — sqft/hr" skey="doorFrames"/>
+          <StdCard title="Windows — sqft/hr" skey="windows"/>
+          <StdCard title="Doors — sqft/hr" skey="doors"/>
+        </div>
+      </div>
+      <SaveBar saving={saving} saveMsg={saveMsg} onSave={()=>save({data:settings.data,labour:settings.labour,standards:settings.standards})}/>
+    </div>
+  );
+}
+
 function MasterEstimate(){
   const ref=useRef(null);
 
@@ -5074,8 +5370,25 @@ function MasterEstimate(){
       }
     }catch(e){console.warn('MasterEstimate onLoad error:',e);}
   },[]);
+  const [reactTab,setReactTab]=useState(null);
+
+  // Listen for tab change from iframe to switch to React tabs
+  useEffect(()=>{
+    const h=(ev)=>{
+      if(ev.data?.type==='KP_TAB_CHANGE'){
+        const t=ev.data.tab;
+        if(t==='labourrates'||t==='paintinputs'||t==='standards') setReactTab(t);
+        else setReactTab(null);
+      }
+    };
+    window.addEventListener('message',h);
+    return ()=>window.removeEventListener('message',h);
+  },[]);
+
+  const REACT_TAB_LABELS={'labourrates':'Labour Rates','paintinputs':'Paint Inputs','standards':'Standards'};
+
   return (
-    <div style={{width:'100%',height:'100%',overflow:'hidden'}}>
+    <div style={{width:'100%',height:'100%',overflow:'hidden',position:'relative'}}>
       <iframe
         ref={ref}
         srcDoc={KP_MASTER_HTML}
@@ -5084,6 +5397,33 @@ function MasterEstimate(){
         sandbox="allow-scripts allow-same-origin allow-modals allow-downloads allow-forms allow-popups"
         onLoad={onLoad}
       />
+      {reactTab&&(
+        <div style={{position:'absolute',inset:0,background:'var(--bg)',display:'flex',flexDirection:'column'}}>
+          {/* Tab bar matching the iframe's style */}
+          <div style={{background:'var(--card)',borderBottom:'1px solid var(--border)',padding:'0 16px',display:'flex',alignItems:'center',gap:2,flexShrink:0,minHeight:42}}>
+            {Object.entries(REACT_TAB_LABELS).map(([key,label])=>(
+              <button key={key} onClick={()=>{
+                setReactTab(key);
+                // Also tell iframe to show this tab (for visual sync)
+                try{ref.current?.contentWindow?.postMessage({type:'KP_SHOW_TAB',tab:key},'*');}catch(e){}
+              }} style={{padding:'10px 14px',fontSize:12,fontWeight:600,border:'none',background:'none',cursor:'pointer',borderBottom:reactTab===key?'2px solid var(--primary)':'2px solid transparent',color:reactTab===key?'var(--primary)':'var(--muted-fg)'}}>
+                {label}
+              </button>
+            ))}
+            <button onClick={()=>{
+              setReactTab(null);
+              try{ref.current?.contentWindow?.showTab('rooms');}catch(e){}
+            }} style={{marginLeft:'auto',padding:'6px 12px',fontSize:11,fontWeight:600,border:'1px solid var(--border)',borderRadius:6,background:'var(--card)',color:'var(--fg)',cursor:'pointer'}}>
+              ← Back to Estimate
+            </button>
+          </div>
+          <div style={{flex:1,overflow:'auto'}}>
+            {reactTab==='labourrates'&&<LabourRatesTab/>}
+            {reactTab==='paintinputs'&&<PaintInputsTab/>}
+            {reactTab==='standards'&&<StandardsTab/>}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

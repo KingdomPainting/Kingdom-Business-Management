@@ -2952,6 +2952,10 @@ button.tab.active{color:var(--gold2);border-bottom-color:var(--gold2)}
     </div>
     <div style="font-size:11px;color:var(--ink4);margin-top:8px">Target profit ÷ (billable hours × active workers) = profit / hr added to rate</div>
   </div>
+<div style="margin-top:18px;display:flex;align-items:center;gap:12px">
+  <button onclick="doSaveSettings(this)" style="padding:9px 24px;background:#C4922A;color:#fff;border:none;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--sans);letter-spacing:.02em">Save Settings</button>
+  <span id="save-status-msg" style="font-size:12px;color:#22c55e;font-weight:600;display:none"></span>
+</div>
 </div>
 
 <!-- PAINT INPUTS -->
@@ -2962,6 +2966,10 @@ button.tab.active{color:var(--gold2);border-bottom-color:var(--gold2)}
     <div class="card"><div class="card-title">Paint colours</div><div id="pi-colours-container"></div></div>
     <div class="card"><div class="card-title">Supplies</div><div id="pi-supplies-container"></div></div>
   </div>
+<div style="margin-top:18px;display:flex;align-items:center;gap:12px">
+  <button onclick="doSaveSettings(this)" style="padding:9px 24px;background:#C4922A;color:#fff;border:none;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--sans);letter-spacing:.02em">Save Settings</button>
+  <span id="save-status-msg" style="font-size:12px;color:#22c55e;font-weight:600;display:none"></span>
+</div>
 </div>
 
 <!-- STANDARDS -->
@@ -3032,6 +3040,10 @@ button.tab.active{color:var(--gold2);border-bottom-color:var(--gold2)}
           <tr><td>1 coat</td><td class="right"><input type="number" min="1" value="84" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('doors',1,+this.value)"></td></tr>
           <tr><td>2 coats</td><td class="right"><input type="number" min="1" value="42" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('doors',2,+this.value)"></td></tr>
           <tr><td>Primer &amp; 2 coats</td><td class="right"><input type="number" min="1" value="21" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('doors',3,+this.value)"></td></tr>
+<div style="margin-top:18px;display:flex;align-items:center;gap:12px">
+  <button onclick="doSaveSettings(this)" style="padding:9px 24px;background:#C4922A;color:#fff;border:none;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--sans);letter-spacing:.02em">Save Settings</button>
+  <span id="save-status-msg" style="font-size:12px;color:#22c55e;font-weight:600;display:none"></span>
+</div>
 <script>// ─── DATA ───────────────────────────────────────
 const STANDARDS={
   walls:{1:200,2:120,3:75},ceiling:{1:150,2:90,3:55},
@@ -3809,6 +3821,17 @@ function renderColoursList(){
 }
 var _piSaveTimer=null;
 function schedulePaintSave(){clearTimeout(_piSaveTimer);_piSaveTimer=setTimeout(upsertPaintSettings,1200);}
+function doSaveSettings(btn){
+  var orig=btn.textContent;
+  btn.disabled=true;btn.textContent='Saving…';
+  var statusEl=document.getElementById('save-status-msg');
+  upsertPaintSettings();
+  // Show feedback — postMessage is fire-and-forget so we simulate after 1.5s
+  setTimeout(function(){
+    btn.disabled=false;btn.textContent=orig;
+    if(statusEl){statusEl.textContent='✓ Saved';statusEl.style.display='inline';setTimeout(function(){statusEl.style.display='none';},3000);}
+  },1500);
+}
 function waitForSession(cb,attempts){
   attempts=attempts||0;
   var sess=_session;

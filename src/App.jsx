@@ -4601,34 +4601,74 @@ function savePaintSettings(){
 }
 
 function gv(id){var e=sel(id);return e?e.value:'';}
-function upsertPaintSettings(){
-  var data={paints:PAINTS,ceilPaints:CEILING_PAINTS,primers:PRIMERS,colours:COLOURS,supplies:SUPPLIES};
-  var labourData={
+function getLabourData(){
+  return {
     workers:JSON.parse(JSON.stringify(workers)),
     overheadItems:JSON.parse(JSON.stringify(overheadItems)),
     billable:gv('lr-billable'),buffer:gv('lr-buffer'),matBuffer:gv('lr-mat-buffer'),
     taxes:(function(){var e=sel('lr-taxes');return e?e.checked:true;}()),
     discount:(function(){var e=sel('lr-discount');return e?e.checked:false;}()),
     discountAmt:(function(){var e=sel('lr-discount-amt');return e?e.checked:false;}()),
-    discAmt:gv('lr-disc-amt'),
-    discPct:gv('lr-disc-pct'),profitTarget:gv('lr-profit-target')
+    discAmt:gv('lr-disc-amt'),discPct:gv('lr-disc-pct'),profitTarget:gv('lr-profit-target')
   };
+}
+function upsertPaintSettings(){
+  // Get session — prefer injected _session, fall back to localStorage
+  var sess=_session;
+  if(!sess||!sess.access_token){
+    try{var s=JSON.parse(localStorage.getItem('kp_session')||'null');if(s&&s.access_token)sess=s;}catch(ex){}
+  }
+  var pdata={paints:PAINTS,ceilPaints:CEILING_PAINTS,primers:PRIMERS,colours:COLOURS,supplies:SUPPLIES};
+  var labourData=getLabourData();
   var standardsData=JSON.parse(JSON.stringify(STANDARDS));
-  // Post to React parent which uses its own authenticated session
-  window.parent.postMessage({
-    type:'KP_SAVE_PAINT_SETTINGS',
-    data:data,
-    labour:labourData,
-    standards:standardsData
-  },'*');
+  if(!sess||!sess.access_token||!sess.user||!sess.user.id){
+    // Fall back to postMessage if no session available in iframe
+    window.parent.postMessage({type:'KP_SAVE_PAINT_SETTINGS',data:pdata,labour:labourData,standards:standardsData},'*');
+    return;
+  }
+  var uid=sess.user.id;
+  var token=sess.access_token;
+  var payload={user_id:uid,data:pdata,labour:labourData,standards:standardsData,updated_at:new Date().toISOString()};
+  // Save directly using the injected session — no postMessage needed
+  fetch(SUPA_URL+'/rest/v1/paint_settings?on_conflict=user_id',{
+    method:'POST',
+    headers:{
+      'apikey':SUPA_KEY,
+      'Authorization':'Bearer '+token,
+      'Content-Type':'application/json',
+      'Prefer':'resolution=merge-duplicates,return=minimal'
+    },
+    body:JSON.stringify(payload)
+  }).then(function(r){
+    if(!r.ok)r.text().then(function(t){console.warn('upsertPaintSettings failed:',r.status,t.slice(0,100));});
+  }).catch(function(e){console.warn('upsertPaintSettings error:',e);});
 }
 
 function sv(id,val){var e=sel(id);if(e&&val!==undefined&&val!=='')e.value=val;}
 function loadPaintSettings(cb){
-  // Store callback so we can call it when parent sends back the data
+  // Try loading directly first using injected session
+  var sess=_session;
+  if(!sess||!sess.access_token){
+    try{var s=JSON.parse(localStorage.getItem('kp_session')||'null');if(s&&s.access_token)sess=s;}catch(ex){}
+  }
+  if(sess&&sess.access_token&&sess.user&&sess.user.id){
+    var uid=sess.user.id;
+    var token=sess.access_token;
+    fetch(SUPA_URL+'/rest/v1/paint_settings?user_id=eq.'+uid+'&select=data,labour,standards',{
+      headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+token}
+    }).then(function(r){return r.json();}).then(function(rows){
+      var settings=(rows&&rows.length)?rows[0]:null;
+      applyPaintSettings(settings);
+      if(cb)cb();
+    }).catch(function(e){
+      console.warn('loadPaintSettings direct error:',e);
+      if(cb)cb();
+    });
+    return;
+  }
+  // Fall back to postMessage
   window._paintSettingsCb=cb;
   window.parent.postMessage({type:'KP_LOAD_PAINT_SETTINGS'},'*');
-  // Fallback: call cb after 3s even if no response
   var t=setTimeout(function(){if(window._paintSettingsCb){window._paintSettingsCb();window._paintSettingsCb=null;}},3000);
   window._paintSettingsTimeout=t;
 }

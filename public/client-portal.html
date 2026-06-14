@@ -142,7 +142,7 @@ body.authed #portal{display:flex}
     <span class="doc-overlay-title" id="overlay-title">Document</span>
     <button class="doc-close" id="overlay-close">Close</button>
   </div>
-  <div class="doc-overlay-body"><iframe id="doc-frame" sandbox="allow-same-origin allow-scripts"></iframe></div>
+  <div class="doc-overlay-body"><iframe id="doc-frame" referrerpolicy="no-referrer"></iframe></div>
   <div id="sig-panel">
     <h3>Sign this contract</h3>
     <p>Draw your signature below then click Save Signature.</p>
@@ -224,13 +224,38 @@ async function loadProjects(email){
 
 window.toggleDocs=function(id){const el=document.getElementById('docs-'+id);if(el)el.style.display=el.style.display==='none'?'block':'none';};
 
+function wrapDocHtml(html){
+  // Inject CSS variables and base styles so the document renders correctly outside the estimates page
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
+<style>
+:root{
+  --bg:#ede9de;--fg:#2e3557;--ink:#1a1714;--ink2:#3a3530;--ink3:#7a6e65;
+  --cream:#ede9de;--cream2:#e0dbd0;--cream3:#c8bfb4;
+  --gold:#C4922A;--gold2:#b07e20;
+  --r:6px;--r2:12px;--sans:'Montserrat',sans-serif;
+}
+*{box-sizing:border-box}
+body{font-family:'Montserrat',Georgia,sans-serif;background:#fff;color:#1a1714;padding:32px;max-width:860px;margin:0 auto;font-size:13px;line-height:1.7}
+</style>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+</head><body>${html}</body></html>`;
+}
+
 window.openDoc=function(key,label,dealId,signable){
   const d=allDeals.find(x=>x.id===dealId);
   if(!d||!d[key])return;
   currentDealId=dealId;
   document.getElementById('overlay-title').textContent=label;
   document.getElementById('doc-overlay').style.display='flex';
-  document.getElementById('doc-frame').srcdoc=d[key];
+  // Use blob URL so CSS vars and full HTML doc render correctly
+  const wrapped=wrapDocHtml(d[key]);
+  const blob=new Blob([wrapped],{type:'text/html'});
+  const url=URL.createObjectURL(blob);
+  const frame=document.getElementById('doc-frame');
+  // Revoke previous blob URL to avoid memory leak
+  if(frame._blobUrl)URL.revokeObjectURL(frame._blobUrl);
+  frame._blobUrl=url;
+  frame.src=url;
   const sp=document.getElementById('sig-panel');
   if(signable&&!d.contract_signed_html){sp.style.display='block';initSig();}
   else sp.style.display='none';
@@ -238,7 +263,9 @@ window.openDoc=function(key,label,dealId,signable){
 
 document.getElementById('overlay-close').addEventListener('click',()=>{
   document.getElementById('doc-overlay').style.display='none';
-  document.getElementById('doc-frame').srcdoc='';
+  const frame=document.getElementById('doc-frame');
+  if(frame._blobUrl){URL.revokeObjectURL(frame._blobUrl);frame._blobUrl=null;}
+  frame.src='about:blank';
 });
 
 let sigCanvas,sigCtx;
@@ -278,7 +305,9 @@ document.getElementById('sig-save').addEventListener('click',async()=>{
   // Reload and close
   setTimeout(async()=>{
     document.getElementById('doc-overlay').style.display='none';
-    document.getElementById('doc-frame').srcdoc='';
+    const _f=document.getElementById('doc-frame');
+    if(_f._blobUrl){URL.revokeObjectURL(_f._blobUrl);_f._blobUrl=null;}
+    _f.src='about:blank';
     const {data}=await sb.rpc('get_client_deals',{client_email:currentEmail});
     if(data){allDeals=data;const active=data.filter(d=>d.stage!=='Archive');const past=data.filter(d=>d.stage==='Archive');
     document.getElementById('active-projects').innerHTML=active.length?active.map(d=>projCard(d,false)).join(''):'<p style="color:#9ca3af;font-size:13px">No active projects.</p>';

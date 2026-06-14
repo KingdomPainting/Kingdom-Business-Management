@@ -4623,37 +4623,21 @@ function getLabourData(){
   };
 }
 function upsertPaintSettings(){
-  var pdata={paints:PAINTS,ceilPaints:CEILING_PAINTS,primers:PRIMERS,colours:COLOURS,supplies:SUPPLIES};
-  var labourData=getLabourData();
-  var standardsData=JSON.parse(JSON.stringify(STANDARDS));
-  waitForSession(function(sess){
-    var payload={user_id:sess.user.id,data:pdata,labour:labourData,standards:standardsData,updated_at:new Date().toISOString()};
-    fetch(SUPA_URL+'/rest/v1/paint_settings?on_conflict=user_id',{
-      method:'POST',
-      headers:{
-        'apikey':SUPA_KEY,
-        'Authorization':'Bearer '+sess.access_token,
-        'Content-Type':'application/json',
-        'Prefer':'resolution=merge-duplicates,return=minimal'
-      },
-      body:JSON.stringify(payload)
-    }).then(function(r){
-      if(r.ok){setSaveStatus('Settings saved','#22c55e');}
-      else{r.text().then(function(t){console.warn('upsertPaintSettings failed:',r.status,t.slice(0,100));setSaveStatus('Save failed','#ef4444');});}
-    }).catch(function(e){console.warn('upsertPaintSettings error:',e);setSaveStatus('Save error','#ef4444');});
-  });
+  window.parent.postMessage({
+    type:'KP_SAVE_PAINT_SETTINGS',
+    data:{paints:PAINTS,ceilPaints:CEILING_PAINTS,primers:PRIMERS,colours:COLOURS,supplies:SUPPLIES},
+    labour:getLabourData(),
+    standards:JSON.parse(JSON.stringify(STANDARDS))
+  },'*');
 }
 
 function sv(id,val){var e=sel(id);if(e&&val!==undefined&&val!=='')e.value=val;}
 function loadPaintSettings(cb){
-  waitForSession(function(sess){
-    fetch(SUPA_URL+'/rest/v1/paint_settings?user_id=eq.'+sess.user.id+'&select=data,labour,standards',{
-      headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+sess.access_token}
-    }).then(function(r){return r.json();}).then(function(rows){
-      applyPaintSettings(rows&&rows.length?rows[0]:null);
-      if(cb)cb();
-    }).catch(function(e){console.warn('loadPaintSettings error:',e);if(cb)cb();});
-  });
+  window._paintSettingsCb=cb;
+  window.parent.postMessage({type:'KP_LOAD_PAINT_SETTINGS'},'*');
+  // Fallback if parent doesn't respond
+  var t=setTimeout(function(){if(window._paintSettingsCb){window._paintSettingsCb();window._paintSettingsCb=null;}},4000);
+  window._paintSettingsTimeout=t;
 }
 // Called when React parent sends back paint settings
 function applyPaintSettings(settingsData){
@@ -4930,32 +4914,30 @@ function MasterEstimate(){
       if(ev.data?.type==='KP_SAVE_PAINT_SETTINGS'){
         const {data,labour,standards}=ev.data;
         if(!data)return;
-        try{
-          // Ensure we have a session — try restoring from localStorage if needed
-          if(!_session?.access_token){
-            try{
-              const stored=localStorage.getItem('kp_session');
-              if(stored){ const s=JSON.parse(stored); if(s?.access_token) setSession(s); }
-            }catch(e2){}
-          }
-          const session=_session;
-          if(!session?.access_token){console.warn('KP_SAVE_PAINT_SETTINGS: no session');return;}
-          const uid=session.user?.id||null;
-          if(!uid){console.warn('KP_SAVE_PAINT_SETTINGS: no uid');return;}
-          const payload={user_id:uid,data,labour,standards,updated_at:new Date().toISOString()};
-          // Single upsert — POST with merge-duplicates on user_id unique constraint
-          const res=await fetch(`${SUPA_URL}/rest/v1/paint_settings?on_conflict=user_id`,{
-            method:'POST',
-            headers:{
-              'apikey':SUPA_KEY,
-              'Authorization':`Bearer ${session.access_token}`,
-              'Content-Type':'application/json',
-              'Prefer':'resolution=merge-duplicates,return=minimal'
-            },
-            body:JSON.stringify(payload)
-          });
-          if(!res.ok){const t=await res.text();console.warn('KP_SAVE_PAINT_SETTINGS failed:',res.status,t.slice(0,120));}
-        }catch(e){console.warn('KP_SAVE_PAINT_SETTINGS error:',e);}
+        // Retry up to 10s waiting for session
+        const doSave=async(attempt=0)=>{
+          try{
+            // Restore session from localStorage if needed
+            if(!_session?.access_token){
+              try{const stored=localStorage.getItem('kp_session');if(stored){const s=JSON.parse(stored);if(s?.access_token)setSession(s);}}catch(e2){}
+            }
+            if(!_session?.access_token||!_session?.user?.id){
+              if(attempt<20){setTimeout(()=>doSave(attempt+1),500);}
+              else{console.warn('KP_SAVE_PAINT_SETTINGS: gave up waiting for session');}
+              return;
+            }
+            const uid=_session.user.id;
+            const token=_session.access_token;
+            const res=await fetch(`${SUPA_URL}/rest/v1/paint_settings?on_conflict=user_id`,{
+              method:'POST',
+              headers:{'apikey':SUPA_KEY,'Authorization':`Bearer ${token}`,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates,return=minimal'},
+              body:JSON.stringify({user_id:uid,data,labour,standards,updated_at:new Date().toISOString()})
+            });
+            if(!res.ok){const t=await res.text();console.warn('KP_SAVE_PAINT_SETTINGS failed:',res.status,t.slice(0,120));}
+            else{console.log('Paint settings saved ok');}
+          }catch(e){console.warn('KP_SAVE_PAINT_SETTINGS error:',e);}
+        };
+        doSave();
       }
     };
     window.addEventListener('message',handler);

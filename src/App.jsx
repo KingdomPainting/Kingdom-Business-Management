@@ -3851,40 +3851,47 @@ function renderColoursList(){
 }
 var _piSaveTimer=null;
 function schedulePaintSave(){clearTimeout(_piSaveTimer);_piSaveTimer=setTimeout(upsertPaintSettings,1200);}
+var _pendingSaveBtn=null,_pendingSaveStatus=null;
+// Listen for save confirmation from React parent
+window.addEventListener('message',function(ev){
+  if(ev.data&&ev.data.type==='KP_SAVE_DONE'){
+    if(_pendingSaveBtn){
+      _pendingSaveBtn.disabled=false;_pendingSaveBtn.textContent='Save Settings';
+    }
+    if(_pendingSaveStatus){
+      var ok=ev.data.ok!==false;
+      _pendingSaveStatus.textContent=ok?'\u2713 Saved':'Save failed \u2014 try again';
+      _pendingSaveStatus.style.color=ok?'#22c55e':'#ef4444';
+      _pendingSaveStatus.style.display='inline';
+      setTimeout(function(){if(_pendingSaveStatus)_pendingSaveStatus.style.display='none';},3000);
+    }
+    _pendingSaveBtn=null;_pendingSaveStatus=null;
+  }
+});
 function doSaveSettings(btn){
   btn.disabled=true;btn.textContent='Saving\u2026';
-  // Find status element — could be next sibling span
-  var statusEl=btn.parentNode?btn.parentNode.querySelector('.save-status-msg'):null;
-  // Build payload
-  var pdata={paints:PAINTS,ceilPaints:CEILING_PAINTS,primers:PRIMERS,colours:COLOURS,supplies:SUPPLIES};
-  var labourData=getLabourData();
-  var standardsData=JSON.parse(JSON.stringify(STANDARDS));
-  // Get session
-  var sess=_session;
-  if(!sess||!sess.access_token){
-    try{var s=JSON.parse(localStorage.getItem('kp_session')||'null');if(s&&s.access_token)sess=s;}catch(e2){}
-  }
-  function done(ok){
-    btn.disabled=false;btn.textContent='Save Settings';
-    if(statusEl){
-      statusEl.textContent=ok?'\u2713 Saved':'Save failed \u2014 try again';
-      statusEl.style.color=ok?'#22c55e':'#ef4444';
-      statusEl.style.display='inline';
-      setTimeout(function(){statusEl.style.display='none';},3000);
+  _pendingSaveBtn=btn;
+  _pendingSaveStatus=btn.parentNode?btn.parentNode.querySelector('.save-status-msg'):null;
+  // Always use postMessage — React parent has the authenticated session
+  window.parent.postMessage({
+    type:'KP_SAVE_PAINT_SETTINGS',
+    data:{paints:PAINTS,ceilPaints:CEILING_PAINTS,primers:PRIMERS,colours:COLOURS,supplies:SUPPLIES},
+    labour:getLabourData(),
+    standards:JSON.parse(JSON.stringify(STANDARDS))
+  },'*');
+  // Safety timeout — re-enable button after 8s regardless
+  setTimeout(function(){
+    if(_pendingSaveBtn){
+      _pendingSaveBtn.disabled=false;_pendingSaveBtn.textContent='Save Settings';
+      _pendingSaveBtn=null;
     }
-  }
-  if(sess&&sess.access_token&&sess.user&&sess.user.id){
-    var payload={user_id:sess.user.id,data:pdata,labour:labourData,standards:standardsData,updated_at:new Date().toISOString()};
-    fetch(SUPA_URL+'/rest/v1/paint_settings?on_conflict=user_id',{
-      method:'POST',
-      headers:{apikey:SUPA_KEY,'Authorization':'Bearer '+sess.access_token,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates,return=minimal'},
-      body:JSON.stringify(payload)
-    }).then(function(r){done(r.ok);}).catch(function(){done(false);});
-  } else {
-    // Fall back to postMessage and optimistically show saved
-    window.parent.postMessage({type:'KP_SAVE_PAINT_SETTINGS',data:pdata,labour:labourData,standards:standardsData},'*');
-    setTimeout(function(){done(true);},1200);
-  }
+    if(_pendingSaveStatus){
+      _pendingSaveStatus.textContent='Check connection and try again';
+      _pendingSaveStatus.style.color='#ef4444';
+      _pendingSaveStatus.style.display='inline';
+      _pendingSaveStatus=null;
+    }
+  },8000);
 }
 function waitForSession(cb,attempts){
   attempts=attempts||0;
@@ -5003,16 +5010,16 @@ function MasterEstimate(){
       if(ev.data?.type==='KP_SAVE_PAINT_SETTINGS'){
         const {data,labour,standards}=ev.data;
         if(!data)return;
-        // Retry up to 10s waiting for session
+        const iframeWin=ref.current?.contentWindow;
+        const reply=(ok)=>{if(iframeWin)iframeWin.postMessage({type:'KP_SAVE_DONE',ok},'*');};
         const doSave=async(attempt=0)=>{
           try{
-            // Restore session from localStorage if needed
             if(!_session?.access_token){
               try{const stored=localStorage.getItem('kp_session');if(stored){const s=JSON.parse(stored);if(s?.access_token)setSession(s);}}catch(e2){}
             }
             if(!_session?.access_token||!_session?.user?.id){
               if(attempt<20){setTimeout(()=>doSave(attempt+1),500);}
-              else{console.warn('KP_SAVE_PAINT_SETTINGS: gave up waiting for session');}
+              else{reply(false);}
               return;
             }
             const uid=_session.user.id;
@@ -5022,9 +5029,9 @@ function MasterEstimate(){
               headers:{'apikey':SUPA_KEY,'Authorization':`Bearer ${token}`,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates,return=minimal'},
               body:JSON.stringify({user_id:uid,data,labour,standards,updated_at:new Date().toISOString()})
             });
-            if(!res.ok){const t=await res.text();console.warn('KP_SAVE_PAINT_SETTINGS failed:',res.status,t.slice(0,120));}
-            else{console.log('Paint settings saved ok');}
-          }catch(e){console.warn('KP_SAVE_PAINT_SETTINGS error:',e);}
+            reply(res.ok);
+            if(!res.ok){const t=await res.text();console.warn('KP_SAVE_PAINT_SETTINGS failed:',res.status,t.slice(0,80));}
+          }catch(e){reply(false);console.warn('KP_SAVE_PAINT_SETTINGS error:',e);}
         };
         doSave();
       }

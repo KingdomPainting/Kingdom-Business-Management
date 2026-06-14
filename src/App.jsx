@@ -5048,16 +5048,17 @@ function useSettingsState(){
   return {settings,setSettings,saving,saveMsg,save};
 }
 
-const inp={background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'5px 8px',borderRadius:6,border:'1px solid var(--border)',outline:'none',width:'100%',boxSizing:'border-box'};
-const numInp={...inp,width:80,textAlign:'right'};
-const cardS={background:'var(--card)',border:'1px solid var(--border)',borderRadius:10,padding:'16px 18px',marginBottom:14};
-const labelS={fontSize:11,fontWeight:700,color:'var(--muted-fg)',textTransform:'uppercase',letterSpacing:'0.05em',display:'block',marginBottom:5};
-const sectionTitle={fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em',color:'var(--muted-fg)',marginBottom:8,marginTop:12,paddingBottom:4,borderBottom:'1px solid var(--border)'};
+// ── Shared styles matching the rest of the app ──
+const SI={background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'8px 10px',borderRadius:6,border:'1px solid var(--border)',outline:'none',width:'100%',boxSizing:'border-box'};
+const SIN={...SI,width:90,textAlign:'right'};
+const SL=({children})=><span style={{fontSize:11,fontWeight:600,color:'var(--muted-fg)',display:'block',marginBottom:4}}>{children}</span>;
+const ST=({children})=><div style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em',color:'var(--muted-fg)',marginBottom:10,marginTop:4,paddingBottom:6,borderBottom:'1px solid var(--border)'}}>{children}</div>;
+const SCard=({children,style})=><div style={{background:'var(--card)',border:'1px solid var(--border)',borderRadius:12,boxShadow:'var(--shadow)',padding:'18px 20px',marginBottom:14,...style}}>{children}</div>;
 
 function SaveBar({saving,saveMsg,onSave}){
   return (
-    <div style={{marginTop:20,display:'flex',alignItems:'center',gap:12}}>
-      <button onClick={onSave} disabled={saving} style={{padding:'8px 22px',background:'var(--primary)',color:'#fff',border:'none',borderRadius:7,fontSize:13,fontWeight:700,cursor:saving?'not-allowed':'pointer',opacity:saving?0.7:1,fontFamily:'inherit'}}>
+    <div style={{display:'flex',alignItems:'center',gap:12,paddingTop:16,borderTop:'1px solid var(--border)',marginTop:8}}>
+      <button onClick={onSave} disabled={saving} style={{padding:'8px 22px',background:'var(--primary)',color:'#fff',border:'1px solid var(--primary)',borderRadius:6,fontSize:13,fontWeight:600,cursor:saving?'not-allowed':'pointer',opacity:saving?0.7:1,fontFamily:'inherit'}}>
         {saving?'Saving…':'Save Settings'}
       </button>
       {saveMsg&&<span style={{fontSize:12,fontWeight:600,color:saveMsg.startsWith('✓')?'#22c55e':'#ef4444'}}>{saveMsg}</span>}
@@ -5067,94 +5068,96 @@ function SaveBar({saving,saveMsg,onSave}){
 
 function LabourRatesTab(){
   const {settings,setSettings,saving,saveMsg,save}=useSettingsState();
-  if(!settings)return <div style={{padding:20,color:'var(--muted-fg)'}}>Loading…</div>;
+  if(!settings)return <div style={{padding:24,color:'var(--muted-fg)',fontSize:13}}>Loading…</div>;
   const L=settings.labour;
   const upd=patch=>setSettings(s=>({...s,labour:{...s.labour,...patch}}));
   const updWorker=(i,patch)=>setSettings(s=>{const w=[...s.labour.workers];w[i]={...w[i],...patch};return{...s,labour:{...s.labour,workers:w}};});
   const addWorker=()=>setSettings(s=>({...s,labour:{...s.labour,workers:[...s.labour.workers,{n:'New Worker',wage:25,active:true}]}}));
-  const removeWorker=i=>setSettings(s=>{const w=s.labour.workers.filter((_,j)=>j!==i);return{...s,labour:{...s.labour,workers:w}};});
+  const removeWorker=i=>setSettings(s=>({...s,labour:{...s.labour,workers:s.labour.workers.filter((_,j)=>j!==i)}}));
   const updOH=(i,patch)=>setSettings(s=>{const o=[...s.labour.overheadItems];o[i]={...o[i],...patch};return{...s,labour:{...s.labour,overheadItems:o}};});
   const addOH=()=>setSettings(s=>({...s,labour:{...s.labour,overheadItems:[...s.labour.overheadItems,{n:'New item',v:0}]}}));
-  const removeOH=i=>setSettings(s=>{const o=s.labour.overheadItems.filter((_,j)=>j!==i);return{...s,labour:{...s.labour,overheadItems:o}};});
-
+  const removeOH=i=>setSettings(s=>({...s,labour:{...s.labour,overheadItems:s.labour.overheadItems.filter((_,j)=>j!==i)}}));
   const activeWorkers=L.workers.filter(w=>w.active);
   const totalOH=L.overheadItems.reduce((s,o)=>s+(+o.v||0),0);
   const ohPerHr=L.billable>0?totalOH/L.billable:0;
   const fieldWage=activeWorkers.reduce((s,w)=>s+(+w.wage||0),0);
   const profitPerHr=L.billable>0&&activeWorkers.length>0?L.profitTarget/(L.billable*activeWorkers.length):0;
-  const totalPerHr=(ohPerHr+fieldWage*+L.buffer+profitPerHr)*activeWorkers.length;
-
+  const totalPerHr=(ohPerHr+fieldWage*(+L.buffer||1)+profitPerHr)*activeWorkers.length;
+  const statRow=(label,val)=>(
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'6px 0',borderBottom:'1px solid var(--border)'}}>
+      <span style={{fontSize:12,color:'var(--muted-fg)'}}>{label}</span>
+      <span style={{fontSize:13,fontWeight:600,color:'var(--primary)'}}>{val}</span>
+    </div>
+  );
   return (
-    <div style={{padding:'16px 20px',overflowY:'auto',height:'100%'}}>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
-        <div style={cardS}>
-          <div style={sectionTitle}>Rate Calculation</div>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}}>
-            <div><label style={labelS}>Billable hrs/yr</label><input style={numInp} type="number" value={L.billable} onChange={e=>upd({billable:+e.target.value})}/></div>
-            <div><label style={labelS}>Labour buffer</label><input style={numInp} type="number" step="0.05" value={L.buffer} onChange={e=>upd({buffer:+e.target.value})}/></div>
-            <div><label style={labelS}>Materials buffer</label><input style={numInp} type="number" step="0.05" value={L.matBuffer} onChange={e=>upd({matBuffer:+e.target.value})}/></div>
-            <div><label style={labelS}>Profit target $</label><input style={numInp} type="number" value={L.profitTarget} onChange={e=>upd({profitTarget:+e.target.value})}/></div>
+    <div style={{padding:'20px 24px',overflowY:'auto',height:'100%'}}>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:16}}>
+        <SCard>
+          <ST>Rate Calculation</ST>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:14}}>
+            {[['Billable hrs/yr','billable','number','1'],['Labour buffer','buffer','number','0.05'],['Materials buffer','matBuffer','number','0.05'],['Profit target ($)','profitTarget','number','100']].map(([lbl,key,type,step])=>(
+              <div key={key}><SL>{lbl}</SL><input style={SIN} type={type} step={step} value={L[key]} onChange={e=>upd({[key]:+e.target.value})}/></div>
+            ))}
           </div>
-          <label style={{display:'flex',alignItems:'center',gap:6,fontSize:12,cursor:'pointer',marginBottom:8}}>
-            <input type="checkbox" checked={L.taxes} onChange={e=>upd({taxes:e.target.checked})}/> Apply payroll taxes
+          <label style={{display:'flex',alignItems:'center',gap:7,fontSize:12,cursor:'pointer',marginBottom:10,color:'var(--fg)'}}>
+            <input type="checkbox" checked={!!L.taxes} onChange={e=>upd({taxes:e.target.checked})}/> Apply payroll taxes
           </label>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:12}}>
-            <div style={{background:'var(--muted)',borderRadius:6,padding:'8px 10px'}}>
-              <label style={{display:'flex',alignItems:'center',gap:6,fontSize:12,cursor:'pointer',marginBottom:6}}>
-                <input type="checkbox" checked={L.discount} onChange={e=>upd({discount:e.target.checked})}/> <strong>Discount %</strong>
-              </label>
-              <input style={numInp} type="number" value={L.discPct} onChange={e=>upd({discPct:+e.target.value})}/>
-            </div>
-            <div style={{background:'var(--muted)',borderRadius:6,padding:'8px 10px'}}>
-              <label style={{display:'flex',alignItems:'center',gap:6,fontSize:12,cursor:'pointer',marginBottom:6}}>
-                <input type="checkbox" checked={L.discountAmt} onChange={e=>upd({discountAmt:e.target.checked})}/> <strong>Discount $</strong>
-              </label>
-              <input style={numInp} type="number" value={L.discAmt} onChange={e=>upd({discAmt:+e.target.value})}/>
-            </div>
-          </div>
-          <div style={{fontSize:12,color:'var(--muted-fg)',borderTop:'1px solid var(--border)',paddingTop:10,display:'flex',flexDirection:'column',gap:4}}>
-            <div style={{display:'flex',justifyContent:'space-between'}}><span>Overhead / hr</span><span style={{color:'var(--primary)',fontWeight:600}}>${ohPerHr.toFixed(2)}</span></div>
-            <div style={{display:'flex',justifyContent:'space-between'}}><span>Field wage / hr</span><span style={{color:'var(--primary)',fontWeight:600}}>${fieldWage.toFixed(2)}</span></div>
-            <div style={{display:'flex',justifyContent:'space-between'}}><span>Profit / hr</span><span style={{color:'var(--primary)',fontWeight:600}}>${profitPerHr.toFixed(2)}</span></div>
-            <div style={{display:'flex',justifyContent:'space-between',fontWeight:700,fontSize:13,borderTop:'1px solid var(--border)',paddingTop:6,marginTop:2}}><span>Total rate (all workers)</span><span style={{color:'var(--primary)'}}>${totalPerHr.toFixed(2)}/hr</span></div>
-          </div>
-        </div>
-        <div style={cardS}>
-          <div style={sectionTitle}>Overhead Costs</div>
-          {L.overheadItems.map((o,i)=>(
-            <div key={i} style={{display:'grid',gridTemplateColumns:'1fr 100px 28px',gap:6,marginBottom:6,alignItems:'center'}}>
-              <input style={inp} value={o.n} onChange={e=>updOH(i,{n:e.target.value})} placeholder="Item"/>
-              <input style={{...numInp,width:'100%'}} type="number" value={o.v} onChange={e=>updOH(i,{v:+e.target.value})} placeholder="$/yr"/>
-              <button onClick={()=>removeOH(i)} style={{background:'none',border:'none',cursor:'pointer',color:'var(--muted-fg)',fontSize:16,padding:0}}>×</button>
-            </div>
-          ))}
-          <button onClick={addOH} style={{fontSize:12,color:'var(--primary)',background:'none',border:'1px dashed var(--primary)',borderRadius:6,padding:'4px 12px',cursor:'pointer',marginTop:4}}>+ Add item</button>
-          <div style={{marginTop:10,paddingTop:10,borderTop:'1px solid var(--border)',display:'flex',justifyContent:'space-between',fontSize:13,fontWeight:600}}>
-            <span>Total overhead/yr</span><span style={{color:'var(--primary)'}}>${totalOH.toLocaleString()}</span>
-          </div>
-        </div>
-      </div>
-      <div style={cardS}>
-        <div style={sectionTitle}>Field Workers</div>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:10}}>
-          {L.workers.map((w,i)=>(
-            <div key={i} style={{background:'var(--muted)',borderRadius:8,padding:'10px 12px'}}>
-              <div style={{display:'flex',justifyContent:'space-between',marginBottom:6}}>
-                <label style={{display:'flex',alignItems:'center',gap:6,fontSize:12,cursor:'pointer'}}>
-                  <input type="checkbox" checked={w.active} onChange={e=>updWorker(i,{active:e.target.checked})}/> Active
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:14}}>
+            {[['Discount %','discount','discPct'],['Discount $','discountAmt','discAmt']].map(([lbl,cbKey,valKey])=>(
+              <div key={lbl} style={{background:'var(--muted)',borderRadius:8,padding:'10px 12px',border:'1px solid var(--border)'}}>
+                <label style={{display:'flex',alignItems:'center',gap:6,fontSize:12,fontWeight:600,cursor:'pointer',marginBottom:8,color:'var(--fg)'}}>
+                  <input type="checkbox" checked={!!L[cbKey]} onChange={e=>upd({[cbKey]:e.target.checked})}/>{lbl}
                 </label>
-                <button onClick={()=>removeWorker(i)} style={{background:'none',border:'none',cursor:'pointer',color:'var(--muted-fg)',fontSize:14}}>×</button>
+                <input style={SIN} type="number" value={L[valKey]} onChange={e=>upd({[valKey]:+e.target.value})}/>
               </div>
-              <input style={{...inp,marginBottom:6}} value={w.n} onChange={e=>updWorker(i,{n:e.target.value})} placeholder="Name"/>
-              <div style={{display:'flex',alignItems:'center',gap:6}}>
-                <label style={labelS}>Wage $/hr</label>
-                <input style={{...numInp,flex:1}} type="number" value={w.wage} onChange={e=>updWorker(i,{wage:+e.target.value})}/>
-              </div>
+            ))}
+          </div>
+          <div style={{background:'var(--muted)',borderRadius:8,padding:'10px 14px',border:'1px solid var(--border)'}}>
+            {statRow('Overhead / hr','$'+ohPerHr.toFixed(2))}
+            {statRow('Field wage / hr','$'+fieldWage.toFixed(2))}
+            {statRow('Profit / hr','$'+profitPerHr.toFixed(2))}
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',paddingTop:8,marginTop:4}}>
+              <span style={{fontSize:13,fontWeight:700,color:'var(--fg)'}}>Total rate (all workers)</span>
+              <span style={{fontSize:15,fontWeight:700,color:'var(--primary)'}}>${totalPerHr.toFixed(2)}/hr</span>
+            </div>
+          </div>
+        </SCard>
+        <SCard>
+          <ST>Overhead Costs</ST>
+          {L.overheadItems.map((o,i)=>(
+            <div key={i} style={{display:'grid',gridTemplateColumns:'1fr 90px 28px',gap:8,marginBottom:8,alignItems:'center'}}>
+              <input style={SI} value={o.n} onChange={e=>updOH(i,{n:e.target.value})} placeholder="Item name"/>
+              <input style={{...SIN,width:'100%'}} type="number" value={o.v} onChange={e=>updOH(i,{v:+e.target.value})} placeholder="$/yr"/>
+              <button onClick={()=>removeOH(i)} style={{background:'none',border:'1px solid var(--border)',borderRadius:6,cursor:'pointer',color:'var(--muted-fg)',fontSize:14,width:28,height:32,display:'flex',alignItems:'center',justifyContent:'center'}}>×</button>
             </div>
           ))}
-          <button onClick={addWorker} style={{background:'none',border:'1px dashed var(--border)',borderRadius:8,padding:'10px 12px',cursor:'pointer',color:'var(--muted-fg)',fontSize:12}}>+ Add worker</button>
-        </div>
+          <button onClick={addOH} style={{fontSize:12,color:'var(--primary)',background:'none',border:'1px dashed var(--primary)',borderRadius:6,padding:'5px 14px',cursor:'pointer',marginTop:4,fontFamily:'inherit'}}>+ Add item</button>
+          <div style={{marginTop:12,paddingTop:12,borderTop:'1px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <span style={{fontSize:13,fontWeight:600,color:'var(--fg)'}}>Total overhead / yr</span>
+            <span style={{fontSize:14,fontWeight:700,color:'var(--primary)'}}>${totalOH.toLocaleString()}</span>
+          </div>
+        </SCard>
       </div>
+      <SCard>
+        <ST>Field Workers</ST>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:12}}>
+          {L.workers.map((w,i)=>(
+            <div key={i} style={{background:'var(--muted)',borderRadius:8,padding:'12px 14px',border:'1px solid var(--border)'}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+                <label style={{display:'flex',alignItems:'center',gap:6,fontSize:12,cursor:'pointer',color:'var(--fg)',fontWeight:600}}>
+                  <input type="checkbox" checked={!!w.active} onChange={e=>updWorker(i,{active:e.target.checked})}/> Active
+                </label>
+                <button onClick={()=>removeWorker(i)} style={{background:'none',border:'1px solid var(--border)',borderRadius:5,cursor:'pointer',color:'var(--muted-fg)',fontSize:13,width:24,height:24,display:'flex',alignItems:'center',justifyContent:'center'}}>×</button>
+              </div>
+              <SL>Name</SL>
+              <input style={{...SI,marginBottom:8}} value={w.n} onChange={e=>updWorker(i,{n:e.target.value})} placeholder="Worker name"/>
+              <SL>Wage ($/hr)</SL>
+              <input style={SIN} type="number" value={w.wage} onChange={e=>updWorker(i,{wage:+e.target.value})}/>
+            </div>
+          ))}
+          <button onClick={addWorker} style={{background:'none',border:'1px dashed var(--border)',borderRadius:8,padding:'12px 14px',cursor:'pointer',color:'var(--muted-fg)',fontSize:12,fontFamily:'inherit',minHeight:100,display:'flex',alignItems:'center',justifyContent:'center'}}>+ Add worker</button>
+        </div>
+      </SCard>
       <SaveBar saving={saving} saveMsg={saveMsg} onSave={()=>save({data:settings.data,labour:settings.labour,standards:settings.standards})}/>
     </div>
   );
@@ -5162,43 +5165,45 @@ function LabourRatesTab(){
 
 function PaintInputsTab(){
   const {settings,setSettings,saving,saveMsg,save}=useSettingsState();
-  if(!settings)return <div style={{padding:20,color:'var(--muted-fg)'}}>Loading…</div>;
+  if(!settings)return <div style={{padding:24,color:'var(--muted-fg)',fontSize:13}}>Loading…</div>;
   const D=settings.data;
   const updList=(key,i,patch)=>setSettings(s=>{const arr=[...s.data[key]];arr[i]={...arr[i],...patch};return{...s,data:{...s.data,[key]:arr}};});
-  const addItem=(key,def)=>setSettings(s=>({...s,data:{...s.data,[key]:[...s.data[key],def]}}));
+  const addItem=(key,def)=>setSettings(s=>({...s,data:{...s.data,[key]:[...(s.data[key]||[]),def]}}));
   const removeItem=(key,i)=>setSettings(s=>({...s,data:{...s.data,[key]:s.data[key].filter((_,j)=>j!==i)}}));
-
-  const PaintList=({label,listKey,hasGallon=true,hasPail=false,addDef})=>(
-    <div style={cardS}>
-      <div style={sectionTitle}>{label}</div>
-      <div style={{display:'grid',gridTemplateColumns:`1fr ${hasGallon?'70px':''} ${hasPail?'70px':''}`,gap:'4px 8px',marginBottom:4}}>
-        <span style={{fontSize:10,color:'var(--muted-fg)',fontWeight:600}}>Name</span>
-        {hasGallon&&<span style={{fontSize:10,color:'var(--muted-fg)',fontWeight:600,textAlign:'right'}}>$/gal</span>}
-        {hasPail&&<span style={{fontSize:10,color:'var(--muted-fg)',fontWeight:600,textAlign:'right'}}>$/pail</span>}
-      </div>
-      {D[listKey].map((item,i)=>(
-        <div key={i} style={{display:'grid',gridTemplateColumns:`1fr ${hasGallon?'70px':''} ${hasPail?'70px':''} 24px`,gap:'4px 8px',marginBottom:6,alignItems:'center'}}>
-          <input style={inp} value={item.n} onChange={e=>updList(listKey,i,{n:e.target.value})}/>
-          {hasGallon&&<input style={{...numInp,width:'100%'}} type="number" value={item.g} onChange={e=>updList(listKey,i,{g:+e.target.value})} placeholder="0"/>}
-          {hasPail&&<input style={{...numInp,width:'100%'}} type="number" value={item.p||0} onChange={e=>updList(listKey,i,{p:+e.target.value})} placeholder="0"/>}
-          <button onClick={()=>removeItem(listKey,i)} style={{background:'none',border:'none',cursor:'pointer',color:'var(--muted-fg)',fontSize:16,padding:0,lineHeight:1}}>×</button>
+  const PaintList=({label,listKey,hasGallon=true,hasPail=false,addDef})=>{
+    const cols=`1fr${hasGallon?' 80px':''}${hasPail?' 80px':''} 28px`;
+    return (
+      <SCard>
+        <ST>{label}</ST>
+        <div style={{display:'grid',gridTemplateColumns:cols,gap:'4px 8px',marginBottom:6}}>
+          <span style={{fontSize:10,fontWeight:600,color:'var(--muted-fg)'}}>Name</span>
+          {hasGallon&&<span style={{fontSize:10,fontWeight:600,color:'var(--muted-fg)',textAlign:'right'}}>$/gal</span>}
+          {hasPail&&<span style={{fontSize:10,fontWeight:600,color:'var(--muted-fg)',textAlign:'right'}}>$/pail</span>}
+          <span/>
         </div>
-      ))}
-      <button onClick={()=>addItem(listKey,addDef||{n:'New',g:0,p:0})} style={{fontSize:12,color:'var(--primary)',background:'none',border:'1px dashed var(--primary)',borderRadius:6,padding:'3px 12px',cursor:'pointer',marginTop:2}}>+ Add</button>
-    </div>
-  );
-
+        {(D[listKey]||[]).map((item,i)=>(
+          <div key={i} style={{display:'grid',gridTemplateColumns:cols,gap:'4px 8px',marginBottom:7,alignItems:'center'}}>
+            <input style={SI} value={item.n||''} onChange={e=>updList(listKey,i,{n:e.target.value})}/>
+            {hasGallon&&<input style={{...SIN,width:'100%'}} type="number" value={item.g??''} onChange={e=>updList(listKey,i,{g:+e.target.value})} placeholder="0"/>}
+            {hasPail&&<input style={{...SIN,width:'100%'}} type="number" value={item.p??''} onChange={e=>updList(listKey,i,{p:+e.target.value})} placeholder="0"/>}
+            <button onClick={()=>removeItem(listKey,i)} style={{background:'none',border:'1px solid var(--border)',borderRadius:5,cursor:'pointer',color:'var(--muted-fg)',fontSize:14,width:28,height:32,display:'flex',alignItems:'center',justifyContent:'center'}}>×</button>
+          </div>
+        ))}
+        <button onClick={()=>addItem(listKey,addDef||{n:'New',g:0,p:0})} style={{fontSize:12,color:'var(--primary)',background:'none',border:'1px dashed var(--primary)',borderRadius:6,padding:'5px 14px',cursor:'pointer',marginTop:4,fontFamily:'inherit'}}>+ Add</button>
+      </SCard>
+    );
+  };
   return (
-    <div style={{padding:'16px 20px',overflowY:'auto',height:'100%'}}>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
+    <div style={{padding:'20px 24px',overflowY:'auto',height:'100%'}}>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:4}}>
         <div>
-          <PaintList label="Paints — Walls & Trim ($/gal)" listKey="paints" hasGallon hasPail={false}/>
-          <PaintList label="Paints — Ceiling ($/gal)" listKey="ceilPaints" hasGallon hasPail={false}/>
+          <PaintList label="Paints — Walls & Trim" listKey="paints" hasGallon hasPail={false}/>
+          <PaintList label="Paints — Ceiling" listKey="ceilPaints" hasGallon hasPail={false}/>
         </div>
         <div>
-          <PaintList label="Primers ($/gal  ·  $/pail)" listKey="primers" hasGallon hasPail/>
+          <PaintList label="Primers ($/gal · $/pail)" listKey="primers" hasGallon hasPail/>
           <PaintList label="Paint Colours" listKey="colours" hasGallon={false} hasPail={false} addDef={{n:'New Colour'}}/>
-          <PaintList label="Supplies" listKey="supplies" hasGallon={false} hasPail={false} addDef={{n:'New Supply',cost:0}}/>
+          <PaintList label="Supplies" listKey="supplies" hasGallon={false} hasPail={false} addDef={{n:'New Supply'}}/>
         </div>
       </div>
       <SaveBar saving={saving} saveMsg={saveMsg} onSave={()=>save({data:settings.data,labour:settings.labour,standards:settings.standards})}/>
@@ -5208,49 +5213,49 @@ function PaintInputsTab(){
 
 function StandardsTab(){
   const {settings,setSettings,saving,saveMsg,save}=useSettingsState();
-  if(!settings)return <div style={{padding:20,color:'var(--muted-fg)'}}>Loading…</div>;
+  if(!settings)return <div style={{padding:24,color:'var(--muted-fg)',fontSize:13}}>Loading…</div>;
   const S=settings.standards;
-  const updS=(key,coat,val)=>setSettings(s=>({...s,standards:{...s.standards,[key]:{...s.standards[key],[coat]:val}}}));
-
+  const updS=(key,coat,val)=>setSettings(s=>({...s,standards:{...s.standards,[key]:{...(s.standards[key]||{}),[coat]:val}}}));
+  const COATS=[[1,'1 coat'],[2,'2 coats'],[3,'Primer & 2 coats']];
   const StdCard=({title,skey})=>(
-    <div style={cardS}>
-      <div style={sectionTitle}>{title}</div>
-      <table style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
-        <thead><tr><th style={{textAlign:'left',fontWeight:600,color:'var(--muted-fg)',fontSize:11,paddingBottom:6}}>Coats</th><th style={{textAlign:'right',fontWeight:600,color:'var(--muted-fg)',fontSize:11,paddingBottom:6}}>Sqft/Hr</th></tr></thead>
-        <tbody>
-          {[[1,'1 coat'],[2,'2 coats'],[3,'Primer & 2 coats']].map(([coat,label])=>(
-            <tr key={coat}><td style={{padding:'3px 0',color:'var(--fg)'}}>{label}</td><td style={{textAlign:'right'}}><input style={numInp} type="number" min="1" value={(S[skey]&&S[skey][coat])||''} onChange={e=>updS(skey,coat,+e.target.value)}/></td></tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <SCard>
+      <ST>{title}</ST>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 90px',gap:'6px 8px',alignItems:'center'}}>
+        <span style={{fontSize:10,fontWeight:600,color:'var(--muted-fg)'}}>Coats</span>
+        <span style={{fontSize:10,fontWeight:600,color:'var(--muted-fg)',textAlign:'right'}}>Sqft/Hr</span>
+        {COATS.map(([coat,label])=>[
+          <span key={label} style={{fontSize:13,color:'var(--fg)'}}>{label}</span>,
+          <input key={coat} style={{...SIN,width:'100%'}} type="number" min="1" value={(S[skey]&&S[skey][coat])||''} onChange={e=>updS(skey,coat,+e.target.value)}/>,
+        ])}
+      </div>
+    </SCard>
   );
-
+  const SubSection=({title,skey})=>(
+    <>
+      <div style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.07em',color:'var(--muted-fg)',margin:'10px 0 6px',paddingTop:10,borderTop:'1px solid var(--border)'}}>{title}</div>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 90px',gap:'5px 8px',alignItems:'center'}}>
+        {COATS.map(([coat,label])=>[
+          <span key={label} style={{fontSize:12,color:'var(--fg)'}}>{label}</span>,
+          <input key={coat} style={{...SIN,width:'100%'}} type="number" min="1" value={(S[skey]&&S[skey][coat])||''} onChange={e=>updS(skey,coat,+e.target.value)}/>,
+        ])}
+      </div>
+    </>
+  );
   return (
-    <div style={{padding:'16px 20px',overflowY:'auto',height:'100%'}}>
-      <div style={{fontSize:12,color:'var(--muted-fg)',marginBottom:14,padding:'8px 12px',background:'var(--muted)',borderRadius:6,borderLeft:'3px solid var(--primary)'}}>
+    <div style={{padding:'20px 24px',overflowY:'auto',height:'100%'}}>
+      <div style={{fontSize:12,color:'var(--muted-fg)',marginBottom:16,padding:'8px 12px',background:'var(--muted)',borderRadius:6,borderLeft:'3px solid var(--primary)'}}>
         All values update labour calculations in real time.
       </div>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
         <div>
           <StdCard title="Walls — sqft/hr" skey="walls"/>
-          <div style={cardS}>
-            <div style={sectionTitle}>Ceiling — sqft/hr</div>
-            <div style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.07em',color:'var(--muted-fg)',marginBottom:6}}>Flat / Drywall</div>
-            <table style={{width:'100%',borderCollapse:'collapse',fontSize:13,marginBottom:10}}>
-              <tbody>{[[1,'1 coat'],[2,'2 coats'],[3,'Primer & 2 coats']].map(([c,l])=>(
-                <tr key={c}><td style={{padding:'3px 0'}}>{l}</td><td style={{textAlign:'right'}}><input style={numInp} type="number" min="1" value={(S.flatCeiling&&S.flatCeiling[c])||''} onChange={e=>updS('flatCeiling',c,+e.target.value)}/></td></tr>
-              ))}</tbody>
-            </table>
-            <div style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.07em',color:'var(--muted-fg)',marginBottom:6,borderTop:'1px solid var(--border)',paddingTop:8}}>Stucco</div>
-            <table style={{width:'100%',borderCollapse:'collapse',fontSize:13,marginBottom:10}}>
-              <tbody>{[[1,'1 coat'],[2,'2 coats'],[3,'Primer & 2 coats']].map(([c,l])=>(
-                <tr key={c}><td style={{padding:'3px 0'}}>{l}</td><td style={{textAlign:'right'}}><input style={numInp} type="number" min="1" value={(S.stuccoCeiling&&S.stuccoCeiling[c])||''} onChange={e=>updS('stuccoCeiling',c,+e.target.value)}/></td></tr>
-              ))}</tbody>
-            </table>
-            <div style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.07em',color:'var(--muted-fg)',marginBottom:6,borderTop:'1px solid var(--border)',paddingTop:8}}>Remove Stucco — $/sqft</div>
-            <input style={{...numInp,width:90}} type="number" step="0.05" value={S.removeStucco?.rate||0.75} onChange={e=>setSettings(s=>({...s,standards:{...s.standards,removeStucco:{rate:+e.target.value}}}))}/>
-          </div>
+          <SCard>
+            <ST>Ceiling — sqft/hr</ST>
+            <SubSection title="Flat / Drywall" skey="flatCeiling"/>
+            <SubSection title="Stucco" skey="stuccoCeiling"/>
+            <div style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.07em',color:'var(--muted-fg)',margin:'10px 0 6px',paddingTop:10,borderTop:'1px solid var(--border)'}}>Remove Stucco — $/sqft</div>
+            <input style={{...SIN,width:90}} type="number" step="0.05" value={S.removeStucco?.rate||0.75} onChange={e=>setSettings(s=>({...s,standards:{...s.standards,removeStucco:{rate:+e.target.value}}}))}/>
+          </SCard>
         </div>
         <div>
           <StdCard title="Baseboards — sqft/hr" skey="baseboards"/>
@@ -5399,8 +5404,8 @@ function MasterEstimate(){
       />
       {reactTab&&(
         <div style={{position:'absolute',inset:0,background:'var(--bg)',display:'flex',flexDirection:'column'}}>
-          {/* Tab bar matching the iframe's style */}
-          <div style={{background:'var(--card)',borderBottom:'1px solid var(--border)',padding:'0 16px',display:'flex',alignItems:'center',gap:2,flexShrink:0,minHeight:42}}>
+          {/* Tab bar matching the app nav style */}
+          <div style={{background:'var(--card)',borderBottom:'1px solid var(--border)',padding:'0 20px',display:'flex',alignItems:'center',gap:2,flexShrink:0,minHeight:44}}>
             {Object.entries(REACT_TAB_LABELS).map(([key,label])=>(
               <button key={key} onClick={()=>{
                 setReactTab(key);

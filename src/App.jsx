@@ -3373,7 +3373,7 @@ function pushDocsToProject(){
       '<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>'+
       '<style>'+
       '*{box-sizing:border-box;margin:0;padding:0}'+
-      'body{font-family:\'Montserrat\',sans-serif;background:#fff;color:#1a1714;padding:32px 40px;font-size:13px;line-height:1.7;max-width:860px;margin:0 auto}'+
+      'body{font-family:"Montserrat",sans-serif;background:#fff;color:#1a1714;padding:32px 40px;font-size:13px;line-height:1.7;max-width:860px;margin:0 auto}'+
       ':root{--bg:#ede9de;--fg:#2e3557;--ink:#1a1714;--ink2:#3a3530;--ink3:#7a6e65;'+
       '--cream:#ede9de;--cream2:#e0dbd0;--cream3:#c8bfb4;'+
       '--gold:#C4922A;--gold2:#b07e20;--r:6px;--r2:12px}'+
@@ -3395,10 +3395,10 @@ function pushDocsToProject(){
       '<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>'+
       '<style>'+
       '*{box-sizing:border-box;margin:0;padding:0}'+
-      'body{font-family:\'Montserrat\',sans-serif;background:#fff;color:#1a1714;padding:32px 40px;font-size:13px;line-height:1.7;max-width:860px;margin:0 auto}'+
+      'body{font-family:"Montserrat",sans-serif;background:#fff;color:#1a1714;padding:32px 40px;font-size:13px;line-height:1.7;max-width:860px;margin:0 auto}'+
       ':root{--bg:#ede9de;--fg:#2e3557;--ink:#1a1714;--ink2:#3a3530;--ink3:#7a6e65;'+
       '--cream:#ede9de;--cream2:#e0dbd0;--cream3:#c8bfb4;'+
-      '--gold:#C4922A;--gold2:#b07e20;--r:6px;--r2:12px;--sans:\'Montserrat\',sans-serif}'+
+      '--gold:#C4922A;--gold2:#b07e20;--r:6px;--r2:12px;--sans:"Montserrat",sans-serif}'+
       'table{border-collapse:collapse;width:100%}'+
       '@media print{body{padding:16px}}'+
       '</style></head><body>'+

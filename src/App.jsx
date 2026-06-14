@@ -2989,7 +2989,8 @@ button.tab.active{color:var(--gold2);border-bottom-color:var(--gold2)}
       </table>
     </div>
     <div class="card">
-      <div class="card-title">Flat Ceiling — sqft per hour</div>
+      <div class="card-title">Ceiling — sqft per hour</div>
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin:4px 0 6px">Flat / Drywall</div>
       <table class="doc-table"><thead><tr><th>Coats</th><th class="right">Sqft/Hr</th></tr></thead>
         <tbody>
           <tr><td>1 coat</td><td class="right"><input type="number" min="1" value="150" style="width:80px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('flatCeiling',1,+this.value)"></td></tr>
@@ -2997,9 +2998,8 @@ button.tab.active{color:var(--gold2);border-bottom-color:var(--gold2)}
           <tr><td>Primer &amp; 2 coats</td><td class="right"><input type="number" min="1" value="55" style="width:80px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('flatCeiling',3,+this.value)"></td></tr>
         </tbody>
       </table>
-    </div>
-    <div class="card">
-      <div class="card-title">Stucco Ceiling — sqft per hour</div>
+      <hr class="divider" style="margin:12px 0 10px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin-bottom:6px">Stucco</div>
       <table class="doc-table"><thead><tr><th>Coats</th><th class="right">Sqft/Hr</th></tr></thead>
         <tbody>
           <tr><td>1 coat</td><td class="right"><input type="number" min="1" value="80" style="width:80px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('stuccoCeiling',1,+this.value)"></td></tr>
@@ -3008,7 +3008,7 @@ button.tab.active{color:var(--gold2);border-bottom-color:var(--gold2)}
         </tbody>
       </table>
       <hr class="divider" style="margin:12px 0 10px">
-      <div class="card-title" style="margin-bottom:8px">Remove Stucco — rate per sqft</div>
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin-bottom:8px">Remove Stucco — rate per sqft</div>
       <div class="field" style="margin:0">
         <label>$ per sqft</label>
         <input type="number" min="0" step="0.05" value="0.75" style="width:100px;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="if(+this.value>0){STANDARDS.removeStucco={rate:+this.value};recalcAll();schedulePaintSave();}">

@@ -257,8 +257,15 @@ async function submitSignature(dealId, contractHtml){
 
       <div id="confirm-step" style="display:none">
         <div class="login-divider">Check your email</div>
-        <p style="font-size:12px;color:#4a3f36;margin-bottom:18px;line-height:1.6" id="otp-hint">We sent a magic link to your email. Click the link to sign in.</p>
-        <button style="width:100%;background:none;border:1px solid #c8bfb4;color:#7a6e65;font-family:'Montserrat',sans-serif;font-size:11px;cursor:pointer;padding:9px;border-radius:8px;margin-top:4px" onclick="backToEmail()">&#8592; Use a different email</button>
+        <p style="font-size:12px;color:#4a3f36;margin-bottom:14px;line-height:1.6" id="otp-hint">We sent a 6-digit code to your email. Enter it below.</p>
+        <div class="input-group">
+          <label>6-digit code</label>
+          <input type="text" id="otp-code" placeholder="123456" maxlength="6" autocomplete="one-time-code"
+            style="letter-spacing:0.2em;font-size:20px;text-align:center;font-weight:700"
+            onkeydown="if(event.key==='Enter')verifyOtp()"/>
+        </div>
+        <button class="btn-primary" id="verify-otp-btn" onclick="verifyOtp()">Sign In</button>
+        <button style="width:100%;background:none;border:none;color:#7a6e65;font-family:'Montserrat',sans-serif;font-size:11px;cursor:pointer;padding:9px;margin-top:8px" onclick="backToEmail()">&#8592; Use a different email</button>
       </div>
 
       <div class="login-msg" id="login-msg"></div>
@@ -328,37 +335,42 @@ async function sendMagicLink(){
   currentEmail=email;
   const btn=document.getElementById('send-otp-btn');
   if(btn){btn.disabled=true;btn.textContent='Sending…';}
-
-  // Build redirect URL - use the exact current page URL
-  const redirectUrl='https://kingdom-crm-kingdompaintings-projects.vercel.app/portal';
-
   try{
+    // Use OTP token type — sends a 6-digit code, no redirect URL needed
     const{data,error}=await sb.auth.signInWithOtp({
       email:email,
-      options:{
-        shouldCreateUser:true,
-        emailRedirectTo:redirectUrl
-      }
+      options:{shouldCreateUser:true}
     });
     if(btn){btn.disabled=false;btn.textContent='Send Confirmation Email';}
     if(error){
       console.error('OTP error:',error.message,error.status,error.code);
-      var msg=error.message||'Could not send email.';
-      if(error.message&&error.message.toLowerCase().includes('redirect'))msg='Setup required: redirect URL not whitelisted in Supabase. Contact admin.';
-      if(error.message&&error.message.toLowerCase().includes('email'))msg='Email not registered. Please contact Kingdom Painting to get portal access.';
-      showMsg(msg,'error');
+      showMsg(error.message||'Could not send email. Please try again.','error');
       return;
     }
-    var emailStep=document.getElementById('email-step');
-    var confirmStep=document.getElementById('confirm-step');
+    document.getElementById('email-step').style.display='none';
+    document.getElementById('confirm-step').style.display='block';
     var hintEl=document.getElementById('otp-hint');
-    if(emailStep)emailStep.style.display='none';
-    if(confirmStep)confirmStep.style.display='block';
-    if(hintEl)hintEl.textContent='We sent a magic link to '+email+'. Click the link in your email to sign in.';
+    if(hintEl)hintEl.textContent='We sent a 6-digit code to '+email+'. Enter it below to sign in.';
     hideMsg();
   }catch(e){
     if(btn){btn.disabled=false;btn.textContent='Send Confirmation Email';}
     console.error('sendMagicLink exception:',e);
+    showMsg('Error: '+e.message,'error');
+  }
+}
+
+async function verifyOtp(){
+  const code=(document.getElementById('otp-code').value||'').trim();
+  if(!code||code.length<6){showMsg('Please enter the 6-digit code from your email.','error');return;}
+  const btn=document.getElementById('verify-otp-btn');
+  if(btn){btn.disabled=true;btn.textContent='Verifying…';}
+  try{
+    const{data,error}=await sb.auth.verifyOtp({email:currentEmail,token:code,type:'email'});
+    if(btn){btn.disabled=false;btn.textContent='Sign In';}
+    if(error){showMsg(error.message||'Invalid code. Please try again.','error');return;}
+    // Auth state change will trigger showPortal
+  }catch(e){
+    if(btn){btn.disabled=false;btn.textContent='Sign In';}
     showMsg('Error: '+e.message,'error');
   }
 }

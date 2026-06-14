@@ -66,10 +66,10 @@ body.authed{background:#EDE9DE;align-items:flex-start;padding:0}
       <button class="btn" id="sendBtn">Send Confirmation Email</button>
     </div>
     <div id="step2">
-      <p style="font-size:12px;color:#4a3f36;margin-bottom:14px;line-height:1.6" id="hint"></p>
-      <label for="code">6-digit code</label>
-      <input type="text" id="code" placeholder="123456" maxlength="6" autocomplete="one-time-code"/>
-      <button class="btn" id="verifyBtn">Sign In</button>
+      <p id="hint" style="font-size:13px;color:#4a3f36;line-height:1.7;margin-bottom:18px"></p>
+      <div style="background:#f0f9f4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 14px;font-size:12px;color:#166534;margin-bottom:16px">
+        ✉️ Check your inbox and click the <strong>Sign in</strong> link in the email.
+      </div>
       <button class="back" id="backBtn">← Use a different email</button>
     </div>
     <div class="msg" id="msg"></div>
@@ -132,42 +132,45 @@ async function loadProjects(email) {
   `).join('');
 }
 
+// Handle magic link redirect — Supabase appends hash to URL
+if (window.location.hash && window.location.hash.includes('access_token')) {
+  // Magic link callback — let Supabase process it
+  sb.auth.getSession().then(({ data: { session } }) => {
+    if (session) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+      showPortal(session.user.email);
+    }
+  });
+}
+
 // Auth state
 sb.auth.getSession().then(({ data: { session } }) => {
   if (session) showPortal(session.user.email);
 });
 sb.auth.onAuthStateChange((event, session) => {
-  if (event === 'SIGNED_IN' && session) showPortal(session.user.email);
+  if (event === 'SIGNED_IN' && session) {
+    window.history.replaceState({}, document.title, window.location.pathname);
+    showPortal(session.user.email);
+  }
   if (event === 'SIGNED_OUT') { document.getElementById('login').style.display=''; document.getElementById('portal').style.display='none'; document.body.classList.remove('authed'); }
 });
 
-// Send OTP
+// Send magic link
 document.getElementById('sendBtn').addEventListener('click', async () => {
   const email = document.getElementById('email').value.trim().toLowerCase();
   if (!email || !email.includes('@')) { msg('Please enter a valid email address.', 'error'); return; }
   currentEmail = email;
   document.getElementById('sendBtn').disabled = true;
   document.getElementById('sendBtn').textContent = 'Sending…';
-  const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
+  const redirectTo = window.location.origin + '/portal';
+  const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: redirectTo } });
   document.getElementById('sendBtn').disabled = false;
   document.getElementById('sendBtn').textContent = 'Send Confirmation Email';
   if (error) { msg(error.message, 'error'); return; }
   document.getElementById('step1').style.display = 'none';
   document.getElementById('step2').style.display = 'block';
-  document.getElementById('hint').textContent = 'We sent a 6-digit code to ' + email + '. Enter it below.';
+  document.getElementById('hint').textContent = 'We sent a sign-in link to ' + email + '. Click the link in your email to access your projects.';
   document.getElementById('msg').className = 'msg';
-});
-
-// Verify OTP
-document.getElementById('verifyBtn').addEventListener('click', async () => {
-  const code = document.getElementById('code').value.trim();
-  if (!code || code.length < 6) { msg('Please enter the 6-digit code.', 'error'); return; }
-  document.getElementById('verifyBtn').disabled = true;
-  document.getElementById('verifyBtn').textContent = 'Verifying…';
-  const { error } = await sb.auth.verifyOtp({ email: currentEmail, token: code, type: 'email' });
-  document.getElementById('verifyBtn').disabled = false;
-  document.getElementById('verifyBtn').textContent = 'Sign In';
-  if (error) { msg(error.message, 'error'); }
 });
 
 // Back
@@ -182,7 +185,6 @@ document.getElementById('signoutBtn').addEventListener('click', () => sb.auth.si
 
 // Enter key
 document.getElementById('email').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('sendBtn').click(); });
-document.getElementById('code').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('verifyBtn').click(); });
 </script>
 </body>
 </html>

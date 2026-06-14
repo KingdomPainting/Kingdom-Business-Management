@@ -3365,16 +3365,46 @@ function pushDocsToProject(){
     return {name:r.name||('Room '+r.id),surfaces:surfaces,done:false,sqft:sqft};
   }).filter(function(r){return r.surfaces.length>0;});
 
-  // Quote HTML
+  // Quote HTML — self-contained with CSS vars
   var qEl=document.getElementById('page-quote');
-  var quoteHtml=qEl?qEl.outerHTML:'';
+  var quoteHtml='';
+  if(qEl){
+    quoteHtml='<!DOCTYPE html><html><head><meta charset="UTF-8"/>'+
+      '<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>'+
+      '<style>'+
+      '*{box-sizing:border-box;margin:0;padding:0}'+
+      'body{font-family:\'Montserrat\',sans-serif;background:#fff;color:#1a1714;padding:32px 40px;font-size:13px;line-height:1.7;max-width:860px;margin:0 auto}'+
+      ':root{--bg:#ede9de;--fg:#2e3557;--ink:#1a1714;--ink2:#3a3530;--ink3:#7a6e65;'+
+      '--cream:#ede9de;--cream2:#e0dbd0;--cream3:#c8bfb4;'+
+      '--gold:#C4922A;--gold2:#b07e20;--r:6px;--r2:12px}'+
+      'table{border-collapse:collapse;width:100%}'+
+      '@media print{body{padding:16px}}'+
+      '</style></head><body>'+
+      qEl.innerHTML+
+      '</body></html>';
+  }
 
-  // Contract HTML
+  // Contract HTML — save as self-contained document with CSS vars resolved
   var totalEl=sel('q-total');
   var amount=totalEl?parseFloat((totalEl.textContent||'').replace(/[^0-9.]/g,''))||0:0;
   try{buildContract(amount,amount*0.1,amount*0.45,amount*0.45,1);}catch(e){}
-  var cEl=document.getElementById('page-contract');
-  var contractHtml=cEl?cEl.outerHTML:'';
+  var contractBody=document.getElementById('contract-body');
+  var contractHtml='';
+  if(contractBody&&contractBody.innerHTML.trim()){
+    contractHtml='<!DOCTYPE html><html><head><meta charset="UTF-8"/>'+
+      '<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>'+
+      '<style>'+
+      '*{box-sizing:border-box;margin:0;padding:0}'+
+      'body{font-family:\'Montserrat\',sans-serif;background:#fff;color:#1a1714;padding:32px 40px;font-size:13px;line-height:1.7;max-width:860px;margin:0 auto}'+
+      ':root{--bg:#ede9de;--fg:#2e3557;--ink:#1a1714;--ink2:#3a3530;--ink3:#7a6e65;'+
+      '--cream:#ede9de;--cream2:#e0dbd0;--cream3:#c8bfb4;'+
+      '--gold:#C4922A;--gold2:#b07e20;--r:6px;--r2:12px;--sans:\'Montserrat\',sans-serif}'+
+      'table{border-collapse:collapse;width:100%}'+
+      '@media print{body{padding:16px}}'+
+      '</style></head><body>'+
+      contractBody.innerHTML+
+      '</body></html>';
+  }
 
   // Change order (only if filled)
   var coEl=document.getElementById('page-changeorder');

@@ -6,103 +6,7 @@
 <title>My Projects — Kingdom Painting Inc.</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>
-// Document viewer with download + signature for contracts
-function downloadDoc(html, title){
-  var blob=new Blob([html],{type:'text/html'});
-  var a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download=title.replace(/\s+/g,'_')+'.html';
-  a.click();
-}
 
-function viewDoc(html, title, dealId, isContract){
-  var overlay=document.createElement('div');
-  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;flex-direction:column;';
-  var btnStyle='font-size:12px;padding:6px 14px;border-radius:6px;cursor:pointer;font-weight:600;border:none;';
-  var bar=document.createElement('div');
-  bar.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:#fff;border-bottom:1px solid #eee;flex-shrink:0;gap:10px;flex-wrap:wrap;';
-  var title_el='<span style="font-weight:700;font-size:15px;flex:1">'+title+'</span>';
-  var dl_btn='<button onclick="downloadDoc('+JSON.stringify(html)+','+JSON.stringify(title)+')" style="'+btnStyle+'background:#1a1714;color:#fff;">⬇ Download</button>';
-  var close_btn='<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="'+btnStyle+'background:#f3f3f3;color:#333;font-size:18px;">✕</button>';
-  var sig_section='';
-  if(isContract&&dealId){
-    sig_section='<div id="sig-section-'+dealId+'" style="padding:16px;background:#fff8f0;border-top:1px solid #edd;flex-shrink:0">'
-      +'<p style="font-size:13px;font-weight:600;margin-bottom:8px">✍ Sign Contract</p>'
-      +'<p style="font-size:12px;color:#666;margin-bottom:10px">Draw your signature below then click Submit</p>'
-      +'<canvas id="sig-canvas-'+dealId+'" width="500" height="100" style="border:1px solid #ccc;border-radius:6px;background:#fff;touch-action:none;cursor:crosshair;display:block;max-width:100%"></canvas>'
-      +'<div style="display:flex;gap:8px;margin-top:10px">'
-      +'<button onclick="clearSigCanvas('+JSON.stringify(dealId)+')" style="'+btnStyle+'background:#f3f3f3;color:#333;font-size:12px;">Clear</button>'
-      +'<button onclick="submitSignature('+JSON.stringify(dealId)+','+JSON.stringify(html)+')" style="'+btnStyle+'background:#2e7d32;color:#fff;font-size:12px;">Submit Signature</button>'
-      +'</div>'
-      +'<div id="sig-msg-'+dealId+'" style="margin-top:8px;font-size:12px;color:#2e7d32;display:none">✓ Signature saved! Thank you.</div>'
-      +'</div>';
-  }
-  bar.innerHTML=title_el+dl_btn+close_btn;
-  var frame=document.createElement('div');
-  frame.style.cssText='flex:1;overflow:auto;background:#f5f5f5;padding:20px;';
-  frame.innerHTML=html;
-  overlay.appendChild(bar);
-  overlay.appendChild(frame);
-  if(sig_section){
-    var sigDiv=document.createElement('div');
-    sigDiv.innerHTML=sig_section;
-    overlay.appendChild(sigDiv.firstElementChild);
-  }
-  document.body.appendChild(overlay);
-  if(isContract&&dealId) initSigCanvas(dealId);
-}
-
-var _sigState={};
-function initSigCanvas(dealId){
-  var canvas=document.getElementById('sig-canvas-'+dealId);
-  if(!canvas)return;
-  var ctx=canvas.getContext('2d');
-  var drawing=false;
-  _sigState[dealId]={ctx,canvas,hasStrokes:false};
-  function getPos(e){
-    var r=canvas.getBoundingClientRect();
-    var touch=e.touches?e.touches[0]:e;
-    return{x:(touch.clientX-r.left)*(canvas.width/r.width),y:(touch.clientY-r.top)*(canvas.height/r.height)};
-  }
-  canvas.addEventListener('mousedown',function(e){drawing=true;var p=getPos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);});
-  canvas.addEventListener('mousemove',function(e){if(!drawing)return;var p=getPos(e);ctx.lineWidth=2;ctx.strokeStyle='#1a1714';ctx.lineCap='round';ctx.lineTo(p.x,p.y);ctx.stroke();_sigState[dealId].hasStrokes=true;});
-  canvas.addEventListener('mouseup',function(){drawing=false;});
-  canvas.addEventListener('mouseleave',function(){drawing=false;});
-  canvas.addEventListener('touchstart',function(e){e.preventDefault();drawing=true;var p=getPos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);},{passive:false});
-  canvas.addEventListener('touchmove',function(e){e.preventDefault();if(!drawing)return;var p=getPos(e);ctx.lineWidth=2;ctx.strokeStyle='#1a1714';ctx.lineCap='round';ctx.lineTo(p.x,p.y);ctx.stroke();_sigState[dealId].hasStrokes=true;},{passive:false});
-  canvas.addEventListener('touchend',function(){drawing=false;});
-}
-
-function clearSigCanvas(dealId){
-  var s=_sigState[dealId];if(!s)return;
-  s.ctx.clearRect(0,0,s.canvas.width,s.canvas.height);
-  s.hasStrokes=false;
-}
-
-async function submitSignature(dealId, contractHtml){
-  var s=_sigState[dealId];
-  if(!s||!s.hasStrokes){alert('Please draw your signature first.');return;}
-  var sigImg=s.canvas.toDataURL('image/png');
-  var today=new Date().toLocaleDateString('en-CA',{year:'numeric',month:'long',day:'numeric'});
-  // Inject signature into contract HTML
-  var signedHtml=contractHtml+'<div style="page-break-inside:avoid;margin-top:40px;padding:20px;border-top:2px solid #1a1714;font-family:Montserrat,sans-serif">'
-    +'<p style="font-weight:700;font-size:14px;margin-bottom:12px">Client Signature</p>'
-    +'<img src="'+sigImg+'" style="border:1px solid #ccc;border-radius:4px;max-width:300px;display:block;margin-bottom:8px"/>'
-    +'<p style="font-size:12px;color:#555">Signed digitally on '+today+'</p>'
-    +'</div>';
-  // Save to Supabase
-  var {error}=await sb.from('deals').update({
-    contract_signed_html:signedHtml,
-    contract_signed_at:new Date().toISOString()
-  }).eq('id',dealId);
-  if(error){alert('Could not save signature. Please try again.');return;}
-  var msg=document.getElementById('sig-msg-'+dealId);
-  if(msg){msg.style.display='block';}
-  // Offer download
-  setTimeout(function(){downloadDoc(signedHtml,'Signed_Contract');},800);
-}
-</script>
 <style>
   :root{
     --bg:#ede9de;
@@ -312,18 +216,120 @@ async function submitSignature(dealId, contractHtml){
   </div>
 </div>
 
+
 <script>
+// ── Supabase init ──
 const SUPA_URL='https://cyzvmcmlpnozwrqifrdt.supabase.co';
 const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN5enZtY21scG5vendycWlmcmR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2Mzk1MzEsImV4cCI6MjA5NDIxNTUzMX0.IeZRx5xcPddSQcL77vhKjOgAKFi8bKpj3dMfajHpV3c';
-const{createClient}=supabase;
-const sb=createClient(SUPA_URL,SUPA_KEY);
-let currentEmail='';
+var sb;
+function initSupabase(){
+  if(typeof supabase==='undefined'){console.error('Supabase CDN not loaded');return false;}
+  sb=supabase.createClient(SUPA_URL,SUPA_KEY);
+  sb.auth.getSession().then(function(r){if(r.data&&r.data.session)showPortal(r.data.session.user.email);});
+  sb.auth.onAuthStateChange(function(event,session){
+    if(event==='SIGNED_IN'&&session)showPortal(session.user.email);
+    if(event==='SIGNED_OUT')showLogin();
+  });
+  return true;
+}
 
-sb.auth.getSession().then(({data:{session}})=>{if(session)showPortal(session.user.email);});
-sb.auth.onAuthStateChange((event,session)=>{
-  if(event==='SIGNED_IN'&&session)showPortal(session.user.email);
-  if(event==='SIGNED_OUT')showLogin();
-});
+// Document viewer with download + signature for contracts
+function downloadDoc(html, title){
+  var blob=new Blob([html],{type:'text/html'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=title.replace(/\s+/g,'_')+'.html';
+  a.click();
+}
+
+function viewDoc(html, title, dealId, isContract){
+  var overlay=document.createElement('div');
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;flex-direction:column;';
+  var btnStyle='font-size:12px;padding:6px 14px;border-radius:6px;cursor:pointer;font-weight:600;border:none;';
+  var bar=document.createElement('div');
+  bar.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:#fff;border-bottom:1px solid #eee;flex-shrink:0;gap:10px;flex-wrap:wrap;';
+  var title_el='<span style="font-weight:700;font-size:15px;flex:1">'+title+'</span>';
+  var dl_btn='<button onclick="downloadDoc('+JSON.stringify(html)+','+JSON.stringify(title)+')" style="'+btnStyle+'background:#1a1714;color:#fff;">⬇ Download</button>';
+  var close_btn='<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="'+btnStyle+'background:#f3f3f3;color:#333;font-size:18px;">✕</button>';
+  var sig_section='';
+  if(isContract&&dealId){
+    sig_section='<div id="sig-section-'+dealId+'" style="padding:16px;background:#fff8f0;border-top:1px solid #edd;flex-shrink:0">'
+      +'<p style="font-size:13px;font-weight:600;margin-bottom:8px">✍ Sign Contract</p>'
+      +'<p style="font-size:12px;color:#666;margin-bottom:10px">Draw your signature below then click Submit</p>'
+      +'<canvas id="sig-canvas-'+dealId+'" width="500" height="100" style="border:1px solid #ccc;border-radius:6px;background:#fff;touch-action:none;cursor:crosshair;display:block;max-width:100%"></canvas>'
+      +'<div style="display:flex;gap:8px;margin-top:10px">'
+      +'<button onclick="clearSigCanvas('+JSON.stringify(dealId)+')" style="'+btnStyle+'background:#f3f3f3;color:#333;font-size:12px;">Clear</button>'
+      +'<button onclick="submitSignature('+JSON.stringify(dealId)+','+JSON.stringify(html)+')" style="'+btnStyle+'background:#2e7d32;color:#fff;font-size:12px;">Submit Signature</button>'
+      +'</div>'
+      +'<div id="sig-msg-'+dealId+'" style="margin-top:8px;font-size:12px;color:#2e7d32;display:none">✓ Signature saved! Thank you.</div>'
+      +'</div>';
+  }
+  bar.innerHTML=title_el+dl_btn+close_btn;
+  var frame=document.createElement('div');
+  frame.style.cssText='flex:1;overflow:auto;background:#f5f5f5;padding:20px;';
+  frame.innerHTML=html;
+  overlay.appendChild(bar);
+  overlay.appendChild(frame);
+  if(sig_section){
+    var sigDiv=document.createElement('div');
+    sigDiv.innerHTML=sig_section;
+    overlay.appendChild(sigDiv.firstElementChild);
+  }
+  document.body.appendChild(overlay);
+  if(isContract&&dealId) initSigCanvas(dealId);
+}
+
+var _sigState={};
+function initSigCanvas(dealId){
+  var canvas=document.getElementById('sig-canvas-'+dealId);
+  if(!canvas)return;
+  var ctx=canvas.getContext('2d');
+  var drawing=false;
+  _sigState[dealId]={ctx,canvas,hasStrokes:false};
+  function getPos(e){
+    var r=canvas.getBoundingClientRect();
+    var touch=e.touches?e.touches[0]:e;
+    return{x:(touch.clientX-r.left)*(canvas.width/r.width),y:(touch.clientY-r.top)*(canvas.height/r.height)};
+  }
+  canvas.addEventListener('mousedown',function(e){drawing=true;var p=getPos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);});
+  canvas.addEventListener('mousemove',function(e){if(!drawing)return;var p=getPos(e);ctx.lineWidth=2;ctx.strokeStyle='#1a1714';ctx.lineCap='round';ctx.lineTo(p.x,p.y);ctx.stroke();_sigState[dealId].hasStrokes=true;});
+  canvas.addEventListener('mouseup',function(){drawing=false;});
+  canvas.addEventListener('mouseleave',function(){drawing=false;});
+  canvas.addEventListener('touchstart',function(e){e.preventDefault();drawing=true;var p=getPos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);},{passive:false});
+  canvas.addEventListener('touchmove',function(e){e.preventDefault();if(!drawing)return;var p=getPos(e);ctx.lineWidth=2;ctx.strokeStyle='#1a1714';ctx.lineCap='round';ctx.lineTo(p.x,p.y);ctx.stroke();_sigState[dealId].hasStrokes=true;},{passive:false});
+  canvas.addEventListener('touchend',function(){drawing=false;});
+}
+
+function clearSigCanvas(dealId){
+  var s=_sigState[dealId];if(!s)return;
+  s.ctx.clearRect(0,0,s.canvas.width,s.canvas.height);
+  s.hasStrokes=false;
+}
+
+async function submitSignature(dealId, contractHtml){
+  var s=_sigState[dealId];
+  if(!s||!s.hasStrokes){alert('Please draw your signature first.');return;}
+  var sigImg=s.canvas.toDataURL('image/png');
+  var today=new Date().toLocaleDateString('en-CA',{year:'numeric',month:'long',day:'numeric'});
+  // Inject signature into contract HTML
+  var signedHtml=contractHtml+'<div style="page-break-inside:avoid;margin-top:40px;padding:20px;border-top:2px solid #1a1714;font-family:Montserrat,sans-serif">'
+    +'<p style="font-weight:700;font-size:14px;margin-bottom:12px">Client Signature</p>'
+    +'<img src="'+sigImg+'" style="border:1px solid #ccc;border-radius:4px;max-width:300px;display:block;margin-bottom:8px"/>'
+    +'<p style="font-size:12px;color:#555">Signed digitally on '+today+'</p>'
+    +'</div>';
+  // Save to Supabase
+  var {error}=await sb.from('deals').update({
+    contract_signed_html:signedHtml,
+    contract_signed_at:new Date().toISOString()
+  }).eq('id',dealId);
+  if(error){alert('Could not save signature. Please try again.');return;}
+  var msg=document.getElementById('sig-msg-'+dealId);
+  if(msg){msg.style.display='block';}
+  // Offer download
+  setTimeout(function(){downloadDoc(signedHtml,'Signed_Contract');},800);
+}
+
+let currentEmail='';
 
 function showMsg(msg,type){const el=document.getElementById('login-msg');el.textContent=msg;el.className='login-msg '+type;el.style.display='block';}
 function hideMsg(){document.getElementById('login-msg').style.display='none';}
@@ -448,6 +454,14 @@ function renderGrid(id,deals,empty){
 
 document.getElementById('email-input').addEventListener('keydown',e=>{if(e.key==='Enter')sendMagicLink();});
 
+
+
+// Init on DOM ready
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded',initSupabase);
+}else{
+  initSupabase();
+}
 </script>
 </body>
 </html>

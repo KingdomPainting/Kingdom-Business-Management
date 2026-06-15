@@ -5080,7 +5080,9 @@ function LabourRatesTab(){
   const activeWorkers=L.workers.filter(w=>w.active);
   const totalOH=L.overheadItems.reduce((s,o)=>s+(+o.v||0),0);
   const ohPerHr=L.billable>0?totalOH/L.billable:0;
-  const fieldWage=activeWorkers.reduce((s,w)=>s+(+w.wage||0),0);
+  const sumWages=activeWorkers.reduce((s,w)=>s+(+w.wage||0),0);
+  const avgWage=activeWorkers.length>0?sumWages/activeWorkers.length:0;
+  const fieldWage=L.taxes?avgWage*1.3:avgWage;
   const profitPerHr=L.billable>0&&activeWorkers.length>0?L.profitTarget/(L.billable*activeWorkers.length):0;
   const totalPerHr=(ohPerHr+fieldWage*(+L.buffer||1)+profitPerHr)*activeWorkers.length;
   const statRow=(label,val)=>(
@@ -5114,7 +5116,7 @@ function LabourRatesTab(){
           </div>
           <div style={{background:'var(--muted)',borderRadius:8,padding:'10px 14px',border:'1px solid var(--border)'}}>
             {statRow('Overhead / hr','$'+ohPerHr.toFixed(2))}
-            {statRow('Field wage / hr','$'+fieldWage.toFixed(2))}
+            {statRow('Field wage / hr (avg'+(L.taxes?' ×1.3 tax)':')'),  '$'+fieldWage.toFixed(2))}
             {statRow('Profit / hr','$'+profitPerHr.toFixed(2))}
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',paddingTop:8,marginTop:4}}>
               <span style={{fontSize:13,fontWeight:700,color:'var(--fg)'}}>Total rate (all workers)</span>

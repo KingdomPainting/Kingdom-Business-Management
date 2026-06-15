@@ -5975,13 +5975,16 @@ function Financials({showToast}){
         const totalLabour=activeDeals.reduce((s,d)=>s+getRow(d).labour,0);
         const totalMaterials=activeDeals.reduce((s,d)=>s+getRow(d).materials,0);
         const totalWages=activeDeals.reduce((s,d)=>s+getRow(d).wages,0);
-        const pieTotal=totalLabour+totalMaterials+totalWages;
         const totalGrossProfit=activeDeals.reduce((s,d)=>s+getRow(d).grossProfit,0);
-        const gpPct=pieTotal>0?Math.round(Math.max(0,totalGrossProfit)/pieTotal*100):0;
+        // Use revenue as base so Profit + Materials + Wages = 100%
+        const pieBase=Math.max(totalMaterials+totalWages+Math.max(0,totalGrossProfit),1);
+        const matPct=Math.round(totalMaterials/pieBase*100);
+        const wagePct=Math.round(totalWages/pieBase*100);
+        const profPct=100-matPct-wagePct; // remainder ensures 100%
         const costPieData=[
-          {name:'Profit',value:gpPct,color:'#C4922A'},
-          {name:'Materials',value:pieTotal>0?Math.round(totalMaterials/pieTotal*100):0,color:'#3b82f6'},
-          {name:'Wages',value:pieTotal>0?Math.round(totalWages/pieTotal*100):0,color:'#22c55e'},
+          {name:'Profit',value:Math.max(0,profPct),color:'#C4922A'},
+          {name:'Materials',value:matPct,color:'#3b82f6'},
+          {name:'Wages',value:wagePct,color:'#22c55e'},
         ];
         const convPieData=[
           {name:'Paid Off',value:paidOffDealsF.length,color:'#C4922A'},

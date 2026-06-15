@@ -3871,47 +3871,39 @@ function renderColoursList(){
 }
 var _piSaveTimer=null;
 function schedulePaintSave(){clearTimeout(_piSaveTimer);_piSaveTimer=setTimeout(upsertPaintSettings,1200);}
-var _pendingSaveBtn=null,_pendingSaveStatus=null;
-// Listen for save confirmation from React parent
+
+var _pendingSaveBtn=null,_pendingSaveStatus=null,_pendingSaveTimeout=null;
 window.addEventListener('message',function(ev){
   if(ev.data&&ev.data.type==='KP_SAVE_DONE'){
-    if(_pendingSaveBtn){
-      _pendingSaveBtn.disabled=false;_pendingSaveBtn.textContent='Save Settings';
-    }
+    clearTimeout(_pendingSaveTimeout);
+    var ok=ev.data.ok!==false;
+    if(_pendingSaveBtn){_pendingSaveBtn.disabled=false;_pendingSaveBtn.textContent='Save Settings';_pendingSaveBtn=null;}
     if(_pendingSaveStatus){
-      var ok=ev.data.ok!==false;
       _pendingSaveStatus.textContent=ok?'\u2713 Saved':'Save failed \u2014 try again';
       _pendingSaveStatus.style.color=ok?'#22c55e':'#ef4444';
       _pendingSaveStatus.style.display='inline';
-      setTimeout(function(){if(_pendingSaveStatus)_pendingSaveStatus.style.display='none';},3000);
+      var el=_pendingSaveStatus;
+      setTimeout(function(){el.style.display='none';},3000);
+      _pendingSaveStatus=null;
     }
-    _pendingSaveBtn=null;_pendingSaveStatus=null;
   }
 });
 function doSaveSettings(btn){
   btn.disabled=true;btn.textContent='Saving\u2026';
   _pendingSaveBtn=btn;
   _pendingSaveStatus=btn.parentNode?btn.parentNode.querySelector('.save-status-msg'):null;
-  // Always use postMessage — React parent has the authenticated session
+  // Always send to React parent — it has the authenticated session
   window.parent.postMessage({
     type:'KP_SAVE_PAINT_SETTINGS',
     data:{paints:PAINTS,ceilPaints:CEILING_PAINTS,primers:PRIMERS,colours:COLOURS,supplies:SUPPLIES},
     labour:getLabourData(),
     standards:JSON.parse(JSON.stringify(STANDARDS))
   },'*');
-  // Safety timeout — re-enable button after 8s regardless
-  setTimeout(function(){
-    if(_pendingSaveBtn){
-      _pendingSaveBtn.disabled=false;_pendingSaveBtn.textContent='Save Settings';
-      _pendingSaveBtn=null;
-    }
-    if(_pendingSaveStatus){
-      _pendingSaveStatus.textContent='Check connection and try again';
-      _pendingSaveStatus.style.color='#ef4444';
-      _pendingSaveStatus.style.display='inline';
-      _pendingSaveStatus=null;
-    }
-  },8000);
+  // Hard timeout — re-enable after 10s if no reply
+  _pendingSaveTimeout=setTimeout(function(){
+    if(_pendingSaveBtn){_pendingSaveBtn.disabled=false;_pendingSaveBtn.textContent='Save Settings';_pendingSaveBtn=null;}
+    if(_pendingSaveStatus){_pendingSaveStatus.textContent='Timed out \u2014 try again';_pendingSaveStatus.style.color='#ef4444';_pendingSaveStatus.style.display='inline';_pendingSaveStatus=null;}
+  },10000);
 }
 function waitForSession(cb,attempts){
   attempts=attempts||0;
@@ -5031,9 +5023,9 @@ function MasterEstimate(){
       if(ev.data?.type==='KP_SAVE_PAINT_SETTINGS'){
         const {data,labour,standards}=ev.data;
         if(!data)return;
-        // Broadcast to all estimate iframes (both MasterEstimate and MasterEstimateOnTab)
+        const src=ev.source; // the iframe that sent this
         const reply=(ok)=>{
-          document.querySelectorAll('iframe').forEach(fr=>{try{fr.contentWindow?.postMessage({type:'KP_SAVE_DONE',ok},'*');}catch(e){}});
+          try{src?.postMessage({type:'KP_SAVE_DONE',ok},'*');}catch(e){}
         };
         const doSave=async(attempt=0)=>{
           try{

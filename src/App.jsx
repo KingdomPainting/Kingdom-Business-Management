@@ -5181,47 +5181,49 @@ function LabourRatesTab(){
   );
 }
 
+// PaintList defined outside component to prevent remount on every keystroke
+function PaintList({label,listKey,data,onUpdate,onAdd,onRemove,hasGallon=true,hasPail=false,addDef}){
+  const cols=`1fr${hasGallon?' 80px':''}${hasPail?' 80px':''} 28px`;
+  const items=data[listKey]||[];
+  return (
+    <SCard>
+      <ST>{label}</ST>
+      <div style={{display:'grid',gridTemplateColumns:cols,gap:'4px 8px',marginBottom:6}}>
+        <span style={{fontSize:10,fontWeight:600,color:'var(--muted-fg)'}}>Name</span>
+        {hasGallon&&<span style={{fontSize:10,fontWeight:600,color:'var(--muted-fg)',textAlign:'right'}}>$/gal</span>}
+        {hasPail&&<span style={{fontSize:10,fontWeight:600,color:'var(--muted-fg)',textAlign:'right'}}>$/pail</span>}
+        <span/>
+      </div>
+      {items.map((item,i)=>(
+        <div key={i} style={{display:'grid',gridTemplateColumns:cols,gap:'4px 8px',marginBottom:7,alignItems:'center'}}>
+          <input style={SI} defaultValue={item.n||''} onBlur={e=>{if(e.target.value!==item.n)onUpdate(listKey,i,{n:e.target.value});}} placeholder="Name"/>
+          {hasGallon&&<input style={{...SIN,width:'100%'}} type="number" defaultValue={item.g??''} onBlur={e=>{const v=+e.target.value;if(v!==item.g)onUpdate(listKey,i,{g:v});}} placeholder="0"/>}
+          {hasPail&&<input style={{...SIN,width:'100%'}} type="number" defaultValue={item.p??''} onBlur={e=>{const v=+e.target.value;if(v!==item.p)onUpdate(listKey,i,{p:v});}} placeholder="0"/>}
+          <button onClick={()=>onRemove(listKey,i)} style={{background:'none',border:'1px solid var(--border)',borderRadius:5,cursor:'pointer',color:'var(--muted-fg)',fontSize:14,width:28,height:32,display:'flex',alignItems:'center',justifyContent:'center'}}>×</button>
+        </div>
+      ))}
+      <button onClick={()=>onAdd(listKey,addDef||{n:'New',g:0,p:0})} style={{fontSize:12,color:'var(--primary)',background:'none',border:'1px dashed var(--primary)',borderRadius:6,padding:'5px 14px',cursor:'pointer',marginTop:4,fontFamily:'inherit'}}>+ Add</button>
+    </SCard>
+  );
+}
+
 function PaintInputsTab(){
   const {settings,setSettings,saving,saveMsg,save}=useSettingsState();
   if(!settings)return <div style={{padding:24,color:'var(--muted-fg)',fontSize:13}}>Loading…</div>;
-  const D=settings.data;
-  const updList=(key,i,patch)=>setSettings(s=>{const arr=[...s.data[key]];arr[i]={...arr[i],...patch};return{...s,data:{...s.data,[key]:arr}};});
-  const addItem=(key,def)=>setSettings(s=>({...s,data:{...s.data,[key]:[...(s.data[key]||[]),def]}}));
-  const removeItem=(key,i)=>setSettings(s=>({...s,data:{...s.data,[key]:s.data[key].filter((_,j)=>j!==i)}}));
-  const PaintList=({label,listKey,hasGallon=true,hasPail=false,addDef})=>{
-    const cols=`1fr${hasGallon?' 80px':''}${hasPail?' 80px':''} 28px`;
-    return (
-      <SCard>
-        <ST>{label}</ST>
-        <div style={{display:'grid',gridTemplateColumns:cols,gap:'4px 8px',marginBottom:6}}>
-          <span style={{fontSize:10,fontWeight:600,color:'var(--muted-fg)'}}>Name</span>
-          {hasGallon&&<span style={{fontSize:10,fontWeight:600,color:'var(--muted-fg)',textAlign:'right'}}>$/gal</span>}
-          {hasPail&&<span style={{fontSize:10,fontWeight:600,color:'var(--muted-fg)',textAlign:'right'}}>$/pail</span>}
-          <span/>
-        </div>
-        {(D[listKey]||[]).map((item,i)=>(
-          <div key={i} style={{display:'grid',gridTemplateColumns:cols,gap:'4px 8px',marginBottom:7,alignItems:'center'}}>
-            <input style={SI} value={item.n||''} onChange={e=>updList(listKey,i,{n:e.target.value})}/>
-            {hasGallon&&<input style={{...SIN,width:'100%'}} type="number" value={item.g??''} onChange={e=>updList(listKey,i,{g:+e.target.value})} placeholder="0"/>}
-            {hasPail&&<input style={{...SIN,width:'100%'}} type="number" value={item.p??''} onChange={e=>updList(listKey,i,{p:+e.target.value})} placeholder="0"/>}
-            <button onClick={()=>removeItem(listKey,i)} style={{background:'none',border:'1px solid var(--border)',borderRadius:5,cursor:'pointer',color:'var(--muted-fg)',fontSize:14,width:28,height:32,display:'flex',alignItems:'center',justifyContent:'center'}}>×</button>
-          </div>
-        ))}
-        <button onClick={()=>addItem(listKey,addDef||{n:'New',g:0,p:0})} style={{fontSize:12,color:'var(--primary)',background:'none',border:'1px dashed var(--primary)',borderRadius:6,padding:'5px 14px',cursor:'pointer',marginTop:4,fontFamily:'inherit'}}>+ Add</button>
-      </SCard>
-    );
-  };
+  const updList=useCallback((key,i,patch)=>setSettings(s=>{const arr=[...s.data[key]];arr[i]={...arr[i],...patch};return{...s,data:{...s.data,[key]:arr}};}),[setSettings]);
+  const addItem=useCallback((key,def)=>setSettings(s=>({...s,data:{...s.data,[key]:[...(s.data[key]||[]),def]}})),[setSettings]);
+  const removeItem=useCallback((key,i)=>setSettings(s=>({...s,data:{...s.data,[key]:s.data[key].filter((_,j)=>j!==i)}})),[setSettings]);
   return (
     <div style={{padding:'20px 24px',overflowY:'auto',height:'100%'}}>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:4}}>
         <div>
-          <PaintList label="Paints — Walls & Trim" listKey="paints" hasGallon hasPail={false}/>
-          <PaintList label="Paints — Ceiling" listKey="ceilPaints" hasGallon hasPail={false}/>
+          <PaintList label="Paints — Walls & Trim" listKey="paints" data={settings.data} onUpdate={updList} onAdd={addItem} onRemove={removeItem} hasGallon hasPail={false}/>
+          <PaintList label="Paints — Ceiling" listKey="ceilPaints" data={settings.data} onUpdate={updList} onAdd={addItem} onRemove={removeItem} hasGallon hasPail={false}/>
         </div>
         <div>
-          <PaintList label="Primers ($/gal · $/pail)" listKey="primers" hasGallon hasPail/>
-          <PaintList label="Paint Colours" listKey="colours" hasGallon={false} hasPail={false} addDef={{n:'New Colour'}}/>
-          <PaintList label="Supplies" listKey="supplies" hasGallon={false} hasPail={false} addDef={{n:'New Supply'}}/>
+          <PaintList label="Primers ($/gal · $/pail)" listKey="primers" data={settings.data} onUpdate={updList} onAdd={addItem} onRemove={removeItem} hasGallon hasPail/>
+          <PaintList label="Paint Colours" listKey="colours" data={settings.data} onUpdate={updList} onAdd={addItem} onRemove={removeItem} hasGallon={false} hasPail={false} addDef={{n:'New Colour'}}/>
+          <PaintList label="Supplies" listKey="supplies" data={settings.data} onUpdate={updList} onAdd={addItem} onRemove={removeItem} hasGallon={false} hasPail={false} addDef={{n:'New Supply'}}/>
         </div>
       </div>
       <SaveBar saving={saving} saveMsg={saveMsg} onSave={()=>save({data:settings.data,labour:settings.labour,standards:settings.standards})}/>
@@ -5229,36 +5231,47 @@ function PaintInputsTab(){
   );
 }
 
-function StandardsTab(){
-  const {settings,setSettings,saving,saveMsg,save}=useSettingsState();
-  if(!settings)return <div style={{padding:24,color:'var(--muted-fg)',fontSize:13}}>Loading…</div>;
-  const S=settings.standards;
-  const updS=(key,coat,val)=>setSettings(s=>({...s,standards:{...s.standards,[key]:{...(s.standards[key]||{}),[coat]:val}}}));
-  const COATS=[[1,'1 coat'],[2,'2 coats'],[3,'Primer & 2 coats']];
-  const StdCard=({title,skey})=>(
+const STD_COATS=[[1,'1 coat'],[2,'2 coats'],[3,'Primer & 2 coats']];
+
+function StdCard({title,skey,standards,onUpdate}){
+  return (
     <SCard>
       <ST>{title}</ST>
       <div style={{display:'grid',gridTemplateColumns:'1fr 90px',gap:'6px 8px',alignItems:'center'}}>
         <span style={{fontSize:10,fontWeight:600,color:'var(--muted-fg)'}}>Coats</span>
         <span style={{fontSize:10,fontWeight:600,color:'var(--muted-fg)',textAlign:'right'}}>Sqft/Hr</span>
-        {COATS.map(([coat,label])=>[
+        {STD_COATS.map(([coat,label])=>[
           <span key={label} style={{fontSize:13,color:'var(--fg)'}}>{label}</span>,
-          <input key={coat} style={{...SIN,width:'100%'}} type="number" min="1" value={(S[skey]&&S[skey][coat])||''} onChange={e=>updS(skey,coat,+e.target.value)}/>,
+          <input key={coat} style={{...SIN,width:'100%'}} type="number" min="1"
+            defaultValue={(standards[skey]&&standards[skey][coat])||''}
+            onBlur={e=>{const v=+e.target.value;if(v>0)onUpdate(skey,coat,v);}}/>,
         ])}
       </div>
     </SCard>
   );
-  const SubSection=({title,skey})=>(
+}
+
+function StdSubSection({title,skey,standards,onUpdate}){
+  return (
     <>
       <div style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.07em',color:'var(--muted-fg)',margin:'10px 0 6px',paddingTop:10,borderTop:'1px solid var(--border)'}}>{title}</div>
       <div style={{display:'grid',gridTemplateColumns:'1fr 90px',gap:'5px 8px',alignItems:'center'}}>
-        {COATS.map(([coat,label])=>[
+        {STD_COATS.map(([coat,label])=>[
           <span key={label} style={{fontSize:12,color:'var(--fg)'}}>{label}</span>,
-          <input key={coat} style={{...SIN,width:'100%'}} type="number" min="1" value={(S[skey]&&S[skey][coat])||''} onChange={e=>updS(skey,coat,+e.target.value)}/>,
+          <input key={coat} style={{...SIN,width:'100%'}} type="number" min="1"
+            defaultValue={(standards[skey]&&standards[skey][coat])||''}
+            onBlur={e=>{const v=+e.target.value;if(v>0)onUpdate(skey,coat,v);}}/>,
         ])}
       </div>
     </>
   );
+}
+
+function StandardsTab(){
+  const {settings,setSettings,saving,saveMsg,save}=useSettingsState();
+  if(!settings)return <div style={{padding:24,color:'var(--muted-fg)',fontSize:13}}>Loading…</div>;
+  const S=settings.standards;
+  const updS=useCallback((key,coat,val)=>setSettings(s=>({...s,standards:{...s.standards,[key]:{...(s.standards[key]||{}),[coat]:val}}})),[setSettings]);
   return (
     <div style={{padding:'20px 24px',overflowY:'auto',height:'100%'}}>
       <div style={{fontSize:12,color:'var(--muted-fg)',marginBottom:16,padding:'8px 12px',background:'var(--muted)',borderRadius:6,borderLeft:'3px solid var(--primary)'}}>
@@ -5266,21 +5279,23 @@ function StandardsTab(){
       </div>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
         <div>
-          <StdCard title="Walls — sqft/hr" skey="walls"/>
+          <StdCard title="Walls — sqft/hr" skey="walls" standards={S} onUpdate={updS}/>
           <SCard>
             <ST>Ceiling — sqft/hr</ST>
-            <SubSection title="Flat / Drywall" skey="flatCeiling"/>
-            <SubSection title="Stucco" skey="stuccoCeiling"/>
+            <StdSubSection title="Flat / Drywall" skey="flatCeiling" standards={S} onUpdate={updS}/>
+            <StdSubSection title="Stucco" skey="stuccoCeiling" standards={S} onUpdate={updS}/>
             <div style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.07em',color:'var(--muted-fg)',margin:'10px 0 6px',paddingTop:10,borderTop:'1px solid var(--border)'}}>Remove Stucco — $/sqft</div>
-            <input style={{...SIN,width:90}} type="number" step="0.05" value={S.removeStucco?.rate||0.75} onChange={e=>setSettings(s=>({...s,standards:{...s.standards,removeStucco:{rate:+e.target.value}}}))}/>
+            <input style={{...SIN,width:90}} type="number" step="0.05"
+              defaultValue={S.removeStucco?.rate||0.75}
+              onBlur={e=>{const v=+e.target.value;if(v>0)setSettings(s=>({...s,standards:{...s.standards,removeStucco:{rate:v}}}));}}/>
           </SCard>
         </div>
         <div>
-          <StdCard title="Baseboards — sqft/hr" skey="baseboards"/>
-          <StdCard title="Crown Moulding — sqft/hr" skey="crown"/>
-          <StdCard title="Door Frames — sqft/hr" skey="doorFrames"/>
-          <StdCard title="Windows — sqft/hr" skey="windows"/>
-          <StdCard title="Doors — sqft/hr" skey="doors"/>
+          <StdCard title="Baseboards — sqft/hr" skey="baseboards" standards={S} onUpdate={updS}/>
+          <StdCard title="Crown Moulding — sqft/hr" skey="crown" standards={S} onUpdate={updS}/>
+          <StdCard title="Door Frames — sqft/hr" skey="doorFrames" standards={S} onUpdate={updS}/>
+          <StdCard title="Windows — sqft/hr" skey="windows" standards={S} onUpdate={updS}/>
+          <StdCard title="Doors — sqft/hr" skey="doors" standards={S} onUpdate={updS}/>
         </div>
       </div>
       <SaveBar saving={saving} saveMsg={saveMsg} onSave={()=>save({data:settings.data,labour:settings.labour,standards:settings.standards})}/>

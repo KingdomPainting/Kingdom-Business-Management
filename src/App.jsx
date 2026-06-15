@@ -5453,8 +5453,9 @@ function MasterEstimate(){
     const h=(ev)=>{
       if(ev.data?.type==='KP_TAB_CHANGE'){
         const t=ev.data.tab;
+        // Only switch TO a settings tab — never clear the overlay from iframe messages
+        // (clearing is done only by the Back button click)
         if(t==='labourrates'||t==='paintinputs'||t==='standards') setReactTab(t);
-        else setReactTab(null);
       }
     };
     window.addEventListener('message',h);
@@ -5480,8 +5481,6 @@ function MasterEstimate(){
             {Object.entries(REACT_TAB_LABELS).map(([key,label])=>(
               <button key={key} onClick={()=>{
                 setReactTab(key);
-                // Also tell iframe to show this tab (for visual sync)
-                try{ref.current?.contentWindow?.postMessage({type:'KP_SHOW_TAB',tab:key},'*');}catch(e){}
               }} style={{padding:'10px 14px',fontSize:12,fontWeight:600,border:'none',background:'none',cursor:'pointer',borderBottom:reactTab===key?'2px solid var(--primary)':'2px solid transparent',color:reactTab===key?'var(--primary)':'var(--muted-fg)'}}>
                 {label}
               </button>
@@ -6096,12 +6095,12 @@ function Financials({showToast}){
             </Card>
             <Card style={{padding:'14px 18px',display:'flex',flexDirection:'column',gap:4}}>
               <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)'}}>Project Value Range</p>
-              <ResponsiveContainer width='100%' height={100}>
+              <ResponsiveContainer width='100%' height={130}>
                 <BarChart data={barData} margin={{top:4,right:4,left:0,bottom:4}}>
-                  <XAxis dataKey='label' tick={{fontSize:9}}/>
-                  <YAxis tick={{fontSize:9}} tickFormatter={v=>`$${(v/1000).toFixed(0)}k`} width={36}/>
+                  <XAxis dataKey='label' tick={{fontSize:10,fontWeight:600}}/>
+                  <YAxis tick={{fontSize:9}} tickFormatter={v=>`$${(v/1000).toFixed(0)}k`} width={40}/>
                   <Tooltip formatter={v=>['$'+v.toFixed(2),'Value']} contentStyle={{background:'var(--card)',border:'1px solid var(--border)',borderRadius:8,fontSize:11}}/>
-                  <Bar dataKey='value' radius={[3,3,0,0]}>
+                  <Bar dataKey='value' radius={[4,4,0,0]}>
                     {barData.map((e,i)=><Cell key={i} fill={e.fill}/>)}
                   </Bar>
                 </BarChart>

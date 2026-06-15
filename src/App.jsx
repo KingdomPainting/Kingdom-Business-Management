@@ -4995,20 +4995,45 @@ function pushToProject(){
 const DEFAULT_SETTINGS = {
   data:{
     paints:[
-      {n:'Benjamin Moore - Ultra Spec',g:50,p:225},{n:'Benjamin Moore - Ben',g:70,p:0},
-      {n:'Benjamin Moore - Aura',g:115,p:535},{n:'Sherwin Williams - Promar 200',g:50,p:225},
-      {n:'Sherwin Williams - Duration Home',g:70,p:350},{n:'Sherwin Williams - Emerald',g:80,p:400},
+      {n:'Benjamin Moore - Ultra Spec',g:50,pail:225},{n:'Benjamin Moore - Ben',g:70,pail:0},
+      {n:'Benjamin Moore - Aura',g:115,pail:535},{n:'Sherwin Williams - Promar 200',g:50,pail:225},
+      {n:'Sherwin Williams - Duration Home',g:70,pail:350},{n:'Sherwin Williams - Emerald',g:80,pail:400},
     ],
     ceilPaints:[
-      {n:'Benjamin Moore - Waterborne Ceiling',g:75,p:0},{n:'Benjamin Moore - Ultra Spec Ceiling',g:50,p:0},
-      {n:'Sherwin Williams - ProMar Ceiling',g:45,p:0},
+      {n:'Benjamin Moore - Waterborne Ceiling',g:75,pail:0},{n:'Benjamin Moore - Ultra Spec Ceiling',g:50,pail:0},
+      {n:'Sherwin Williams - ProMar Ceiling',g:45,pail:0},
     ],
     primers:[
       {n:'Benjamin Moore - Drywall Primer',g:35,p:0},{n:'Benjamin Moore - Stix Primer',g:85,p:0},
       {n:'Kilz - Original Oil Primer',g:70,p:0},{n:'Kilz - PVA Primer',g:25,p:0},
       {n:'Kilz - 1 Primer',g:35,p:0},{n:'Kilz - 2 Primer',g:55,p:0},
     ],
-    colours:[],supplies:[],
+    colours:[
+      {n:'OC-65 — Chantilly Lace',hex:'#f4f2ec'},{n:'OC-117 — Simply White',hex:'#f5f0e1'},
+      {n:'OC-17 — White Dove',hex:'#f4efe4'},{n:'OC-20 — Pale Oak',hex:'#e8ddd0'},
+      {n:'OC-15 — Baby Fawn',hex:'#e8d9c4'},{n:'OC-52 — Gray Owl',hex:'#c2c2b8'},
+      {n:'HC-81 — Manchester Tan',hex:'#c9b99a'},{n:'HC-172 — Revere Pewter',hex:'#c2bdb3'},
+      {n:'AF-100 — Pashmina',hex:'#c8b9a8'},{n:'1560 — Antique Pewter',hex:'#a8a496'},
+      {n:'HC-165 — Boothbay Gray',hex:'#8a9ea3'},{n:'HC-154 — Hale Navy',hex:'#3a4f6b'},
+      {n:'2123-50 — Ocean Air',hex:'#9ec0d0'},{n:'HC-144 — Palladian Blue',hex:'#a8c4c8'},
+      {n:'2136-40 — Aegean Teal',hex:'#5a9eaa'},{n:'HC-156 — Van Deusen Blue',hex:'#3a5a88'},
+      {n:'2062-20 — Gentleman\'s Gray',hex:'#4a5870'},{n:'1634 — Santorini Blue',hex:'#5580b4'},
+      {n:'2144-40 — Soft Fern',hex:'#8fae8f'},{n:'HC-114 — Saybrook Sage',hex:'#8fa47e'},
+      {n:'1495 — October Mist',hex:'#b8c4a8'},{n:'462 — Vintage Vogue',hex:'#8aaa8e'},
+      {n:'2041-10 — Hunter Green',hex:'#2d5a3d'},{n:'HC-188 — Essex Green',hex:'#2e4834'},
+      {n:'2100-20 — Leather Saddle Brown',hex:'#7a4830'},{n:'2130-10 — Black Bean Soup',hex:'#3a2820'},
+      {n:'AF-180 — Wenge',hex:'#5a4438'},{n:'HC-72 — Branchport Brown',hex:'#8a6850'},
+      {n:'1001 — North Creek Brown',hex:'#8a7060'},{n:'HC-76 — Davenport Tan',hex:'#c0a880'},
+      {n:'AF-250 — Head Over Heels',hex:'#e8c0c0'},{n:'1191 — Love & Happiness',hex:'#e8a8a8'},
+      {n:'052 — Conch Shell',hex:'#e8c4b0'},{n:'1296 — Sailor\'s Delight',hex:'#d4a090'},
+      {n:'2174-60 — Dream Whip',hex:'#f0d8d0'},{n:'2102-70 — First Light',hex:'#f8d8d0'},
+      {n:'1444 — New Age',hex:'#9888b0'},{n:'2117-60 — Winter Gray',hex:'#c0b8d0'},
+      {n:'2070-60 — Lavender Mist',hex:'#c8c0d8'},{n:'2071-60 — Lily Lavender',hex:'#d0c4e0'},
+      {n:'2116-40 — Hazy Lilac',hex:'#b8a8cc'},{n:'2117-30 — Shadow',hex:'#7868a0'},
+      {n:'CSP-305 — Crisp Linen',hex:'#f0e8d0'},{n:'HC-6 — Windham Cream',hex:'#f0e0a8'},
+      {n:'2152-50 — Golden Straw',hex:'#e8cc80'},{n:'105 — Terra Mauve',hex:'#b89090'},
+      {n:'2131-10 — Black Satin',hex:'#1a1a1a'},
+    ],supplies:[],
   },
   labour:{
     billable:1700,buffer:1.25,matBuffer:1.25,taxes:true,discount:false,discountAmt:false,
@@ -5196,9 +5221,12 @@ function PaintList({label,listKey,data,onUpdate,onAdd,onRemove,hasGallon=true,ha
       </div>
       {items.map((item,i)=>(
         <div key={i} style={{display:'grid',gridTemplateColumns:cols,gap:'4px 8px',marginBottom:7,alignItems:'center'}}>
-          <input style={SI} defaultValue={item.n||''} onBlur={e=>{if(e.target.value!==item.n)onUpdate(listKey,i,{n:e.target.value});}} placeholder="Name"/>
+          <div style={{display:'flex',alignItems:'center',gap:6}}>
+            {item.hex&&<input type="color" value={item.hex} onChange={e=>onUpdate(listKey,i,{hex:e.target.value})} style={{width:24,height:24,borderRadius:4,border:'1px solid rgba(0,0,0,.15)',padding:0,cursor:'pointer',flexShrink:0}}/>}
+            <input style={{...SI,flex:1}} defaultValue={item.n||''} onBlur={e=>{if(e.target.value!==item.n)onUpdate(listKey,i,{n:e.target.value});}} placeholder="Name"/>
+          </div>
           {hasGallon&&<input style={{...SIN,width:'100%'}} type="number" defaultValue={item.g??''} onBlur={e=>{const v=+e.target.value;if(v!==item.g)onUpdate(listKey,i,{g:v});}} placeholder="0"/>}
-          {hasPail&&<input style={{...SIN,width:'100%'}} type="number" defaultValue={item.p??''} onBlur={e=>{const v=+e.target.value;if(v!==item.p)onUpdate(listKey,i,{p:v});}} placeholder="0"/>}
+          {hasPail&&<input style={{...SIN,width:'100%'}} type="number" defaultValue={item.pail??item.p??''} onBlur={e=>{const v=+e.target.value;const key=item.pail!==undefined?'pail':'p';if(v!==(item.pail??item.p))onUpdate(listKey,i,{[key]:v});}} placeholder="0"/>}
           <button onClick={()=>onRemove(listKey,i)} style={{background:'none',border:'1px solid var(--border)',borderRadius:5,cursor:'pointer',color:'var(--muted-fg)',fontSize:14,width:28,height:32,display:'flex',alignItems:'center',justifyContent:'center'}}>×</button>
         </div>
       ))}
@@ -5217,12 +5245,12 @@ function PaintInputsTab(){
     <div style={{padding:'20px 24px',overflowY:'auto',height:'100%'}}>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:4}}>
         <div>
-          <PaintList label="Paints — Walls & Trim" listKey="paints" data={settings.data} onUpdate={updList} onAdd={addItem} onRemove={removeItem} hasGallon hasPail={false}/>
-          <PaintList label="Paints — Ceiling" listKey="ceilPaints" data={settings.data} onUpdate={updList} onAdd={addItem} onRemove={removeItem} hasGallon hasPail={false}/>
+          <PaintList label="Paints — Walls & Trim" listKey="paints" data={settings.data} onUpdate={updList} onAdd={addItem} onRemove={removeItem} hasGallon hasPail/>
+          <PaintList label="Paints — Ceiling" listKey="ceilPaints" data={settings.data} onUpdate={updList} onAdd={addItem} onRemove={removeItem} hasGallon hasPail/>
         </div>
         <div>
           <PaintList label="Primers ($/gal · $/pail)" listKey="primers" data={settings.data} onUpdate={updList} onAdd={addItem} onRemove={removeItem} hasGallon hasPail/>
-          <PaintList label="Paint Colours" listKey="colours" data={settings.data} onUpdate={updList} onAdd={addItem} onRemove={removeItem} hasGallon={false} hasPail={false} addDef={{n:'New Colour'}}/>
+          <PaintList label="Paint Colours" listKey="colours" data={settings.data} onUpdate={updList} onAdd={addItem} onRemove={removeItem} hasGallon={false} hasPail={false} addDef={{n:'New Colour',hex:'#cccccc'}}/>
           <PaintList label="Supplies" listKey="supplies" data={settings.data} onUpdate={updList} onAdd={addItem} onRemove={removeItem} hasGallon={false} hasPail={false} addDef={{n:'New Supply'}}/>
         </div>
       </div>

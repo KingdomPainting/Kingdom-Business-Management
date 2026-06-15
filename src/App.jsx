@@ -5057,10 +5057,9 @@ function useSettingsState(){
     let cancelled=false;
     const load=async(attempt=0)=>{
       if(cancelled)return;
-      // Wait for session — retry up to 10s
       if(!_session?.user?.id){
         if(attempt<20){setTimeout(()=>load(attempt+1),500);}
-        else{setSettings(DEFAULT_SETTINGS);}
+        else{setSettings({...DEFAULT_SETTINGS});}
         return;
       }
       try{
@@ -5073,12 +5072,14 @@ function useSettingsState(){
             standards:{...DEFAULT_SETTINGS.standards,...(rows[0].standards||{})},
           });
         } else {
-          setSettings(DEFAULT_SETTINGS);
+          setSettings({...DEFAULT_SETTINGS});
         }
-      }catch(e){if(!cancelled)setSettings(DEFAULT_SETTINGS);}
+      }catch(e){if(!cancelled)setSettings({...DEFAULT_SETTINGS});}
     };
+    // Start loading immediately, but also set a hard 3s fallback
     load();
-    return ()=>{cancelled=true;};
+    const fallback=setTimeout(()=>{if(!cancelled)setSettings(s=>s||{...DEFAULT_SETTINGS});},3000);
+    return ()=>{cancelled=true;clearTimeout(fallback);};
   },[]);
 
   const save=async(current)=>{
@@ -5452,9 +5453,9 @@ function MasterEstimate(){
   useEffect(()=>{
     const h=(ev)=>{
       if(ev.data?.type==='KP_TAB_CHANGE'){
+        // Only respond to messages from THIS iframe, not MasterEstimateOnTab instances
+        if(ev.source!==ref.current?.contentWindow)return;
         const t=ev.data.tab;
-        // Only switch TO a settings tab — never clear the overlay from iframe messages
-        // (clearing is done only by the Back button click)
         if(t==='labourrates'||t==='paintinputs'||t==='standards') setReactTab(t);
       }
     };
@@ -5493,9 +5494,9 @@ function MasterEstimate(){
             </button>
           </div>
           <div style={{flex:1,overflow:'auto'}}>
-            {reactTab==='labourrates'&&<LabourRatesTab/>}
-            {reactTab==='paintinputs'&&<PaintInputsTab/>}
-            {reactTab==='standards'&&<StandardsTab/>}
+            {reactTab==='labourrates'&&<LabourRatesTab key='lr'/>}
+            {reactTab==='paintinputs'&&<PaintInputsTab key='pi'/>}
+            {reactTab==='standards'&&<StandardsTab key='st'/>}
           </div>
         </div>
       )}

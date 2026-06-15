@@ -5974,25 +5974,20 @@ function Financials({showToast}){
       </div>
 
 
-      {/* ── Row 2: Conversion Rate pie + Labour/Materials/Wages pie + Avg Project Value bar ── */}
+      {/* ── Row 2: Leads by Source + Cost Breakdown pie + Avg Project Value bar ── */}
       {(()=>{
         const totalLabour=activeDeals.reduce((s,d)=>s+getRow(d).labour,0);
         const totalMaterials=activeDeals.reduce((s,d)=>s+getRow(d).materials,0);
         const totalWages=activeDeals.reduce((s,d)=>s+getRow(d).wages,0);
         const totalGrossProfit=activeDeals.reduce((s,d)=>s+getRow(d).grossProfit,0);
-        // Use revenue as base so Profit + Materials + Wages = 100%
         const pieBase=Math.max(totalMaterials+totalWages+Math.max(0,totalGrossProfit),1);
         const matPct=Math.round(totalMaterials/pieBase*100);
         const wagePct=Math.round(totalWages/pieBase*100);
-        const profPct=100-matPct-wagePct; // remainder ensures 100%
+        const profPct=100-matPct-wagePct;
         const costPieData=[
           {name:'Profit',value:Math.max(0,profPct),color:'#C4922A'},
           {name:'Materials',value:matPct,color:'#3b82f6'},
           {name:'Wages',value:wagePct,color:'#22c55e'},
-        ];
-        const convPieData=[
-          {name:'Paid Off',value:paidOffDealsF.length,color:'#C4922A'},
-          {name:'In Progress',value:Math.max(0,allDeals.length-paidOffDealsF.length),color:'var(--border)'},
         ];
         const projectValues=activeDeals.map(d=>parseFloat(d.value)||0).filter(v=>v>0);
         const highestVal=projectValues.length?Math.max(...projectValues):0;
@@ -6003,20 +5998,28 @@ function Financials({showToast}){
           {label:'Average',value:avgVal,fill:'#C4922A'},
           {label:'Highest',value:highestVal,fill:'#22c55e'},
         ];
+        // Leads by source — avg per month using quote_date
+        const totalLeadsWithSrc=activeDeals.filter(d=>d.leadSource).length||1;
         return (
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:14}}>
             <Card style={{padding:'14px 18px',display:'flex',flexDirection:'column',gap:4}}>
-              <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)'}}>Conversion Rate</p>
-              <div style={{display:'flex',alignItems:'center',gap:12}}>
-                <PieChart width={90} height={90}>
-                  <Pie data={convPieData} cx={40} cy={40} innerRadius={26} outerRadius={40} dataKey='value' startAngle={90} endAngle={-270} strokeWidth={0}>
-                    {convPieData.map((e,i)=><Cell key={i} fill={e.color}/>)}
-                  </Pie>
-                </PieChart>
-                <div>
-                  <p style={{fontSize:32,fontWeight:800,color:'var(--primary)',lineHeight:1}}>{conversionRateF.toFixed(1)}<span style={{fontSize:16,fontWeight:600}}>%</span></p>
-                  <p style={{fontSize:11,color:'var(--muted-fg)',marginTop:4}}>{paidOffDealsF.length} paid of {allDeals.length}</p>
-                </div>
+              <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',marginBottom:8}}>Leads by Source</p>
+              <div style={{display:'flex',flexDirection:'column',gap:7}}>
+                {LEAD_SOURCES.map(source=>{
+                  const count=activeDeals.filter(d=>d.leadSource===source).length;
+                  const pct=Math.round((count/totalLeadsWithSrc)*100);
+                  return (
+                    <div key={source} style={{display:'flex',alignItems:'center',gap:7}}>
+                      <span style={{fontSize:10,fontWeight:700,width:80,textAlign:'center',flexShrink:0,padding:'1px 8px',borderRadius:20,background:(LEAD_COLORS[source]||{bg:'#f3f4f6'}).bg,color:(LEAD_COLORS[source]||{color:'#374151'}).color}}>{source}</span>
+                      <div style={{flex:1,height:7,background:'var(--muted)',borderRadius:9,overflow:'hidden'}}>
+                        <div style={{height:'100%',background:(LEAD_COLORS[source]||{bg:'var(--primary)'}).bg,filter:'brightness(0.75)',borderRadius:9,width:`${pct}%`,transition:'width .4s'}}/>
+                      </div>
+                      <span style={{fontSize:11,fontWeight:700,color:'var(--fg)',width:20,textAlign:'right'}}>{count}</span>
+                      <span style={{fontSize:10,color:'var(--muted-fg)',width:30,textAlign:'right'}}>{pct}%</span>
+                    </div>
+                  );
+                })}
+                {activeDeals.filter(d=>d.leadSource).length===0&&<p style={{fontSize:12,color:'var(--muted-fg)'}}>No lead sources yet.</p>}
               </div>
             </Card>
             <Card style={{padding:'14px 18px',display:'flex',flexDirection:'column',gap:4}}>

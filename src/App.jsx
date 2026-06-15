@@ -5054,10 +5054,18 @@ function useSettingsState(){
   const [saveMsg,setSaveMsg]=useState('');
 
   useEffect(()=>{
-    (async()=>{
-      if(!_session?.user?.id)return;
+    let cancelled=false;
+    const load=async(attempt=0)=>{
+      if(cancelled)return;
+      // Wait for session — retry up to 10s
+      if(!_session?.user?.id){
+        if(attempt<20){setTimeout(()=>load(attempt+1),500);}
+        else{setSettings(DEFAULT_SETTINGS);}
+        return;
+      }
       try{
         const rows=await supaFetch(`/rest/v1/paint_settings?user_id=eq.${_session.user.id}&select=data,labour,standards`);
+        if(cancelled)return;
         if(rows&&rows[0]){
           setSettings({
             data:{...DEFAULT_SETTINGS.data,...(rows[0].data||{})},
@@ -5067,8 +5075,10 @@ function useSettingsState(){
         } else {
           setSettings(DEFAULT_SETTINGS);
         }
-      }catch(e){setSettings(DEFAULT_SETTINGS);}
-    })();
+      }catch(e){if(!cancelled)setSettings(DEFAULT_SETTINGS);}
+    };
+    load();
+    return ()=>{cancelled=true;};
   },[]);
 
   const save=async(current)=>{

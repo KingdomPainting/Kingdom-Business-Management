@@ -3161,7 +3161,7 @@ const COLOURS=[
   {n:'2015-10 Electric Orange',h:'#e05010'},
   // Pinks
   {n:'AF-250 Head Over Heels',h:'#e8b8b0'},
-  {n:'1191 Love & Happiness',h:'#e0a0a0'},
+  {n:'1191 Love and Happiness',h:'#e0a0a0'},
   {n:'052 Conch Shell',h:'#e8c0b0'},
   {n:'1296 Sailor\\'s Delight',h:'#d49090'},
   {n:'2174-60 Dream Whip',h:'#f0d0c8'},
@@ -5017,15 +5017,15 @@ const DEFAULT_SETTINGS = {
       {n:'HC-165 — Boothbay Gray',hex:'#8a9ea3'},{n:'HC-154 — Hale Navy',hex:'#3a4f6b'},
       {n:'2123-50 — Ocean Air',hex:'#9ec0d0'},{n:'HC-144 — Palladian Blue',hex:'#a8c4c8'},
       {n:'2136-40 — Aegean Teal',hex:'#5a9eaa'},{n:'HC-156 — Van Deusen Blue',hex:'#3a5a88'},
-      {n:'2062-20 — Gentleman\'s Gray',hex:'#4a5870'},{n:'1634 — Santorini Blue',hex:'#5580b4'},
+      {n:'2062-20 — Gentleman’s Gray',hex:'#4a5870'},{n:'1634 — Santorini Blue',hex:'#5580b4'},
       {n:'2144-40 — Soft Fern',hex:'#8fae8f'},{n:'HC-114 — Saybrook Sage',hex:'#8fa47e'},
       {n:'1495 — October Mist',hex:'#b8c4a8'},{n:'462 — Vintage Vogue',hex:'#8aaa8e'},
       {n:'2041-10 — Hunter Green',hex:'#2d5a3d'},{n:'HC-188 — Essex Green',hex:'#2e4834'},
       {n:'2100-20 — Leather Saddle Brown',hex:'#7a4830'},{n:'2130-10 — Black Bean Soup',hex:'#3a2820'},
       {n:'AF-180 — Wenge',hex:'#5a4438'},{n:'HC-72 — Branchport Brown',hex:'#8a6850'},
       {n:'1001 — North Creek Brown',hex:'#8a7060'},{n:'HC-76 — Davenport Tan',hex:'#c0a880'},
-      {n:'AF-250 — Head Over Heels',hex:'#e8c0c0'},{n:'1191 — Love & Happiness',hex:'#e8a8a8'},
-      {n:'052 — Conch Shell',hex:'#e8c4b0'},{n:'1296 — Sailor\'s Delight',hex:'#d4a090'},
+      {n:'AF-250 — Head Over Heels',hex:'#e8c0c0'},{n:'1191 — Love and Happiness',hex:'#e8a8a8'},
+      {n:'052 — Conch Shell',hex:'#e8c4b0'},{n:'1296 — Sailor’s Delight',hex:'#d4a090'},
       {n:'2174-60 — Dream Whip',hex:'#f0d8d0'},{n:'2102-70 — First Light',hex:'#f8d8d0'},
       {n:'1444 — New Age',hex:'#9888b0'},{n:'2117-60 — Winter Gray',hex:'#c0b8d0'},
       {n:'2070-60 — Lavender Mist',hex:'#c8c0d8'},{n:'2071-60 — Lily Lavender',hex:'#d0c4e0'},
@@ -6056,7 +6056,7 @@ function Financials({showToast}){
         return (
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:14}}>
             <Card style={{padding:'14px 18px',display:'flex',flexDirection:'column',gap:4}}>
-              <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',marginBottom:8}}>Leads by Source</p>
+              <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',marginBottom:8}}>Leads by Source / Month</p>
               <div style={{display:'flex',flexDirection:'column',gap:7}}>
                 {LEAD_SOURCES.map(source=>{
                   const count=activeDeals.filter(d=>d.leadSource===source).length;
@@ -6065,7 +6065,7 @@ function Financials({showToast}){
                     <div key={source} style={{display:'flex',alignItems:'center',gap:7}}>
                       <span style={{fontSize:10,fontWeight:700,width:80,textAlign:'center',flexShrink:0,padding:'1px 8px',borderRadius:20,background:(LEAD_COLORS[source]||{bg:'#f3f4f6'}).bg,color:(LEAD_COLORS[source]||{color:'#374151'}).color}}>{source}</span>
                       <div style={{flex:1,height:7,background:'var(--muted)',borderRadius:9,overflow:'hidden'}}>
-                        <div style={{height:'100%',background:(LEAD_COLORS[source]||{bg:'var(--primary)'}).bg,filter:'brightness(0.75)',borderRadius:9,width:`${pct}%`,transition:'width .4s'}}/>
+                        <div style={{height:'100%',background:'var(--primary)',borderRadius:9,width:`${pct}%`,transition:'width .4s'}}/>
                       </div>
                       <span style={{fontSize:11,fontWeight:700,color:'var(--fg)',width:20,textAlign:'right'}}>{count}</span>
                       <span style={{fontSize:10,color:'var(--muted-fg)',width:30,textAlign:'right'}}>{pct}%</span>
@@ -6075,20 +6075,20 @@ function Financials({showToast}){
                 {activeDeals.filter(d=>d.leadSource).length===0&&<p style={{fontSize:12,color:'var(--muted-fg)'}}>No lead sources yet.</p>}
               </div>
             </Card>
-            <Card style={{padding:'14px 18px',display:'flex',flexDirection:'column',gap:4}}>
+            <Card style={{padding:'14px 18px',display:'flex',flexDirection:'column',gap:8}}>
               <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)'}}>Cost Breakdown (Avg)</p>
-              <div style={{display:'flex',alignItems:'center',gap:12}}>
-                <PieChart width={90} height={90}>
-                  <Pie data={costPieData} cx={40} cy={40} innerRadius={26} outerRadius={40} dataKey='value' startAngle={90} endAngle={-270} strokeWidth={0}>
+              <div style={{display:'flex',alignItems:'center',gap:16}}>
+                <PieChart width={130} height={130}>
+                  <Pie data={costPieData} cx={60} cy={60} innerRadius={36} outerRadius={58} dataKey='value' startAngle={90} endAngle={-270} strokeWidth={0}>
                     {costPieData.map((e,i)=><Cell key={i} fill={e.color}/>)}
                   </Pie>
                 </PieChart>
-                <div style={{display:'flex',flexDirection:'column',gap:3}}>
+                <div style={{display:'flex',flexDirection:'column',gap:6,flex:1}}>
                   {costPieData.map(d=>(
-                    <div key={d.name} style={{display:'flex',alignItems:'center',gap:5,fontSize:11}}>
-                      <span style={{width:8,height:8,borderRadius:'50%',background:d.color,flexShrink:0,display:'inline-block'}}/>
+                    <div key={d.name} style={{display:'flex',alignItems:'center',gap:6,fontSize:12}}>
+                      <span style={{width:10,height:10,borderRadius:'50%',background:d.color,flexShrink:0,display:'inline-block'}}/>
                       <span style={{color:'var(--muted-fg)'}}>{d.name}</span>
-                      <span style={{fontWeight:700,marginLeft:'auto'}}>{d.value}%</span>
+                      <span style={{fontWeight:700,marginLeft:'auto',fontSize:13}}>{d.value}%</span>
                     </div>
                   ))}
                 </div>

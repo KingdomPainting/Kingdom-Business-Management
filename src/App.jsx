@@ -1548,6 +1548,22 @@ function Dashboard({toast}){
   // Profit Margin: (gross profit / revenue) * 100
   const profitMargin = totalRevenue>0 ? (totalProfit/totalRevenue)*100 : 0;
 
+  // Quotes / month: count deals with quote_date, avg across distinct months
+  const quoteDates = deals.filter(d=>d.quote_date).map(d=>d.quote_date.slice(0,7));
+  const quoteMonthCounts = {};
+  quoteDates.forEach(m=>{ quoteMonthCounts[m]=(quoteMonthCounts[m]||0)+1; });
+  const quotesPerMonth = Object.keys(quoteMonthCounts).length>0
+    ? Object.values(quoteMonthCounts).reduce((s,v)=>s+v,0)/Object.keys(quoteMonthCounts).length
+    : 0;
+
+  // Avg projects / month: count deals with endDate, avg across distinct months
+  const endDates = deals.filter(d=>d.endDate).map(d=>d.endDate.slice(0,7));
+  const endMonthCounts = {};
+  endDates.forEach(m=>{ endMonthCounts[m]=(endMonthCounts[m]||0)+1; });
+  const projectsPerMonth = Object.keys(endMonthCounts).length>0
+    ? Object.values(endMonthCounts).reduce((s,v)=>s+v,0)/Object.keys(endMonthCounts).length
+    : 0;
+
   const StatCard=({label,value,color='var(--primary)'})=>(
     <Card style={{padding:'14px 18px'}}>
       <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',marginBottom:4}}>{label}</p>
@@ -1642,10 +1658,10 @@ function Dashboard({toast}){
           <StatCard label='Total Profit' value={fmtUSD(totalProfit)} color={totalProfit>=0?'#22c55e':'#ef4444'}/>
         </div>
 
-        {/* Row 5 — Conversion Rate + Avg Project Value */}
+        {/* Row 5 — Quotes/Month + Avg Projects/Month */}
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,flexShrink:0}}>
-          <StatCard label='Conversion Rate' value={conversionRate.toFixed(1)+'%'} color='var(--primary)'/>
-          <StatCard label='Avg Project Value' value={'$'+(allPipelineDeals.length>0?totalRevenue/allPipelineDeals.length:0).toFixed(2)} color='var(--primary)'/>
+          <StatCard label='Quotes / Month (avg)' value={quotesPerMonth.toFixed(1)} color='var(--primary)'/>
+          <StatCard label='Projects / Month (avg)' value={projectsPerMonth.toFixed(1)} color='var(--primary)'/>
         </div>
 
         {/* Row 6 — Leads by Source */}
@@ -5907,14 +5923,63 @@ function Financials({showToast}){
         ))}
       </div>
 
+      {/* ── Row 2: charts ── */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:14}}>
+        <Card style={{display:'flex',flexDirection:'column'}}>
+          <div style={{padding:'10px 14px 4px',fontWeight:600,fontSize:12}}>Monthly Revenue</div>
+          <div style={{padding:'0 14px 10px'}}>
+            <ResponsiveContainer width='100%' height={160}>
+              <BarChart data={monthlyData} margin={{top:4,right:4,left:0,bottom:4}}>
+                <CartesianGrid strokeDasharray='3 3' stroke='var(--border)'/>
+                <XAxis dataKey='month' tick={{fontSize:9}}/>
+                <YAxis tick={{fontSize:9}} tickFormatter={v=>`$${(v/1000).toFixed(0)}k`}/>
+                <Tooltip formatter={v=>[`$${v.toLocaleString()}`,'Revenue']} contentStyle={{background:'var(--card)',border:'1px solid var(--border)',borderRadius:8,fontSize:11}}/>
+                <Bar dataKey='revenue' fill='var(--primary)' radius={[3,3,0,0]}/>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+        <Card style={{display:'flex',flexDirection:'column'}}>
+          <div style={{padding:'10px 14px 4px',fontWeight:600,fontSize:12}}>Monthly Gross Profit</div>
+          <div style={{padding:'0 14px 10px'}}>
+            <ResponsiveContainer width='100%' height={160}>
+              <BarChart data={monthlyData} margin={{top:4,right:4,left:0,bottom:4}}>
+                <CartesianGrid strokeDasharray='3 3' stroke='var(--border)'/>
+                <XAxis dataKey='month' tick={{fontSize:9}}/>
+                <YAxis tick={{fontSize:9}} tickFormatter={v=>`$${(v/1000).toFixed(0)}k`}/>
+                <Tooltip formatter={v=>[`$${v.toLocaleString()}`,'Gross Profit']} contentStyle={{background:'var(--card)',border:'1px solid var(--border)',borderRadius:8,fontSize:11}}/>
+                <Bar dataKey='grossProfit' fill='#22c55e' radius={[3,3,0,0]}/>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+        <Card style={{display:'flex',flexDirection:'column'}}>
+          <div style={{padding:'10px 14px 4px',fontWeight:600,fontSize:12}}>Projects / Month</div>
+          <div style={{padding:'0 14px 10px'}}>
+            <ResponsiveContainer width='100%' height={160}>
+              <LineChart data={monthlyData} margin={{top:4,right:4,left:0,bottom:4}}>
+                <CartesianGrid strokeDasharray='3 3' stroke='var(--border)'/>
+                <XAxis dataKey='month' tick={{fontSize:9}}/>
+                <YAxis tick={{fontSize:9}} allowDecimals={false}/>
+                <Tooltip formatter={v=>[v,'Projects']} contentStyle={{background:'var(--card)',border:'1px solid var(--border)',borderRadius:8,fontSize:11}}/>
+                <Line type='monotone' dataKey='projects' stroke='var(--primary)' strokeWidth={2} dot={{fill:'var(--primary)',r:2}}/>
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+      </div>
+
+
       {/* ── Row 2: Conversion Rate pie + Labour/Materials/Wages pie + Avg Project Value bar ── */}
       {(()=>{
         const totalLabour=activeDeals.reduce((s,d)=>s+getRow(d).labour,0);
         const totalMaterials=activeDeals.reduce((s,d)=>s+getRow(d).materials,0);
         const totalWages=activeDeals.reduce((s,d)=>s+getRow(d).wages,0);
         const pieTotal=totalLabour+totalMaterials+totalWages;
+        const totalGrossProfit=activeDeals.reduce((s,d)=>s+getRow(d).grossProfit,0);
+        const gpPct=pieTotal>0?Math.round(Math.max(0,totalGrossProfit)/pieTotal*100):0;
         const costPieData=[
-          {name:'Labour',value:pieTotal>0?Math.round(totalLabour/pieTotal*100):0,color:'#C4922A'},
+          {name:'Profit',value:gpPct,color:'#C4922A'},
           {name:'Materials',value:pieTotal>0?Math.round(totalMaterials/pieTotal*100):0,color:'#3b82f6'},
           {name:'Wages',value:pieTotal>0?Math.round(totalWages/pieTotal*100):0,color:'#22c55e'},
         ];
@@ -5983,52 +6048,6 @@ function Financials({showToast}){
           </div>
         );
       })()}
-
-      {/* ── Row 2: charts ── */}
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:14}}>
-        <Card style={{display:'flex',flexDirection:'column'}}>
-          <div style={{padding:'10px 14px 4px',fontWeight:600,fontSize:12}}>Monthly Revenue</div>
-          <div style={{padding:'0 14px 10px'}}>
-            <ResponsiveContainer width='100%' height={160}>
-              <BarChart data={monthlyData} margin={{top:4,right:4,left:0,bottom:4}}>
-                <CartesianGrid strokeDasharray='3 3' stroke='var(--border)'/>
-                <XAxis dataKey='month' tick={{fontSize:9}}/>
-                <YAxis tick={{fontSize:9}} tickFormatter={v=>`$${(v/1000).toFixed(0)}k`}/>
-                <Tooltip formatter={v=>[`$${v.toLocaleString()}`,'Revenue']} contentStyle={{background:'var(--card)',border:'1px solid var(--border)',borderRadius:8,fontSize:11}}/>
-                <Bar dataKey='revenue' fill='var(--primary)' radius={[3,3,0,0]}/>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-        <Card style={{display:'flex',flexDirection:'column'}}>
-          <div style={{padding:'10px 14px 4px',fontWeight:600,fontSize:12}}>Monthly Gross Profit</div>
-          <div style={{padding:'0 14px 10px'}}>
-            <ResponsiveContainer width='100%' height={160}>
-              <BarChart data={monthlyData} margin={{top:4,right:4,left:0,bottom:4}}>
-                <CartesianGrid strokeDasharray='3 3' stroke='var(--border)'/>
-                <XAxis dataKey='month' tick={{fontSize:9}}/>
-                <YAxis tick={{fontSize:9}} tickFormatter={v=>`$${(v/1000).toFixed(0)}k`}/>
-                <Tooltip formatter={v=>[`$${v.toLocaleString()}`,'Gross Profit']} contentStyle={{background:'var(--card)',border:'1px solid var(--border)',borderRadius:8,fontSize:11}}/>
-                <Bar dataKey='grossProfit' fill='#22c55e' radius={[3,3,0,0]}/>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-        <Card style={{display:'flex',flexDirection:'column'}}>
-          <div style={{padding:'10px 14px 4px',fontWeight:600,fontSize:12}}>Projects / Month</div>
-          <div style={{padding:'0 14px 10px'}}>
-            <ResponsiveContainer width='100%' height={160}>
-              <LineChart data={monthlyData} margin={{top:4,right:4,left:0,bottom:4}}>
-                <CartesianGrid strokeDasharray='3 3' stroke='var(--border)'/>
-                <XAxis dataKey='month' tick={{fontSize:9}}/>
-                <YAxis tick={{fontSize:9}} allowDecimals={false}/>
-                <Tooltip formatter={v=>[v,'Projects']} contentStyle={{background:'var(--card)',border:'1px solid var(--border)',borderRadius:8,fontSize:11}}/>
-                <Line type='monotone' dataKey='projects' stroke='var(--primary)' strokeWidth={2} dot={{fill:'var(--primary)',r:2}}/>
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-      </div>
 
       {/* ── Financials table ── */}
       <Card>

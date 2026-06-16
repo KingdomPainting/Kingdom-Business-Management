@@ -5023,9 +5023,13 @@ function MasterEstimate(){
       if(ev.data?.type==='KP_SAVE_PAINT_SETTINGS'){
         const {data,labour,standards}=ev.data;
         if(!data)return;
-        const src=ev.source; // the iframe that sent this
         const reply=(ok)=>{
-          try{src?.postMessage({type:'KP_SAVE_DONE',ok},'*');}catch(e){}
+          // Send to all iframes on page — srcDoc origin means ev.source may be null
+          try{ref.current?.contentWindow?.postMessage({type:'KP_SAVE_DONE',ok},'*');}catch(e){}
+          // Also broadcast to any other estimate iframes (deal modal tabs)
+          try{document.querySelectorAll('iframe').forEach(fr=>{
+            try{if(fr.contentWindow!==ref.current?.contentWindow)fr.contentWindow?.postMessage({type:'KP_SAVE_DONE',ok},'*');}catch(e2){}
+          });}catch(e){}
         };
         const doSave=async(attempt=0)=>{
           try{

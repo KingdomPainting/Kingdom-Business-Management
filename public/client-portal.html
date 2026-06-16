@@ -239,9 +239,19 @@ function docRows(d){
     {key:'change_order_html',label:'Change Order',icon:'&#128221;'},
     {key:'invoice_html',label:'Invoice',icon:'&#129534;'}
   ].filter(doc=>d[doc.key]);
-  if(!docs.length)return '<p class="no-docs">No documents available yet.</p>';
+  // Add Drive files
+  const driveFiles=d.drive_files||[];
+  if(!docs.length&&!driveFiles.length)return '<p class="no-docs">No documents available yet.</p>';
   const signed=d.contract_signed_html&&d.contract_signed_at;
   const signedDate=signed?new Date(d.contract_signed_at).toLocaleDateString('en-CA',{year:'numeric',month:'short',day:'numeric'}):'';
+  const driveRows=driveFiles.map(file=>`
+    <div class="doc-row" onclick="window.open('${file.url}','_blank')" style="cursor:pointer">
+      <span class="doc-label">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="flex-shrink:0"><path d="M6.5 20L1 11l4-7h14l4 7-5.5 9H6.5z" stroke="#4285f4" stroke-width="1.5"/><path d="M8.5 20L14 11H1" stroke="#4285f4" stroke-width="1.5"/><path d="M23 11H14l-5.5 9" stroke="#4285f4" stroke-width="1.5"/></svg>
+        ${file.name}
+      </span>
+      <span style="font-size:11px;color:#4285f4;font-weight:600">Open ↗</span>
+    </div>`).join('');
   return docs.map(doc=>{
     const isSigned=doc.signable&&signed;
     const badge=isSigned?`<span class="doc-signed">&#9989; Signed ${signedDate}</span>`:'';
@@ -251,7 +261,7 @@ function docRows(d){
       <span class="doc-label">${doc.icon} ${doc.label}${signBadge} ${badge}</span>
       <span style="font-size:11px;color:#7a6e65;font-weight:600">Open &#8599;</span>
     </div>`;
-  }).join('');
+  }).join('')+driveRows;
 }
 
 function projCard(d,past){

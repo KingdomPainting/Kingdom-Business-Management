@@ -806,11 +806,70 @@ function ContactCombobox({contacts,value,freeText,onChange}){
   );
 }
 
+function DrivePickerBtn({onAttach}){
+  const [open,setOpen]=useState(false);
+  const [files,setFiles]=useState([]);
+  const [loading,setLoading]=useState(false);
+  const [query,setQuery]=useState('');
+
+  const load=async()=>{
+    setLoading(true);
+    try{
+      const {GoogleDrive}=await import('mcp://google-drive');
+      // Use the Claude Google Drive MCP via postMessage to the host
+      // Since we can't call MCP from React directly, use a workaround:
+      // Store file references manually entered by user or fetched via a Claude tool call
+    }catch(e){}
+    setLoading(false);
+  };
+
+  if(!open)return (
+    <button onClick={()=>setOpen(true)} style={{fontSize:11,fontWeight:600,padding:'3px 10px',borderRadius:6,border:'1px solid #4285f4',background:'#fff',color:'#4285f4',cursor:'pointer',display:'flex',alignItems:'center',gap:4}}>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M6.5 20L1 11l4-7h14l4 7-5.5 9H6.5z" stroke="#4285f4" strokeWidth="1.5"/><path d="M8.5 20L14 11H1" stroke="#4285f4" strokeWidth="1.5"/><path d="M23 11H14l-5.5 9" stroke="#4285f4" strokeWidth="1.5"/></svg>
+      Attach from Drive
+    </button>
+  );
+
+  return (
+    <div style={{position:'relative'}}>
+      <button onClick={()=>setOpen(false)} style={{fontSize:11,fontWeight:600,padding:'3px 10px',borderRadius:6,border:'1px solid #4285f4',background:'#e8f0fe',color:'#4285f4',cursor:'pointer'}}>✕ Close</button>
+      <div style={{position:'absolute',right:0,top:28,background:'var(--card)',border:'1px solid var(--border)',borderRadius:10,boxShadow:'0 4px 20px rgba(0,0,0,.15)',width:360,zIndex:200,padding:14}}>
+        <p style={{fontSize:12,fontWeight:600,color:'var(--fg)',marginBottom:10}}>Attach Google Drive file</p>
+        <p style={{fontSize:11,color:'var(--muted-fg)',marginBottom:10}}>Paste a Google Drive share link:</p>
+        <input
+          style={{width:'100%',padding:'7px 10px',border:'1px solid var(--border)',borderRadius:6,fontSize:12,color:'var(--fg)',background:'var(--card)',outline:'none',marginBottom:8}}
+          placeholder="https://drive.google.com/file/d/..."
+          value={query}
+          onChange={e=>setQuery(e.target.value)}
+        />
+        <input
+          id="drive-fname"
+          style={{width:'100%',padding:'7px 10px',border:'1px solid var(--border)',borderRadius:6,fontSize:12,color:'var(--fg)',background:'var(--card)',outline:'none',marginBottom:10}}
+          placeholder="File name (e.g. Project Photos)"
+        />
+        <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
+          <button onClick={()=>{setOpen(false);setQuery('');}} style={{fontSize:11,padding:'5px 12px',borderRadius:6,border:'1px solid var(--border)',background:'var(--card)',color:'var(--fg)',cursor:'pointer'}}>Cancel</button>
+          <button onClick={()=>{
+            const url=query.trim();
+            const name=document.getElementById('drive-fname')?.value?.trim()||'Drive File';
+            if(!url){return;}
+            // Extract file ID from Drive URL
+            const match=url.match(/\/d\/([^/]+)/)||url.match(/id=([^&]+)/);
+            const id=match?match[1]:url;
+            onAttach({id,name,url:url.includes('drive.google.com')?url:`https://drive.google.com/file/d/${id}/view`,type:'drive'});
+            setOpen(false);setQuery('');
+          }} style={{fontSize:11,padding:'5px 14px',borderRadius:6,border:'none',background:'#4285f4',color:'#fff',cursor:'pointer',fontWeight:600}}>Attach</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead'}){
   const blank={dealName:'',value:'',description:'',contactId:'',referralContactId:'',labels:[],leadSource:'',
     startDate:'',startTime:'09:00',endDate:'',endTime:'17:00',
     scheduleDays:[], // [{date, startTime, endTime, calEventId}]
-    address:'',notes:'',rooms:[],progress:0,contactFreeText:'',quote_html:'',contract_html:'',change_order_html:'',invoice_html:'',contract_signed_html:'',contract_signed_at:'',quote_date:''};
+    address:'',notes:'',rooms:[],progress:0,contactFreeText:'',quote_html:'',contract_html:'',change_order_html:'',invoice_html:'',contract_signed_html:'',contract_signed_at:'',quote_date:'',drive_files:[]};
   const [f,setF]=useState(blank);
   const [syncing,setSyncing]=useState(false);
 
@@ -824,6 +883,7 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead'}){
       scheduleDays:deal.scheduleDays||[],address:deal.address||'',notes:deal.notes||'',
       rooms:deal.rooms||[],progress:deal.progress||0,contactFreeText:deal.contactFreeText||'',
       quote_html:deal.quote_html||'',contract_html:deal.contract_html||'',change_order_html:deal.change_order_html||'',
+        drive_files:deal.drive_files||[],
       invoice_html:deal.invoice_html||'',contract_signed_html:deal.contract_signed_html||'',contract_signed_at:deal.contract_signed_at||'',
       quote_date:deal.quote_date||''
     });
@@ -934,6 +994,7 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead'}){
       invoice_html:f.invoice_html||null,
       contract_signed_html:f.contract_signed_html||null,
       contract_signed_at:f.contract_signed_at||null,
+      drive_files:f.drive_files&&f.drive_files.length?f.drive_files:null,
       projectCalEventId:projectCalEventId||undefined,
     },deal?.id);
     setSyncing(false);
@@ -1042,57 +1103,77 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead'}){
           </div>
         </div>
       )}
-      {/* Documents pushed from Estimates */}
-      {(f.quote_html||f.contract_html||f.change_order_html||f.invoice_html)&&(
-        <div style={{marginBottom:12,padding:10,background:'var(--muted)',borderRadius:8,border:'1px solid var(--border)'}}>
-          <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.07em',color:'var(--fg)',marginBottom:8}}>📄 Documents</p>
-          <div style={{display:'flex',flexDirection:'column',gap:6}}>
-            {[
-              {key:'quote_html',label:'Quote',icon:'📄'},
-              {key:'contract_html',label:'Contract',icon:'📋'},
-              {key:'change_order_html',label:'Change Order',icon:'📝'},
-              {key:'invoice_html',label:'Invoice',icon:'🧾'},
-            ].filter(d=>f[d.key]).map(d=>{
-              const isSigned=d.key==='contract_html'&&!!f.contract_signed_html;
-              return (
-              <div key={d.key} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'4px 8px',background:isSigned?'rgba(34,197,94,0.08)':'rgba(212,169,106,0.12)',borderRadius:6,border:isSigned?'1px solid rgba(34,197,94,0.25)':'1px solid transparent'}}>
-                <span style={{fontSize:12,fontWeight:600,color:isSigned?'#16a34a':'var(--primary)',display:'flex',alignItems:'center',gap:5}}>
-                  {d.icon} {d.label}
-                  {isSigned&&<span title={f.contract_signed_at?`Signed ${new Date(f.contract_signed_at).toLocaleDateString()}`:'Signed'} style={{fontSize:13}}>✅</span>}
-                </span>
-                <div style={{display:'flex',gap:6,alignItems:'center'}}>
-                  {isSigned&&(
-                    <button onClick={()=>{const w=window.open('','_blank');if(w){w.document.write(f.contract_signed_html);w.document.close();setTimeout(()=>w.print(),500);}}} style={{fontSize:11,padding:'2px 8px',borderRadius:5,border:'1px solid #16a34a',background:'transparent',color:'#16a34a',cursor:'pointer',fontWeight:600}}>⬇ Download</button>
-                  )}
-                  <button onClick={async()=>{
-                    if(!window.confirm(`Delete ${d.label}?`))return;
-                    setF(x=>({...x,[d.key]:null}));
-                    await api.saveDeal({[d.key]:null},f.id);
-                    DB.deals=DB.deals.map(x=>x.id===f.id?{...x,[d.key]:null}:x);
-                  }} style={{fontSize:11,padding:'2px 8px',borderRadius:5,border:'1px solid var(--border)',background:'var(--card)',color:'var(--muted-fg)',cursor:'pointer',fontWeight:500}}>
-                    🗑 Delete
-                  </button>
-                </div>
-              </div>
-              );
-            })}
-            {f.contract_signed_html&&(
-              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'4px 8px',background:'rgba(34,197,94,0.08)',borderRadius:6}}>
-                <span style={{fontSize:12,fontWeight:600,color:'#16a34a'}}>✅ Signed Contract</span>
-                <div style={{display:'flex',gap:6}}>
-                  <button onClick={()=>{const w=window.open('','_blank');if(w){w.document.write(f.contract_signed_html);w.document.close();setTimeout(()=>w.print(),500);}}} style={{fontSize:11,padding:'2px 8px',borderRadius:5,border:'1px solid #16a34a',background:'transparent',color:'#16a34a',cursor:'pointer',fontWeight:600}}>⬇ Download</button>
-                  <button onClick={async()=>{
-                    if(!window.confirm('Delete signed contract?'))return;
-                    setF(x=>({...x,contract_signed_html:'',contract_signed_at:''}));
-                    await api.saveDeal({contract_signed_html:null,contract_signed_at:null},f.id);
-                    DB.deals=DB.deals.map(x=>x.id===f.id?{...x,contract_signed_html:null,contract_signed_at:null}:x);
-                  }} style={{fontSize:11,padding:'2px 8px',borderRadius:5,border:'1px solid var(--border)',background:'var(--card)',color:'var(--muted-fg)',cursor:'pointer',fontWeight:500}}>🗑 Delete</button>
-                </div>
-              </div>
-            )}
-          </div>
+      {/* Documents section */}
+      <div style={{marginBottom:12,padding:10,background:'var(--muted)',borderRadius:8,border:'1px solid var(--border)'}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
+          <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.07em',color:'var(--fg)'}}>📄 Documents</p>
+          <DrivePickerBtn dealId={f.id} onAttach={file=>{
+            const files=[...(f.drive_files||[]),file];
+            setF(x=>({...x,drive_files:files}));
+            api.saveDeal({drive_files:files},f.id);
+            DB.deals=DB.deals.map(x=>x.id===f.id?{...x,drive_files:files}:x);
+          }}/>
         </div>
-      )}
+        <div style={{display:'flex',flexDirection:'column',gap:6}}>
+          {[
+            {key:'quote_html',label:'Quote',icon:'📄'},
+            {key:'contract_html',label:'Contract',icon:'📋'},
+            {key:'change_order_html',label:'Change Order',icon:'📝'},
+            {key:'invoice_html',label:'Invoice',icon:'🧾'},
+          ].filter(d=>f[d.key]).map(d=>{
+            const isSigned=d.key==='contract_html'&&!!f.contract_signed_html;
+            return (
+            <div key={d.key} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'4px 8px',background:isSigned?'rgba(34,197,94,0.08)':'rgba(212,169,106,0.12)',borderRadius:6,border:isSigned?'1px solid rgba(34,197,94,0.25)':'1px solid transparent'}}>
+              <span style={{fontSize:12,fontWeight:600,color:isSigned?'#16a34a':'var(--primary)',display:'flex',alignItems:'center',gap:5}}>
+                {d.icon} {d.label}
+                {isSigned&&<span title={f.contract_signed_at?`Signed ${new Date(f.contract_signed_at).toLocaleDateString()}`:'Signed'} style={{fontSize:13}}>✅</span>}
+              </span>
+              <div style={{display:'flex',gap:6,alignItems:'center'}}>
+                {isSigned&&(
+                  <button onClick={()=>{const w=window.open('','_blank');if(w){w.document.write(f.contract_signed_html);w.document.close();setTimeout(()=>w.print(),500);}}} style={{fontSize:11,padding:'2px 8px',borderRadius:5,border:'1px solid #16a34a',background:'transparent',color:'#16a34a',cursor:'pointer',fontWeight:600}}>⬇ Download</button>
+                )}
+                <button onClick={async()=>{
+                  if(!window.confirm(`Delete ${d.label}?`))return;
+                  setF(x=>({...x,[d.key]:null}));
+                  await api.saveDeal({[d.key]:null},f.id);
+                  DB.deals=DB.deals.map(x=>x.id===f.id?{...x,[d.key]:null}:x);
+                }} style={{fontSize:11,padding:'2px 8px',borderRadius:5,border:'1px solid var(--border)',background:'var(--card)',color:'var(--muted-fg)',cursor:'pointer',fontWeight:500}}>🗑 Delete</button>
+              </div>
+            </div>
+            );
+          })}
+          {f.contract_signed_html&&(
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'4px 8px',background:'rgba(34,197,94,0.08)',borderRadius:6}}>
+              <span style={{fontSize:12,fontWeight:600,color:'#16a34a'}}>✅ Signed Contract</span>
+              <div style={{display:'flex',gap:6}}>
+                <button onClick={()=>{const w=window.open('','_blank');if(w){w.document.write(f.contract_signed_html);w.document.close();setTimeout(()=>w.print(),500);}}} style={{fontSize:11,padding:'2px 8px',borderRadius:5,border:'1px solid #16a34a',background:'transparent',color:'#16a34a',cursor:'pointer',fontWeight:600}}>⬇ Download</button>
+                <button onClick={async()=>{
+                  if(!window.confirm('Delete signed contract?'))return;
+                  setF(x=>({...x,contract_signed_html:'',contract_signed_at:''}));
+                  await api.saveDeal({contract_signed_html:null,contract_signed_at:null},f.id);
+                  DB.deals=DB.deals.map(x=>x.id===f.id?{...x,contract_signed_html:null,contract_signed_at:null}:x);
+                }} style={{fontSize:11,padding:'2px 8px',borderRadius:5,border:'1px solid var(--border)',background:'var(--card)',color:'var(--muted-fg)',cursor:'pointer',fontWeight:500}}>🗑 Delete</button>
+              </div>
+            </div>
+          )}
+          {/* Google Drive attachments */}
+          {(f.drive_files||[]).map((file,i)=>(
+            <div key={file.id||i} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'4px 8px',background:'rgba(66,133,244,0.08)',borderRadius:6,border:'1px solid rgba(66,133,244,0.2)'}}>
+              <a href={file.url} target="_blank" rel="noopener noreferrer" style={{fontSize:12,fontWeight:600,color:'#1a73e8',display:'flex',alignItems:'center',gap:5,textDecoration:'none'}}>
+                <img src="https://ssl.gstatic.com/docs/doctype/images/icon_12_generic_list.png" style={{width:14,height:14}} alt=""/>
+                {file.name}
+              </a>
+              <button onClick={async()=>{
+                if(!window.confirm(`Remove "${file.name}"?`))return;
+                const files=(f.drive_files||[]).filter((_,j)=>j!==i);
+                setF(x=>({...x,drive_files:files}));
+                await api.saveDeal({drive_files:files.length?files:null},f.id);
+                DB.deals=DB.deals.map(x=>x.id===f.id?{...x,drive_files:files}:x);
+              }} style={{fontSize:11,padding:'2px 8px',borderRadius:5,border:'1px solid var(--border)',background:'var(--card)',color:'var(--muted-fg)',cursor:'pointer',fontWeight:500}}>🗑</button>
+            </div>
+          ))}
+        </div>
+      </div>
       <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
         <button onClick={onClose} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 14px',border:'1px solid var(--border)',borderRadius:6,background:'var(--card)',color:'var(--fg)',fontSize:12,fontWeight:500,cursor:'pointer'}}>Cancel</button>
         <button onClick={save} disabled={!f.dealName||syncing} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 14px',border:'1px solid var(--primary)',borderRadius:6,background:'var(--primary)',color:'#fff',fontSize:12,fontWeight:600,cursor:(!f.dealName||syncing)?'not-allowed':'pointer',opacity:(!f.dealName||syncing)?0.6:1}}>{syncing?'Syncing…':'Save Project'}</button>

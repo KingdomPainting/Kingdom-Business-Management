@@ -1913,6 +1913,65 @@ function Pipeline({showToast}){
 }
 
 
+function PortalInviteBtn({email,showToast}){
+  const [status,setStatus]=useState(null); // null | 'exists' | 'none' | 'loading' | 'sent'
+  useEffect(()=>{
+    let cancelled=false;
+    supaFetch(`/rest/v1/rpc/check_portal_user`,'POST',{user_email:email}).then(exists=>{
+      if(!cancelled)setStatus(exists?'exists':'none');
+    }).catch(()=>{if(!cancelled)setStatus('none');});
+    return ()=>{cancelled=true;};
+  },[email]);
+
+  if(status===null)return null;
+
+  if(status==='exists')return (
+    <span style={{fontSize:10,fontWeight:700,background:'#d1fae5',color:'#065f46',padding:'2px 8px',borderRadius:20,display:'inline-flex',alignItems:'center',gap:4}}>
+      ✓ Portal access
+    </span>
+  );
+
+  const sendInvite=async(e)=>{
+    e.stopPropagation();
+    setStatus('loading');
+    // Send password reset email — client clicks link to set password and gains access
+    const {error}=await createSupabaseClient().auth.resetPasswordForEmail(email,{
+      redirectTo:window.location.origin+'/portal'
+    });
+    if(error){setStatus('none');showToast('Could not send invite: '+error.message);}
+    else{setStatus('sent');showToast('Portal invite sent to '+email);}
+  };
+
+  if(status==='sent')return (
+    <span style={{fontSize:10,fontWeight:700,background:'#fef9c3',color:'#a16207',padding:'2px 8px',borderRadius:20}}>
+      Invite sent
+    </span>
+  );
+
+  return (
+    <button onClick={sendInvite} disabled={status==='loading'} style={{fontSize:10,fontWeight:700,background:'var(--primary)',color:'#fff',border:'none',padding:'2px 10px',borderRadius:20,cursor:'pointer',opacity:status==='loading'?0.6:1}}>
+      {status==='loading'?'Sending…':'Invite to Portal'}
+    </button>
+  );
+}
+
+function createSupabaseClient(){
+  // Minimal Supabase client for auth operations using the anon key
+  const url=SUPA_URL;
+  const key=SUPA_KEY;
+  return {auth:{resetPasswordForEmail:async(email,opts)=>{
+    try{
+      const res=await fetch(url+'/auth/v1/recover',{
+        method:'POST',
+        headers:{'apikey':key,'Content-Type':'application/json'},
+        body:JSON.stringify({email,gotrue_meta_security:{},options:{emailRedirectTo:opts?.redirectTo}})
+      });
+      if(!res.ok){const t=await res.text();return {error:{message:t.slice(0,80)}};}
+      return {error:null};
+    }catch(e){return {error:{message:e.message}};}
+  }}};
+}
+
 function Clients({showToast}){
   const [clients,setClients]=useState(()=>api.getClients());
   const [search,setSearch]=useState('');
@@ -2072,10 +2131,11 @@ function Contacts({showToast}){
                     </button>
                   </div>
                   {/* Contact details */}
-                  <div style={{display:'flex',gap:12,flexWrap:'wrap'}}>
+                  <div style={{display:'flex',gap:12,flexWrap:'wrap',alignItems:'center'}}>
                     {contact.email&&<span style={{fontSize:11,color:'var(--muted-fg)',display:'flex',gap:3,alignItems:'center'}}><Mail size={10}/>{contact.email}</span>}
                     {contact.phone&&<span style={{fontSize:11,color:'var(--muted-fg)',display:'flex',gap:3,alignItems:'center'}}><Phone size={10}/>{contact.phone}</span>}
                     {contact.address&&<span style={{fontSize:11,color:'var(--muted-fg)',display:'flex',gap:3,alignItems:'center'}}><MapPin size={10}/>{contact.address}</span>}
+                    {contact.email&&<PortalInviteBtn email={contact.email} showToast={showToast}/>}
                   </div>
                 </div>
               </div>

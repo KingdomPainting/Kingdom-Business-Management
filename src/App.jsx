@@ -814,12 +814,7 @@ function DrivePickerBtn({onAttach}){
 
   const load=async()=>{
     setLoading(true);
-    try{
-      const {GoogleDrive}=await import('mcp://google-drive');
-      // Use the Claude Google Drive MCP via postMessage to the host
-      // Since we can't call MCP from React directly, use a workaround:
-      // Store file references manually entered by user or fetched via a Claude tool call
-    }catch(e){}
+    // Drive files are attached via paste URL — no MCP import needed at build time
     setLoading(false);
   };
 

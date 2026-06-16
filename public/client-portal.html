@@ -15,13 +15,14 @@ body{font-family:'Montserrat',sans-serif;background:#262E4B;display:flex;align-i
 .card h2{font-size:20px;font-weight:700;color:#1a1714;margin-bottom:6px}
 .card .sub{font-size:12px;color:#7a6e65;margin-bottom:22px}
 .card label{display:block;font-size:12px;font-weight:600;color:#4a3f36;margin-bottom:5px}
-.card input[type=email]{width:100%;padding:10px 13px;border:1.5px solid #c8bfb4;border-radius:8px;font-size:13px;font-family:inherit;color:#1a1714;background:#fff;outline:none;margin-bottom:14px;transition:border-color .15s}
-.card input[type=email]:focus{border-color:#C4922A}
+.card input[type=email],.card input[type=password]{width:100%;padding:10px 13px;border:1.5px solid #c8bfb4;border-radius:8px;font-size:13px;font-family:inherit;color:#1a1714;background:#fff;outline:none;margin-bottom:14px;transition:border-color .15s}
+.card input[type=email]:focus,.card input[type=password]:focus{border-color:#C4922A}
 .btn-gold{width:100%;background:#C4922A;color:#fff;border:none;border-radius:8px;padding:12px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:4px}
 .btn-gold:disabled{opacity:.5;cursor:not-allowed}
 .back-btn{background:none;border:none;color:#7a6e65;font-family:inherit;font-size:11px;cursor:pointer;margin-top:12px;width:100%}
 .login-msg{margin-top:12px;padding:10px 14px;border-radius:8px;font-size:12px;display:none}
 .login-msg.error{background:rgba(239,68,68,.1);color:#dc2626;border:1px solid rgba(239,68,68,.3);display:block}
+.login-msg.ok{background:rgba(34,197,94,.1);color:#15803d;border:1px solid rgba(34,197,94,.3);display:block}
 #portal{display:none;width:100%;min-height:100vh;flex-direction:column}
 body.authed{background:#f0ede6;align-items:flex-start;padding:0;justify-content:flex-start}
 body.authed #portal{display:flex}
@@ -112,19 +113,29 @@ body.authed #portal{display:flex}
   </svg>
   </div>
   <div class="card">
-    <h2>Sign in</h2>
-    <p class="sub">Client Portal</p>
-    <div id="step1">
+    <h2>Client Portal</h2>
+    <p class="sub">Sign in to view your projects</p>
+    <div id="signin-form">
       <label for="p-email">Email address</label>
       <input type="email" id="p-email" placeholder="you@example.com" autocomplete="email"/>
-      <button class="btn-gold" id="sendBtn">Send Confirmation Email</button>
-    </div>
-    <div id="step2" style="display:none">
-      <p id="hint" style="font-size:13px;color:#4a3f36;line-height:1.7;margin-bottom:14px"></p>
-      <div style="background:#f0f9f4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 14px;font-size:12px;color:#166534;margin-bottom:16px">
-        Check your inbox and click the <strong>Sign in</strong> link in the email.
+      <label for="p-password" style="margin-top:4px">Password</label>
+      <input type="password" id="p-password" placeholder="••••••••" autocomplete="current-password"/>
+      <button class="btn-gold" id="signinBtn" style="margin-top:4px">Sign In</button>
+      <div style="text-align:center;margin-top:10px;font-size:12px;color:#7a6e65">
+        New client? <button id="showSignupBtn" style="background:none;border:none;color:#C4922A;font-weight:700;cursor:pointer;font-size:12px;padding:0;font-family:inherit">Create account</button>
       </div>
-      <button class="back-btn" id="backBtn">← Use a different email</button>
+    </div>
+    <div id="signup-form" style="display:none">
+      <label for="s-email">Email address</label>
+      <input type="email" id="s-email" placeholder="you@example.com" autocomplete="email"/>
+      <label for="s-password" style="margin-top:4px">Password</label>
+      <input type="password" id="s-password" placeholder="Min. 6 characters" autocomplete="new-password"/>
+      <label for="s-password2" style="margin-top:4px">Confirm password</label>
+      <input type="password" id="s-password2" placeholder="Repeat password" autocomplete="new-password"/>
+      <button class="btn-gold" id="signupBtn" style="margin-top:4px">Create Account</button>
+      <div style="text-align:center;margin-top:10px;font-size:12px;color:#7a6e65">
+        Already have an account? <button id="showSigninBtn" style="background:none;border:none;color:#C4922A;font-weight:700;cursor:pointer;font-size:12px;padding:0;font-family:inherit">Sign in</button>
+      </div>
     </div>
     <div class="login-msg" id="login-msg"></div>
   </div>
@@ -389,20 +400,52 @@ window.addEventListener('message',e=>{
   if(e.data&&e.data.type==='KP_CONTRACT_SIGNED'){toast('Contract signed by client!');}
 });
 
-document.getElementById('sendBtn').addEventListener('click',async()=>{
+// ── Sign In ──
+document.getElementById('signinBtn').addEventListener('click',async()=>{
   const email=document.getElementById('p-email').value.trim().toLowerCase();
-  if(!email||!email.includes('@')){loginMsg('Please enter a valid email address.','error');return;}
-  document.getElementById('sendBtn').disabled=true;document.getElementById('sendBtn').textContent='Sending...';
-  const {error}=await sb.auth.signInWithOtp({email,options:{shouldCreateUser:true,emailRedirectTo:window.location.origin+'/portal'}});
-  document.getElementById('sendBtn').disabled=false;document.getElementById('sendBtn').textContent='Send Confirmation Email';
-  if(error){loginMsg(error.message,'error');return;}
-  document.getElementById('step1').style.display='none';
-  document.getElementById('step2').style.display='block';
-  document.getElementById('hint').textContent='We sent a sign-in link to '+email+'. Click it to view your projects.';
+  const password=document.getElementById('p-password').value;
+  if(!email||!email.includes('@')){loginMsg('Please enter your email address.','error');return;}
+  if(!password){loginMsg('Please enter your password.','error');return;}
+  const btn=document.getElementById('signinBtn');
+  btn.disabled=true;btn.textContent='Signing in...';
+  const {error}=await sb.auth.signInWithPassword({email,password});
+  btn.disabled=false;btn.textContent='Sign In';
+  if(error){loginMsg(error.message||'Invalid email or password.','error');return;}
 });
-document.getElementById('backBtn').addEventListener('click',()=>{document.getElementById('step2').style.display='none';document.getElementById('step1').style.display='block';document.getElementById('login-msg').className='login-msg';});
+document.getElementById('p-password').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('signinBtn').click();});
+document.getElementById('p-email').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('p-password').focus();});
+
+// ── Sign Up ──
+document.getElementById('signupBtn').addEventListener('click',async()=>{
+  const email=document.getElementById('s-email').value.trim().toLowerCase();
+  const pw=document.getElementById('s-password').value;
+  const pw2=document.getElementById('s-password2').value;
+  if(!email||!email.includes('@')){loginMsg('Please enter a valid email address.','error');return;}
+  if(!pw||pw.length<6){loginMsg('Password must be at least 6 characters.','error');return;}
+  if(pw!==pw2){loginMsg('Passwords do not match.','error');return;}
+  const btn=document.getElementById('signupBtn');
+  btn.disabled=true;btn.textContent='Creating account...';
+  const {error}=await sb.auth.signUp({email,password:pw});
+  btn.disabled=false;btn.textContent='Create Account';
+  if(error){loginMsg(error.message||'Could not create account.','error');return;}
+  loginMsg('Account created! Signing you in...','ok');
+  const {error:e2}=await sb.auth.signInWithPassword({email,password:pw});
+  if(e2){loginMsg('Account created — please sign in below.','ok');}
+});
+document.getElementById('s-password2').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('signupBtn').click();});
+
+// ── Toggle forms ──
+document.getElementById('showSignupBtn').addEventListener('click',()=>{
+  document.getElementById('signin-form').style.display='none';
+  document.getElementById('signup-form').style.display='block';
+  document.getElementById('login-msg').className='login-msg';
+});
+document.getElementById('showSigninBtn').addEventListener('click',()=>{
+  document.getElementById('signup-form').style.display='none';
+  document.getElementById('signin-form').style.display='block';
+  document.getElementById('login-msg').className='login-msg';
+});
 document.getElementById('signoutBtn').addEventListener('click',()=>sb.auth.signOut());
-document.getElementById('p-email').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('sendBtn').click();});
 </script>
 </body>
 </html>

@@ -38,7 +38,12 @@ body.authed #portal{display:flex}
 .proj-name{font-size:16px;font-weight:700;color:#1a1714;margin-bottom:4px}
 .proj-addr{font-size:12px;color:#7a6e65;margin-bottom:10px}
 .proj-val{font-size:14px;color:#C4922A;font-weight:700}
-.proj-progress{margin-top:12px}
+.proj-rooms{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;margin-bottom:8px}
+.proj-room{display:flex;align-items:center;gap:5px;padding:3px 10px 3px 6px;border-radius:20px;background:#f4f5f7;border:1px solid #e2e5eb;font-size:11px;font-weight:600;color:#374151}
+.proj-room.done{background:#f0fdf4;border-color:#bbf7d0}
+.room-check{display:flex;align-items:center;flex-shrink:0}
+.room-name.done{color:#15803d;text-decoration:line-through;opacity:.7}
+.proj-progress{margin-top:4px}
 .prog-label{font-size:11px;color:#7a6e65;margin-bottom:4px}
 .prog-bar{height:6px;background:#e5e1d8;border-radius:9px;overflow:hidden}
 .prog-fill{height:100%;background:#C4922A;border-radius:9px}
@@ -273,7 +278,21 @@ function projCard(d,past){
       <div class="proj-name">${d.dealName||'Project'}</div>
       ${d.address?`<div class="proj-addr">&#128205; ${d.address}</div>`:''}
       ${d.value?`<div class="proj-val">$${parseFloat(d.value).toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>`:''}
-      ${!past?`<div class="proj-progress"><div class="prog-label">Progress &mdash; ${pct}%</div><div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div></div>`:''}
+      ${(()=>{
+        if(past)return '';
+        const rooms=(d.rooms||[]).filter(r=>r&&r.name);
+        const roomsHtml=rooms.length?`
+          <div class="proj-rooms">
+            ${rooms.map(r=>{
+              const done=!!(r.done||r.completed);
+              return `<div class="proj-room ${done?'done':''}">
+                <span class="room-check">${done?'<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="6" fill="#22c55e"/><path d="M3.5 6l1.8 1.8L8.5 4.5" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>':'<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="6" stroke="#c8bfb4" stroke-width="1.5"/></svg>'}</span>
+                <span class="room-name ${done?'done':''}">${r.name||'Unnamed Room'}</span>
+              </div>`;
+            }).join('')}
+          </div>`:'';})(
+        )}
+        <div class="proj-progress"><div class="prog-label">Progress &mdash; ${pct}%</div><div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div></div>
     </div>
     <div class="proj-docs">${hasDocs?docRows(d):'<p class="no-docs">No documents yet.</p>'}</div>
   </div>`;

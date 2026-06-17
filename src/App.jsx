@@ -8,8 +8,9 @@ import {
   LayoutDashboard, Kanban, UserRound, Activity, FileText,
   Plus, Search, Pencil, Trash2, Globe, Building2, Phone, Mail,
   MapPin, Star, CalendarDays, StickyNote, CheckSquare, DollarSign,
-  TrendingUp, Percent, Layers, ArrowRight,
+  TrendingUp, Percent, Layers, ArrowRight, ArrowLeft,
   ChevronRight, ChevronDown, Archive as ArchiveIcon, Receipt, BarChart2,
+  Save, Loader2, GripVertical,
 } from "lucide-react";
 
 // ─── Theme / CSS variables ───────────────────────────────────────────────────
@@ -2390,6 +2391,265 @@ function Tasks({showToast}){
 
 
 
+// ─── ESTIMATE DEFAULTS & CONSTANTS ───────────────────────────────────────────
+const SHEENS = ['Flat','Matte','Eggshell','Satin','Pearl','Semi-Gloss','TBD'];
+
+const DEFAULT_PAINTS = [
+  {n:'Benjamin Moore - Ultra Spec',g:50,p:225},
+  {n:'Benjamin Moore - Ben',g:70,p:0},
+  {n:'Benjamin Moore - Aura',g:115,p:535},
+  {n:'Benjamin Moore - Aura Bath & Spa',g:110,p:0},
+  {n:'Benjamin Moore - Advance',g:75,p:0},
+  {n:'Sherwin Williams - Promar 200',g:50,p:225},
+  {n:'Sherwin Williams - Duration Home',g:70,p:350},
+  {n:'Sherwin Williams - Emerald',g:80,p:400},
+  {n:'Sherwin Williams - Promar 400',g:35,p:140},
+  {n:'Sherwin Williams - Pro Industrial Epoxy',g:75,p:0},
+];
+const DEFAULT_CEILING_PAINTS = [
+  {n:'Benjamin Moore - Waterborne Ceiling',g:75,p:0},
+  {n:'Benjamin Moore - Ultra Spec Ceiling',g:50,p:0},
+  {n:'Sherwin Williams - ProMar Ceiling',g:45,p:0},
+];
+const DEFAULT_PRIMERS = [
+  {n:'Benjamin Moore - Drywall Primer',g:35,p:0},
+  {n:'Benjamin Moore - Stix Primer',g:85,p:0},
+  {n:'Kilz - Original Oil Primer',g:70,p:0},
+  {n:'Kilz - PVA Primer',g:25,p:0},
+  {n:'Kilz - 1 Primer',g:35,p:0},
+  {n:'Kilz - 2 Primer',g:55,p:0},
+];
+const DEFAULT_COLOURS = [
+  {n:'OC-65 Chantilly Lace',h:'#f5f5f2'},{n:'OC-117 Simply White',h:'#f7f4e8'},{n:'OC-17 White Dove',h:'#f3efe3'},
+  {n:'OC-20 Pale Oak',h:'#e8ddd1'},{n:'OC-15 Baby Fawn',h:'#ede3d4'},{n:'OC-52 Gray Owl',h:'#d5d6cb'},
+  {n:'OC-45 Swiss Coffee',h:'#ede8dc'},{n:'OC-22 Calm',h:'#d9d5c8'},{n:'OC-150 Brilliant White',h:'#f2f2ef'},
+  {n:'OC-57 White Heron',h:'#f0ece0'},{n:'AF-50 Etiquette',h:'#e8e0d3'},
+  {n:'HC-172 Revere Pewter',h:'#cbc6b8'},{n:'HC-173 Edgecomb Gray',h:'#cfc9bb'},
+  {n:'HC-170 Stonington Gray',h:'#b5bab6'},{n:'HC-169 Coventry Gray',h:'#9da0a0'},
+  {n:'HC-166 Kendall Charcoal',h:'#74756c'},{n:'HC-165 Boothbay Gray',h:'#afb8b5'},
+  {n:'HC-105 Rockport Gray',h:'#979490'},{n:'AF-100 Pashmina',h:'#d4c9ba'},
+  {n:'1560 Antique Pewter',h:'#b4b5a6'},
+  {n:'HC-154 Hale Navy',h:'#434c59'},{n:'HC-156 Van Deusen Blue',h:'#4a5f75'},
+  {n:'HC-144 Palladian Blue',h:'#a8bebe'},{n:'2136-40 Aegean Teal',h:'#617f80'},
+  {n:'2123-50 Ocean Air',h:'#92afc0'},{n:"2062-20 Gentleman's Gray",h:'#3d4a57'},
+  {n:'1634 Santorini Blue',h:'#6e8fa5'},
+  {n:'HC-114 Saybrook Sage',h:'#9ea98c'},{n:'HC-188 Essex Green',h:'#3d4e40'},
+  {n:'HC-158 Newburg Green',h:'#4a6057'},{n:'2144-40 Soft Fern',h:'#b1be9a'},
+  {n:'1495 October Mist',h:'#b9c1a9'},{n:'462 Vintage Vogue',h:'#8fa08a'},
+  {n:'2041-10 Hunter Green',h:'#2e4335'},
+  {n:'HC-81 Manchester Tan',h:'#c9b89a'},{n:'HC-76 Davenport Tan',h:'#c2a882'},
+  {n:'HC-72 Branchport Brown',h:'#8e6e52'},{n:'HC-9 Chestertown Buff',h:'#d4bc8a'},
+  {n:'1001 North Creek Brown',h:'#7a5c42'},{n:'2100-20 Leather Saddle Brown',h:'#7a5038'},
+  {n:'2130-10 Black Bean Soup',h:'#3a2820'},{n:'AF-180 Wenge',h:'#4a3830'},
+  {n:'AF-290 Caliente',h:'#c13030'},{n:'HC-181 Heritage Red',h:'#8c2020'},
+  {n:'2000-10 Red',h:'#b82020'},{n:'2090-40 Wild Flower',h:'#b04860'},
+  {n:'2092-30 Boston Brick',h:'#9a4030'},{n:'AF-300 Dinner Party',h:'#7a2020'},
+  {n:'105 Terra Mauve',h:'#c27860'},
+  {n:'2175-70 Peach Parfait',h:'#f0c8a8'},{n:'AF-185 Venetian Portico',h:'#c87848'},
+  {n:'AF-215 Italianate',h:'#c86830'},{n:'070 Topaz',h:'#c88030'},
+  {n:'2015-10 Electric Orange',h:'#e05010'},
+  {n:'AF-250 Head Over Heels',h:'#e8b8b0'},{n:'1191 Love and Happiness',h:'#e0a0a0'},
+  {n:'052 Conch Shell',h:'#e8c0b0'},{n:"1296 Sailor's Delight",h:'#d49090'},
+  {n:'2174-60 Dream Whip',h:'#f0d0c8'},{n:'2102-70 First Light',h:'#f0d8d8'},
+  {n:'1444 New Age',h:'#a090b0'},{n:'2117-60 Winter Gray',h:'#c0b8c8'},
+  {n:'2070-60 Lavender Mist',h:'#c8b8d8'},{n:'2071-60 Lily Lavender',h:'#c8b0d8'},
+  {n:'2116-40 Hazy Lilac',h:'#9888a8'},{n:'2117-30 Shadow',h:'#807090'},
+  {n:'CSP-305 Crisp Linen',h:'#ece0c0'},{n:'HC-6 Windham Cream',h:'#ead8a0'},
+  {n:'2152-50 Golden Straw',h:'#e0c878'},{n:'HC-12 Concord Ivory',h:'#deca90'},
+  {n:'HC-11 Marblehead Gold',h:'#d4b860'},
+  {n:'HC-190 Black',h:'#1c1c1c'},{n:'2131-10 Black Satin',h:'#2a2820'},
+  {n:'2131-20 Midnight',h:'#302e28'},{n:'2120-30 Witching Hour',h:'#2c2a30'},
+  {n:'1610 French Beret',h:'#302828'},{n:'2124-10 Wrought Iron',h:'#282c2c'},
+];
+const DEFAULT_SUPPLIES = [
+  {n:'9" Roller',p:6},{n:'18" Roller',p:22},{n:'Mini Roller',p:3},
+  {n:'FrogTape 4 Pack',p:38.8},{n:'Floor Shield 36x50',p:32.3},
+  {n:'CGC Sheetrock 45 11kg',p:46},{n:'Norton Sanding Sponge',p:5.6},
+];
+const DEFAULT_OVERHEAD_ITEMS = [
+  {n:'Salary',v:50000},{n:'Gas',v:4000},{n:'Sprayer',v:1800},{n:'Ads',v:1000},
+  {n:'Company Meals',v:750},{n:'Company Insurance',v:650},{n:'Accountant',v:500},
+  {n:'Mechanical',v:500},{n:'Tools',v:500},{n:'Google Workplace',v:120},{n:'Website',v:50},
+];
+const DEFAULT_WORKERS = [{n:'David',r:40,active:true},{n:'René',r:30,active:true},{n:'Nicky',r:18,active:false}];
+const DEFAULT_STANDARDS = {
+  walls:{1:200,2:120,3:75},
+  flatCeiling:{1:150,2:90,3:55},
+  stuccoCeiling:{1:80,2:50,3:35},
+  removeStucco:{rate:0.75},
+  baseboards:{1:100,2:60,3:40},
+  crown:{1:90,2:55,3:35},
+  doorFrames:{1:170,2:102,3:65},
+  windows:{1:100,2:60,3:40},
+  doors:{1:84,2:42,3:21},
+};
+const DEFAULT_SETTINGS = { hourlyRate:65, labourBuffer:1.25, taxRate:13, discount:0 };
+
+// ─── ESTIMATE HELPER FUNCTIONS ───────────────────────────────────────────────
+function newRoom(id, number){
+  return {
+    id, name:`Room ${number}`, length:0, width:0, height:9, irregular:false, irregularSqft:0, prepHrs:0,
+    walls:{enabled:true,coats:2}, ceiling:{enabled:false,coats:2},
+    baseboards:{enabled:false,coats:2}, crown:{enabled:false,coats:2},
+    doors:{count:0,coats:2}, windows:{count:0,coats:2},
+    prep:{furniture:false,plastic:false,outlets:false,drywall:false,caulking:false,cleanup:false},
+    paint:{wallProduct:'',wallColour:'',wallSheen:'',ceilProduct:'',ceilColour:'',ceilSheen:'',trimProduct:'',trimColour:'',trimSheen:''},
+  };
+}
+
+function calcRoom(room, settings){
+  const std = settings._standards || DEFAULT_STANDARDS;
+  const wallSqft = room.irregular ? (room.irregularSqft||0) : Math.max(0, 2*(room.length+room.width)*(room.height||9));
+  const ceilSqft = (room.length||0)*(room.width||0);
+  const perimLF = 2*((room.length||0)+(room.width||0));
+  let hrs = 0;
+  if(room.walls.enabled && wallSqft) hrs += wallSqft / (std.walls?.[room.walls.coats] || 120);
+  if(room.ceiling.enabled && ceilSqft) hrs += ceilSqft / (std.flatCeiling?.[room.ceiling.coats] || 90);
+  if(room.baseboards.enabled && perimLF) hrs += perimLF / (std.baseboards?.[room.baseboards.coats] || 60);
+  if(room.crown.enabled && perimLF) hrs += perimLF / (std.crown?.[room.crown.coats] || 55);
+  if(room.doors.count > 0) hrs += (room.doors.count * 21) / (std.doors?.[room.doors.coats] || 42);
+  if(room.windows.count > 0) hrs += (room.windows.count * 10) / (std.windows?.[room.windows.coats] || 60);
+  hrs += (room.prepHrs || 0);
+  const cost = hrs * (settings.hourlyRate || 65) * (settings.labourBuffer || 1.25);
+  return { wallSqft, ceilSqft, perimLF, totalHrs:hrs, cost };
+}
+
+function calcTotals(rooms, settings){
+  const labourSubtotal = rooms.reduce((s,r) => s + calcRoom(r,settings).cost, 0);
+  const discounted = Math.max(0, labourSubtotal - (settings.discount||0));
+  const taxAmt = discounted * ((settings.taxRate||13)/100);
+  const total = discounted + taxAmt;
+  const deposit = total * 0.10;
+  const midway = total * 0.45;
+  const balance = total - deposit - midway;
+  return { labourSubtotal, discounted, taxAmt, total, deposit, midway, balance };
+}
+
+function calcRoomLines(room, settings){
+  const std = settings._standards || DEFAULT_STANDARDS;
+  const lines = [];
+  const rate = (settings.hourlyRate||65) * (settings.labourBuffer||1.25);
+  const wallSqft = room.irregular ? (room.irregularSqft||0) : Math.max(0, 2*(room.length+room.width)*(room.height||9));
+  const ceilSqft = (room.length||0)*(room.width||0);
+  const perimLF = 2*((room.length||0)+(room.width||0));
+  if(room.walls.enabled && wallSqft){
+    const r = std.walls?.[room.walls.coats]||120;
+    const h = wallSqft/r;
+    lines.push({surface:'Walls',area:Math.round(wallSqft),areaUnit:'sqft',coats:room.walls.coats,rate:r,rateLabel:'sqft/hr',hours:h,cost:h*rate});
+  }
+  if(room.ceiling.enabled && ceilSqft){
+    const r = std.flatCeiling?.[room.ceiling.coats]||90;
+    const h = ceilSqft/r;
+    lines.push({surface:'Ceiling',area:Math.round(ceilSqft),areaUnit:'sqft',coats:room.ceiling.coats,rate:r,rateLabel:'sqft/hr',hours:h,cost:h*rate});
+  }
+  if(room.baseboards.enabled && perimLF){
+    const r = std.baseboards?.[room.baseboards.coats]||60;
+    const h = perimLF/r;
+    lines.push({surface:'Baseboards',area:Math.round(perimLF),areaUnit:'lf',coats:room.baseboards.coats,rate:r,rateLabel:'lf/hr',hours:h,cost:h*rate});
+  }
+  if(room.crown.enabled && perimLF){
+    const r = std.crown?.[room.crown.coats]||55;
+    const h = perimLF/r;
+    lines.push({surface:'Crown',area:Math.round(perimLF),areaUnit:'lf',coats:room.crown.coats,rate:r,rateLabel:'lf/hr',hours:h,cost:h*rate});
+  }
+  if(room.doors.count > 0){
+    const r = std.doors?.[room.doors.coats]||42;
+    const sqft = room.doors.count*21;
+    const h = sqft/r;
+    lines.push({surface:`Doors (${room.doors.count})`,area:sqft,areaUnit:'sqft',coats:room.doors.coats,rate:r,rateLabel:'sqft/hr',hours:h,cost:h*rate});
+  }
+  if(room.windows.count > 0){
+    const r = std.windows?.[room.windows.coats]||60;
+    const lf = room.windows.count*10;
+    const h = lf/r;
+    lines.push({surface:`Windows (${room.windows.count})`,area:lf,areaUnit:'lf',coats:room.windows.coats,rate:r,rateLabel:'lf/hr',hours:h,cost:h*rate});
+  }
+  if(room.prepHrs > 0){
+    const h = room.prepHrs;
+    lines.push({surface:'Prep Work',area:h,areaUnit:'hrs',coats:0,rate:1,rateLabel:'hr',hours:h,cost:h*rate});
+  }
+  return lines;
+}
+
+// Derived paint name arrays — computed from paint settings state
+const WALL_PAINTS = DEFAULT_PAINTS.map(p=>p.n);
+const TRIM_PAINTS = DEFAULT_PAINTS.map(p=>p.n);
+const CEILING_PAINTS = DEFAULT_CEILING_PAINTS.map(p=>p.n);
+const COLOURS = DEFAULT_COLOURS.map(c=>c.n);
+const CEILING_COLOURS = DEFAULT_COLOURS.map(c=>c.n);
+
+// ─── PAINT SETTINGS HOOK ─────────────────────────────────────────────────────
+function usePaintSettings(){
+  const [paints, setPaints] = useState(()=>JSON.parse(JSON.stringify(DEFAULT_PAINTS)));
+  const [ceilPaints, setCeilPaints] = useState(()=>JSON.parse(JSON.stringify(DEFAULT_CEILING_PAINTS)));
+  const [primers, setPrimers] = useState(()=>JSON.parse(JSON.stringify(DEFAULT_PRIMERS)));
+  const [colours, setColours] = useState(()=>JSON.parse(JSON.stringify(DEFAULT_COLOURS)));
+  const [supplies, setSupplies] = useState(()=>JSON.parse(JSON.stringify(DEFAULT_SUPPLIES)));
+  const [standards, setStandards] = useState(()=>JSON.parse(JSON.stringify(DEFAULT_STANDARDS)));
+  const [labour, setLabour] = useState(()=>({
+    workers:JSON.parse(JSON.stringify(DEFAULT_WORKERS)),
+    overheadItems:JSON.parse(JSON.stringify(DEFAULT_OVERHEAD_ITEMS)),
+    billable:1700, buffer:1.25, matBuffer:1.25, taxes:true,
+    discount:false, discountAmt:false, discAmt:0, discPct:10, profitTarget:0,
+  }));
+  const [loaded, setLoaded] = useState(false);
+  const saveTimer = useRef(null);
+
+  useEffect(()=>{
+    (async()=>{
+      try{
+        if(!_session?.access_token){
+          const stored = localStorage.getItem('kp_session');
+          if(stored){const s=JSON.parse(stored); if(s?.access_token) setSession(s);}
+        }
+        const session = _session;
+        if(!session?.access_token||!session?.user?.id){setLoaded(true);return;}
+        const rows = await supaFetch(`/rest/v1/paint_settings?user_id=eq.${session.user.id}&select=data,labour,standards`);
+        if(rows && rows.length){
+          const row = rows[0];
+          const d = row.data || {};
+          if(d.paints?.length) setPaints(d.paints);
+          if(d.ceilPaints?.length) setCeilPaints(d.ceilPaints);
+          if(d.primers?.length) setPrimers(d.primers);
+          if(d.colours?.length) setColours(d.colours);
+          if(d.supplies?.length) setSupplies(d.supplies);
+          if(row.standards && Object.keys(row.standards).length) setStandards(prev=>({...prev,...row.standards}));
+          if(row.labour) setLabour(prev=>({...prev,...row.labour}));
+        }
+      }catch(e){console.warn('usePaintSettings load error:',e);}
+      setLoaded(true);
+    })();
+  },[]);
+
+  const save = useCallback(async(overrides={})=>{
+    try{
+      if(!_session?.access_token||!_session?.user?.id) return false;
+      const uid = _session.user.id;
+      const token = _session.access_token;
+      const body = {
+        user_id: uid,
+        data: overrides.data || {paints, ceilPaints, primers, colours, supplies},
+        labour: overrides.labour || labour,
+        standards: overrides.standards || standards,
+        updated_at: new Date().toISOString(),
+      };
+      const res = await fetch(`${SUPA_URL}/rest/v1/paint_settings?on_conflict=user_id`,{
+        method:'POST',
+        headers:{'apikey':SUPA_KEY,'Authorization':`Bearer ${token}`,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates,return=minimal'},
+        body:JSON.stringify(body),
+      });
+      return res.ok;
+    }catch(e){console.warn('usePaintSettings save error:',e);return false;}
+  },[paints,ceilPaints,primers,colours,supplies,standards,labour]);
+
+  const scheduleSave = useCallback((overrides)=>{
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(()=>save(overrides), 1200);
+  },[save]);
+
+  return { paints,setPaints, ceilPaints,setCeilPaints, primers,setPrimers, colours,setColours, supplies,setSupplies, standards,setStandards, labour,setLabour, loaded, save, scheduleSave };
+}
+
 // ─── ROOM CARD ────────────────────────────────────────────────────────────────
 function RoomCard({room,settings,onChange,onRemove}){
   const [open,setOpen]=useState(true);
@@ -2904,10 +3164,6 @@ button.tab.active{color:var(--gold2);border-bottom-color:var(--gold2)}
     <button class="tab" onclick="showTab('quote')">Quote</button>
     <button class="tab" onclick="showTab('contract')">Contract</button>
     <button class="tab" onclick="showTab('changeorder')">Change Order</button>
-    
-    <button class="tab" onclick="showTab('labourrates')">Labour Rates</button>
-    <button class="tab" onclick="showTab('paintinputs')">Paint Inputs</button>
-    <button class="tab" onclick="showTab('standards')">Standards</button>
   </div>
 </div>
 
@@ -4794,7 +5050,7 @@ function init(){
 function showTab(id){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  const tabMap={cover:0,rooms:1,breakdown:2,quote:3,contract:4,changeorder:5,labourrates:6,paintinputs:7,standards:8};
+  const tabMap={cover:0,rooms:1,breakdown:2,quote:3,contract:4,changeorder:5};
   const tabs=document.querySelectorAll('.tab');
   if(tabMap[id]!==undefined)tabs[tabMap[id]].classList.add('active');
   const pg=sel('page-'+id);if(pg)pg.classList.add('active');
@@ -5164,8 +5420,406 @@ function pushToProject(){
 </html>`;
 
 
+// ─── LABOUR RATES TAB (React) ────────────────────────────────────────────────
+function LabourRatesTab({labour,setLabour,onSave}){
+  const [saving,setSaving]=useState(false);
+  const [saveMsg,setSaveMsg]=useState('');
+
+  const L = labour;
+  const workers = L.workers||[];
+  const overheadItems = L.overheadItems||[];
+  const numWorkers = workers.filter(w=>w.active).length||1;
+  const billable = L.billable||1700;
+  const totalOH = overheadItems.reduce((s,i)=>s+(i.v||0),0);
+  const ohPerHr = totalOH/(numWorkers*billable);
+  const avgWage = workers.filter(w=>w.active).reduce((s,w)=>s+w.r,0)/Math.max(1,workers.filter(w=>w.active).length);
+  const fieldWage = L.taxes ? avgWage*1.3 : avgWage;
+  const profitTarget = L.profitTarget||0;
+  const profitPerHr = profitTarget/(numWorkers*billable);
+  const totalHr = ohPerHr + fieldWage + profitPerHr;
+  const totalAll = totalHr * numWorkers;
+
+  const upd = (patch)=>setLabour(prev=>({...prev,...patch}));
+  const updWorker = (idx,patch)=>{
+    const next=[...workers];
+    next[idx]={...next[idx],...patch};
+    upd({workers:next});
+  };
+  const addWorker = ()=>upd({workers:[...workers,{n:'Worker',r:25,active:true}]});
+  const removeWorker = (idx)=>upd({workers:workers.filter((_,i)=>i!==idx)});
+  const updOH = (idx,patch)=>{
+    const next=[...overheadItems];
+    next[idx]={...next[idx],...patch};
+    upd({overheadItems:next});
+  };
+  const addOH = ()=>upd({overheadItems:[...overheadItems,{n:'New item',v:0}]});
+  const removeOH = (idx)=>upd({overheadItems:overheadItems.filter((_,i)=>i!==idx)});
+
+  const doSave = async()=>{
+    setSaving(true);setSaveMsg('');
+    const ok = await onSave();
+    setSaveMsg(ok?'Saved':'Save failed');
+    setSaving(false);
+    setTimeout(()=>setSaveMsg(''),3000);
+  };
+
+  const fieldS = {fontSize:12,padding:'6px 10px',border:'1px solid var(--border)',borderRadius:6,background:'var(--card)',color:'var(--fg)',width:'100%'};
+  const numS = {...fieldS,textAlign:'right'};
+
+  return (
+    <div style={{maxWidth:960,margin:'0 auto',padding:24,overflowY:'auto',height:'100%'}}>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:16}}>
+        <Card className='p-5'>
+          <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--primary)',marginBottom:12}}>Rate Calculation</p>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:12}}>
+            <div><Label>Billable hours/year</Label><input type='number' value={L.billable||1700} onChange={e=>upd({billable:+e.target.value})} style={numS}/></div>
+            <div><Label>Labour buffer</Label><input type='number' step='0.05' value={L.buffer||1.25} onChange={e=>upd({buffer:+e.target.value})} style={numS}/></div>
+            <div><Label>Materials buffer</Label><input type='number' step='0.05' value={L.matBuffer||1.25} onChange={e=>upd({matBuffer:+e.target.value})} style={numS}/></div>
+          </div>
+          <div style={{borderTop:'1px solid var(--border)',paddingTop:12,marginBottom:12}}>
+            <label style={{display:'flex',gap:8,alignItems:'center',fontSize:12,cursor:'pointer'}}>
+              <input type='checkbox' checked={L.taxes!==false} onChange={e=>upd({taxes:e.target.checked})}/> Apply payroll taxes
+            </label>
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:12}}>
+            <div style={{background:'rgba(0,0,0,0.03)',borderRadius:8,padding:'10px 12px'}}>
+              <label style={{display:'flex',gap:6,alignItems:'center',fontSize:12,fontWeight:600,marginBottom:8,cursor:'pointer'}}>
+                <input type='checkbox' checked={!!L.discount} onChange={e=>upd({discount:e.target.checked})}/> Discount %
+              </label>
+              <div><Label>Percentage</Label><input type='number' value={L.discPct||10} min={0} max={100} onChange={e=>upd({discPct:+e.target.value})} style={numS}/></div>
+            </div>
+            <div style={{background:'rgba(0,0,0,0.03)',borderRadius:8,padding:'10px 12px'}}>
+              <label style={{display:'flex',gap:6,alignItems:'center',fontSize:12,fontWeight:600,marginBottom:8,cursor:'pointer'}}>
+                <input type='checkbox' checked={!!L.discountAmt} onChange={e=>upd({discountAmt:e.target.checked})}/> Discount $
+              </label>
+              <div><Label>Amount</Label><input type='number' value={L.discAmt||0} min={0} onChange={e=>upd({discAmt:+e.target.value})} style={numS}/></div>
+            </div>
+          </div>
+          <div style={{borderTop:'1px solid var(--border)',paddingTop:12}}>
+            <table style={{width:'100%',fontSize:13,borderCollapse:'collapse'}}>
+              <tbody>
+                <tr><td style={{padding:'6px 0',color:'var(--muted-fg)'}}>Overhead / hr</td><td style={{textAlign:'right',padding:'6px 0'}}>${ohPerHr.toFixed(2)}</td></tr>
+                <tr><td style={{padding:'6px 0',color:'var(--muted-fg)'}}>Field wage / worker</td><td style={{textAlign:'right',padding:'6px 0'}}>${fieldWage.toFixed(2)}/hr</td></tr>
+                <tr style={{fontWeight:500}}><td style={{padding:'6px 0'}}>Profit / hr</td><td style={{textAlign:'right',padding:'6px 0',color:'var(--primary)'}}>${profitPerHr.toFixed(2)}/hr</td></tr>
+                <tr style={{fontWeight:500,borderTop:'2px solid var(--border)'}}><td style={{padding:'8px 0'}}>Total hourly rate (all workers)</td><td style={{textAlign:'right',padding:'8px 0',color:'var(--primary)',fontSize:15}}>${totalAll.toFixed(2)}/hr</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </Card>
+
+        <Card className='p-5'>
+          <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--primary)',marginBottom:12}}>Overhead Costs</p>
+          {overheadItems.map((item,i)=>(
+            <div key={i} style={{display:'grid',gridTemplateColumns:'1fr 90px 28px',alignItems:'center',gap:6,padding:'4px 0',borderBottom:'1px solid rgba(0,0,0,0.05)'}}>
+              <input type='text' value={item.n} onChange={e=>updOH(i,{n:e.target.value})} style={fieldS}/>
+              <input type='number' value={item.v} min={0} onChange={e=>updOH(i,{v:+e.target.value})} style={numS}/>
+              <button onClick={()=>removeOH(i)} style={{background:'none',border:'none',cursor:'pointer',color:'var(--muted-fg)',fontSize:14}}>×</button>
+            </div>
+          ))}
+          <button onClick={addOH} style={{marginTop:8,width:'100%',padding:7,border:'1px dashed var(--muted)',borderRadius:6,background:'transparent',color:'var(--muted-fg)',fontSize:12,cursor:'pointer'}}>+ Add item</button>
+          <div style={{borderTop:'1px solid var(--border)',marginTop:12,paddingTop:10,display:'flex',justifyContent:'space-between',fontSize:13,fontWeight:500}}>
+            <span>Total overhead</span><span style={{color:'var(--primary)'}}>{fmtCAD(totalOH)}</span>
+          </div>
+        </Card>
+      </div>
+
+      <Card className='p-5' style={{marginBottom:16}}>
+        <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--primary)',marginBottom:12}}>Field Workers</p>
+        <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+          {workers.map((w,i)=>(
+            <div key={i} style={{position:'relative',display:'flex',alignItems:'center',gap:6,padding:'8px 32px 8px 10px',background:'rgba(0,0,0,0.03)',borderRadius:8,border:'1px solid var(--border)'}}>
+              <input type='checkbox' checked={w.active} onChange={e=>updWorker(i,{active:e.target.checked})}/>
+              <input type='text' value={w.n} onChange={e=>updWorker(i,{n:e.target.value})} style={{...fieldS,width:72}}/>
+              <span style={{fontSize:11,color:'var(--muted-fg)'}}>$</span>
+              <input type='number' value={w.r} min={0} onChange={e=>updWorker(i,{r:+e.target.value})} style={{...numS,width:52}}/>
+              <span style={{fontSize:10,color:'var(--muted-fg)'}}>/hr</span>
+              <button onClick={()=>removeWorker(i)} style={{position:'absolute',top:4,right:4,background:'none',border:'none',cursor:'pointer',color:'var(--muted-fg)',fontSize:13}}>×</button>
+            </div>
+          ))}
+        </div>
+        <button onClick={addWorker} style={{marginTop:10,width:'100%',padding:7,border:'1px dashed var(--muted)',borderRadius:6,background:'transparent',color:'var(--muted-fg)',fontSize:12,cursor:'pointer'}}>+ Add worker</button>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:12,paddingTop:12,borderTop:'1px solid var(--border)'}}>
+          <span style={{fontSize:13}}>Active workers: <strong>{numWorkers}</strong></span>
+          <span style={{fontSize:15,fontWeight:500,color:'var(--primary)'}}>${fieldWage.toFixed(2)}<span style={{fontSize:11,color:'var(--muted-fg)',marginLeft:4}}>/hr field wage</span></span>
+        </div>
+      </Card>
+
+      <Card className='p-5' style={{marginBottom:16}}>
+        <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--primary)',marginBottom:12}}>Profit</p>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,alignItems:'end'}}>
+          <div>
+            <Label>Target profit ($)</Label>
+            <input type='number' value={L.profitTarget||0} min={0} step={100} onChange={e=>upd({profitTarget:+e.target.value})} placeholder='e.g. 5000' style={numS}/>
+          </div>
+          <div style={{background:'rgba(0,0,0,0.03)',borderRadius:8,padding:'10px 14px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <span style={{fontSize:12,color:'var(--muted-fg)'}}>Profit / hr</span>
+            <span style={{fontSize:15,fontWeight:600,color:'var(--primary)'}}>${profitPerHr.toFixed(2)}/hr</span>
+          </div>
+        </div>
+        <p style={{fontSize:11,color:'var(--muted-fg)',marginTop:8}}>Target profit ÷ (billable hours × active workers) = profit / hr added to rate</p>
+      </Card>
+
+      <div style={{display:'flex',alignItems:'center',gap:12}}>
+        <button onClick={doSave} disabled={saving} style={{padding:'9px 24px',background:'var(--primary)',color:'#fff',border:'none',borderRadius:7,fontSize:13,fontWeight:700,cursor:'pointer'}}>
+          {saving?'Saving…':'Save Settings'}
+        </button>
+        {saveMsg&&<span style={{fontSize:12,fontWeight:600,color:saveMsg==='Saved'?'#22c55e':'#ef4444'}}>{saveMsg==='Saved'?'✓ ':''}{saveMsg}</span>}
+      </div>
+    </div>
+  );
+}
+
+// ─── PAINT INPUTS TAB (React) ────────────────────────────────────────────────
+function DragTable({items,setItems,columns,renderRow,addLabel,onAdd}){
+  const [dragIdx,setDragIdx]=useState(null);
+  const reorder=(from,to)=>{
+    if(from===to)return;
+    const next=[...items];
+    const [moved]=next.splice(from,1);
+    next.splice(to,0,moved);
+    setItems(next);
+  };
+  return (
+    <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
+      <thead><tr style={{borderBottom:'1px solid var(--border)'}}>
+        <th style={{width:24,padding:'6px 4px'}}/>
+        {columns.map(c=><th key={c.label} style={{textAlign:c.align||'left',padding:'6px 8px',fontSize:11,color:'var(--muted-fg)',fontWeight:600,...(c.width?{width:c.width}:{})}}>{c.label}</th>)}
+        <th style={{width:28}}/>
+      </tr></thead>
+      <tbody>
+        {items.map((item,i)=>(
+          <tr key={i} style={{borderBottom:'1px solid rgba(0,0,0,0.05)',opacity:dragIdx===i?0.4:1}}
+            onDragOver={e=>{e.preventDefault();e.currentTarget.style.borderTop='2px solid var(--primary)';}}
+            onDragLeave={e=>{e.currentTarget.style.borderTop='';}}
+            onDrop={e=>{e.preventDefault();e.currentTarget.style.borderTop='';reorder(dragIdx,i);setDragIdx(null);}}>
+            <td style={{padding:'4px 2px',cursor:'grab'}} draggable onDragStart={()=>setDragIdx(i)} onDragEnd={()=>setDragIdx(null)}>
+              <GripVertical size={14} style={{color:'var(--muted-fg)'}}/>
+            </td>
+            {renderRow(item,i)}
+          </tr>
+        ))}
+        <tr><td colSpan={columns.length+2} style={{padding:'8px 6px 4px'}}>
+          <button onClick={onAdd} style={{width:'100%',padding:7,border:'1px dashed var(--muted)',borderRadius:6,background:'transparent',color:'var(--muted-fg)',fontSize:12,cursor:'pointer'}}>+ {addLabel}</button>
+        </td></tr>
+      </tbody>
+    </table>
+  );
+}
+
+function PaintInputsTab({paints,setPaints,ceilPaints,setCeilPaints,primers,setPrimers,colours,setColours,supplies,setSupplies,onSave}){
+  const [saving,setSaving]=useState(false);
+  const [saveMsg,setSaveMsg]=useState('');
+
+  const doSave = async()=>{
+    setSaving(true);setSaveMsg('');
+    const ok = await onSave();
+    setSaveMsg(ok?'Saved':'Save failed');
+    setSaving(false);
+    setTimeout(()=>setSaveMsg(''),3000);
+  };
+
+  const fieldS = {fontSize:12,padding:'5px 8px',border:'1px solid var(--border)',borderRadius:6,background:'var(--card)',color:'var(--fg)',width:'100%'};
+  const numS = {...fieldS,textAlign:'right',width:80};
+
+  const updItem = (arr,setArr,idx,patch)=>{
+    const next=[...arr];
+    next[idx]={...next[idx],...patch};
+    setArr(next);
+  };
+  const delItem = (arr,setArr,idx)=>setArr(arr.filter((_,i)=>i!==idx));
+
+  const paintRow = (item,i,arr,setArr)=>(
+    <>
+      <td style={{padding:'4px 6px'}}><input type='text' value={item.n||''} onChange={e=>updItem(arr,setArr,i,{n:e.target.value})} style={fieldS}/></td>
+      <td style={{padding:'4px 6px'}}><input type='number' min={0} step={0.01} value={item.g||0} onChange={e=>updItem(arr,setArr,i,{g:+e.target.value})} style={numS}/></td>
+      <td style={{padding:'4px 6px'}}><input type='number' min={0} step={0.01} value={item.p||0} onChange={e=>updItem(arr,setArr,i,{p:+e.target.value})} style={numS}/></td>
+      <td style={{padding:'4px 6px'}}><button onClick={()=>delItem(arr,setArr,i)} style={{background:'none',border:'none',cursor:'pointer',color:'var(--muted-fg)',fontSize:14}}>×</button></td>
+    </>
+  );
+
+  const paintCols = [{label:'Product'},{label:'Gallon $',align:'right',width:80},{label:'Pail $',align:'right',width:80}];
+
+  return (
+    <div style={{maxWidth:960,margin:'0 auto',padding:24,overflowY:'auto',height:'100%'}}>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:16}}>
+        <Card className='p-5'>
+          <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--primary)',marginBottom:12}}>Paints (Walls & Trim)</p>
+          <DragTable items={paints} setItems={setPaints} columns={paintCols}
+            renderRow={(item,i)=>paintRow(item,i,paints,setPaints)}
+            addLabel='Add paint' onAdd={()=>setPaints(p=>[...p,{n:'',g:0,p:0}])}/>
+
+          <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--primary)',marginTop:20,marginBottom:12}}>Paints (Ceiling)</p>
+          <DragTable items={ceilPaints} setItems={setCeilPaints} columns={paintCols}
+            renderRow={(item,i)=>paintRow(item,i,ceilPaints,setCeilPaints)}
+            addLabel='Add ceiling paint' onAdd={()=>setCeilPaints(p=>[...p,{n:'',g:0,p:0}])}/>
+        </Card>
+
+        <Card className='p-5'>
+          <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--primary)',marginBottom:12}}>Primers</p>
+          <DragTable items={primers} setItems={setPrimers} columns={paintCols}
+            renderRow={(item,i)=>paintRow(item,i,primers,setPrimers)}
+            addLabel='Add primer' onAdd={()=>setPrimers(p=>[...p,{n:'',g:0,p:0}])}/>
+        </Card>
+
+        <Card className='p-5'>
+          <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--primary)',marginBottom:12}}>Paint Colours</p>
+          <DragTable items={colours} setItems={setColours}
+            columns={[{label:'Swatch',width:36},{label:'Name'}]}
+            renderRow={(item,i)=>(
+              <>
+                <td style={{padding:'4px 6px',width:36}}>
+                  <input type='color' value={item.h||'#cccccc'} onChange={e=>{const next=[...colours];next[i]={...next[i],h:e.target.value};setColours(next);}}
+                    style={{width:30,height:28,padding:2,border:'1px solid var(--border)',borderRadius:6,cursor:'pointer',background:'var(--card)'}}/>
+                </td>
+                <td style={{padding:'4px 6px'}}><input type='text' value={item.n||''} onChange={e=>{const next=[...colours];next[i]={...next[i],n:e.target.value};setColours(next);}} style={fieldS}/></td>
+                <td style={{padding:'4px 6px',width:32}}><button onClick={()=>setColours(colours.filter((_,j)=>j!==i))} style={{background:'none',border:'none',cursor:'pointer',color:'var(--muted-fg)',fontSize:14}}>×</button></td>
+              </>
+            )}
+            addLabel='Add colour' onAdd={()=>setColours(c=>[...c,{n:'',h:'#cccccc'}])}/>
+        </Card>
+
+        <Card className='p-5'>
+          <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--primary)',marginBottom:12}}>Supplies</p>
+          <DragTable items={supplies} setItems={setSupplies}
+            columns={[{label:'Name'},{label:'Price',align:'right',width:80}]}
+            renderRow={(item,i)=>(
+              <>
+                <td style={{padding:'4px 6px'}}><input type='text' value={item.n||''} onChange={e=>{const next=[...supplies];next[i]={...next[i],n:e.target.value};setSupplies(next);}} style={fieldS}/></td>
+                <td style={{padding:'4px 6px'}}><input type='number' min={0} step={0.01} value={item.p||0} onChange={e=>{const next=[...supplies];next[i]={...next[i],p:+e.target.value};setSupplies(next);}} style={numS}/></td>
+                <td style={{padding:'4px 6px',width:32}}><button onClick={()=>setSupplies(supplies.filter((_,j)=>j!==i))} style={{background:'none',border:'none',cursor:'pointer',color:'var(--muted-fg)',fontSize:14}}>×</button></td>
+              </>
+            )}
+            addLabel='Add supply' onAdd={()=>setSupplies(s=>[...s,{n:'',p:0}])}/>
+        </Card>
+      </div>
+
+      <div style={{display:'flex',alignItems:'center',gap:12}}>
+        <button onClick={doSave} disabled={saving} style={{padding:'9px 24px',background:'var(--primary)',color:'#fff',border:'none',borderRadius:7,fontSize:13,fontWeight:700,cursor:'pointer'}}>
+          {saving?'Saving…':'Save Settings'}
+        </button>
+        {saveMsg&&<span style={{fontSize:12,fontWeight:600,color:saveMsg==='Saved'?'#22c55e':'#ef4444'}}>{saveMsg==='Saved'?'✓ ':''}{saveMsg}</span>}
+      </div>
+    </div>
+  );
+}
+
+// ─── STANDARDS TAB (React) ───────────────────────────────────────────────────
+function StandardsTab({standards,setStandards,onSave}){
+  const [saving,setSaving]=useState(false);
+  const [saveMsg,setSaveMsg]=useState('');
+
+  const doSave = async()=>{
+    setSaving(true);setSaveMsg('');
+    const ok = await onSave();
+    setSaveMsg(ok?'Saved':'Save failed');
+    setSaving(false);
+    setTimeout(()=>setSaveMsg(''),3000);
+  };
+
+  const upd = (surface,coats,val)=>{
+    if(!val||val<1)return;
+    setStandards(prev=>{
+      const next={...prev};
+      if(surface==='removeStucco') next.removeStucco={rate:val};
+      else next[surface]={...prev[surface],[coats]:val};
+      return next;
+    });
+  };
+
+  const numS = {width:80,textAlign:'right',fontSize:13,padding:'4px 8px',border:'1px solid var(--border)',borderRadius:6,background:'var(--card)',color:'var(--fg)'};
+
+  const CoatTable = ({title,surface,subtitle})=>(
+    <div>
+      {subtitle&&<p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.07em',color:'var(--muted-fg)',margin:'4px 0 6px'}}>{subtitle}</p>}
+      <table style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
+        <thead><tr style={{borderBottom:'1px solid var(--border)'}}><th style={{textAlign:'left',padding:'6px 8px',fontSize:11,color:'var(--muted-fg)',fontWeight:600}}>Coats</th><th style={{textAlign:'right',padding:'6px 8px',fontSize:11,color:'var(--muted-fg)',fontWeight:600}}>Sqft/Hr</th></tr></thead>
+        <tbody>
+          <tr style={{borderBottom:'1px solid rgba(0,0,0,0.05)'}}><td style={{padding:'6px 8px'}}>1 coat</td><td style={{padding:'6px 8px',textAlign:'right'}}><input type='number' min={1} value={standards[surface]?.[1]||0} onChange={e=>upd(surface,1,+e.target.value)} style={numS}/></td></tr>
+          <tr style={{borderBottom:'1px solid rgba(0,0,0,0.05)'}}><td style={{padding:'6px 8px'}}>2 coats</td><td style={{padding:'6px 8px',textAlign:'right'}}><input type='number' min={1} value={standards[surface]?.[2]||0} onChange={e=>upd(surface,2,+e.target.value)} style={numS}/></td></tr>
+          <tr style={{borderBottom:'1px solid rgba(0,0,0,0.05)'}}><td style={{padding:'6px 8px'}}>Primer & 2 coats</td><td style={{padding:'6px 8px',textAlign:'right'}}><input type='number' min={1} value={standards[surface]?.[3]||0} onChange={e=>upd(surface,3,+e.target.value)} style={numS}/></td></tr>
+        </tbody>
+      </table>
+    </div>
+  );
+
+  const TrimTable = ({surface,label})=>(
+    <>
+      <tr style={{borderBottom:'1px solid rgba(0,0,0,0.05)'}}><td rowSpan={3} style={{padding:'6px 8px',verticalAlign:'top',fontWeight:500}}>{label}</td><td style={{padding:'6px 8px'}}>1</td><td style={{padding:'6px 8px',textAlign:'right'}}><input type='number' min={1} value={standards[surface]?.[1]||0} onChange={e=>upd(surface,1,+e.target.value)} style={{...numS,width:70}}/></td></tr>
+      <tr style={{borderBottom:'1px solid rgba(0,0,0,0.05)'}}><td style={{padding:'6px 8px'}}>2</td><td style={{padding:'6px 8px',textAlign:'right'}}><input type='number' min={1} value={standards[surface]?.[2]||0} onChange={e=>upd(surface,2,+e.target.value)} style={{...numS,width:70}}/></td></tr>
+      <tr style={{borderBottom:'1px solid var(--border)'}}><td style={{padding:'6px 8px'}}>Primer & 2 Coats</td><td style={{padding:'6px 8px',textAlign:'right'}}><input type='number' min={1} value={standards[surface]?.[3]||0} onChange={e=>upd(surface,3,+e.target.value)} style={{...numS,width:70}}/></td></tr>
+    </>
+  );
+
+  return (
+    <div style={{maxWidth:960,margin:'0 auto',padding:24,overflowY:'auto',height:'100%'}}>
+      <div style={{fontSize:12,color:'var(--muted-fg)',marginBottom:14,padding:'10px 14px',background:'rgba(0,0,0,0.03)',borderRadius:6,borderLeft:'3px solid var(--primary)'}}>
+        All values are editable and update labour calculations in real time.
+      </div>
+
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:16}}>
+        <Card className='p-5'>
+          <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--primary)',marginBottom:12}}>Walls — sqft per hour</p>
+          <CoatTable surface='walls'/>
+        </Card>
+
+        <Card className='p-5'>
+          <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--primary)',marginBottom:12}}>Ceiling — sqft per hour</p>
+          <CoatTable surface='flatCeiling' subtitle='Flat / Drywall'/>
+          <div style={{borderTop:'1px solid var(--border)',margin:'12px 0 10px'}}/>
+          <CoatTable surface='stuccoCeiling' subtitle='Stucco'/>
+          <div style={{borderTop:'1px solid var(--border)',margin:'12px 0 10px'}}/>
+          <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.07em',color:'var(--muted-fg)',marginBottom:8}}>Remove Stucco — rate per sqft</p>
+          <div>
+            <Label>$ per sqft</Label>
+            <input type='number' min={0} step={0.05} value={standards.removeStucco?.rate||0.75} onChange={e=>{if(+e.target.value>0)upd('removeStucco',0,+e.target.value);}} style={{...numS,width:100}}/>
+          </div>
+        </Card>
+
+        <Card className='p-5'>
+          <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--primary)',marginBottom:12}}>Trims — linear feet per hour</p>
+          <table style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
+            <thead><tr style={{borderBottom:'1px solid var(--border)'}}>
+              <th style={{textAlign:'left',padding:'6px 8px',fontSize:11,color:'var(--muted-fg)',fontWeight:600}}>Surface</th>
+              <th style={{textAlign:'left',padding:'6px 8px',fontSize:11,color:'var(--muted-fg)',fontWeight:600}}>Coats</th>
+              <th style={{textAlign:'right',padding:'6px 8px',fontSize:11,color:'var(--muted-fg)',fontWeight:600}}>LF/Hr</th>
+            </tr></thead>
+            <tbody>
+              <TrimTable surface='baseboards' label='Baseboards'/>
+              <TrimTable surface='crown' label='Crown'/>
+              <TrimTable surface='doorFrames' label='Door Frames'/>
+              <TrimTable surface='windows' label='Windows'/>
+            </tbody>
+          </table>
+        </Card>
+
+        <Card className='p-5'>
+          <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--primary)',marginBottom:12}}>Doors — sqft per hour</p>
+          <CoatTable surface='doors'/>
+        </Card>
+      </div>
+
+      <div style={{display:'flex',alignItems:'center',gap:12}}>
+        <button onClick={doSave} disabled={saving} style={{padding:'9px 24px',background:'var(--primary)',color:'#fff',border:'none',borderRadius:7,fontSize:13,fontWeight:700,cursor:'pointer'}}>
+          {saving?'Saving…':'Save Settings'}
+        </button>
+        {saveMsg&&<span style={{fontSize:12,fontWeight:600,color:saveMsg==='Saved'?'#22c55e':'#ef4444'}}>{saveMsg==='Saved'?'✓ ':''}{saveMsg}</span>}
+      </div>
+    </div>
+  );
+}
+
+// ─── MASTER ESTIMATE (full Kingdom Painting HTML app in iframe + React tabs) ─
 function MasterEstimate(){
   const ref=useRef(null);
+  const [activeTab, setActiveTab] = useState('iframe');
+  const ps = usePaintSettings();
+
+  const REACT_TABS = [
+    {k:'iframe', l:'Estimate'},
+    {k:'labourrates', l:'Labour Rates'},
+    {k:'paintinputs', l:'Paint Inputs'},
+    {k:'standards', l:'Standards'},
+  ];
 
   // Listen for PATCH requests from the iframe (which can't reliably use its own session)
   useEffect(()=>{
@@ -5244,84 +5898,79 @@ function MasterEstimate(){
     window.addEventListener('message',handler);
     return ()=>window.removeEventListener('message',handler);
   },[]);
+
+  const syncToIframe = useCallback(()=>{
+    try{
+      const win = ref.current?.contentWindow;
+      if(!win) return;
+      win.postMessage({type:'KP_PAINT_SETTINGS_DATA', settings:{
+        data:{paints:ps.paints, ceilPaints:ps.ceilPaints, primers:ps.primers, colours:ps.colours, supplies:ps.supplies},
+        labour:ps.labour,
+        standards:ps.standards,
+      }},'*');
+    }catch(e){}
+  },[ps.paints,ps.ceilPaints,ps.primers,ps.colours,ps.supplies,ps.labour,ps.standards]);
+
   const onLoad=useCallback(()=>{
     try{
       const win=ref.current?.contentWindow;
       if(!win)return;
       const injectAndLoad=()=>{
         try{
-          // Inject session
           if(_session?.access_token){
             win._session={access_token:_session.access_token,user:_session.user};
             win.postMessage({type:'KP_SESSION',session:{access_token:_session.access_token,user:_session.user}},'*');
           }
-          // Post deals + contacts directly — most reliable approach
           const deals=api.getDeals();
           const contacts=api.getContacts();
           win.postMessage({type:'KP_DEALS',deals,contacts},'*');
           if(win.loadContactsDropdown) win.loadContactsDropdown();
-          // Load paint settings
           if(win.loadPaintSettings) win.loadPaintSettings(function(){
             if(win.initPaintInputs) win.initPaintInputs();
           });
         }catch(e){console.warn('injectAndLoad error:',e);}
       };
       injectAndLoad();
-      // If session wasn't ready, retry after 800ms
-      if(!_session?.access_token){
-        setTimeout(injectAndLoad, 800);
-      }
+      if(!_session?.access_token) setTimeout(injectAndLoad, 800);
     }catch(e){console.warn('MasterEstimate onLoad error:',e);}
   },[]);
-  return (
-    <div style={{width:'100%',height:'100%',overflow:'hidden'}}>
-      <iframe
-        ref={ref}
-        srcDoc={KP_MASTER_HTML}
-        style={{width:'100%',height:'100%',border:'none',display:'block'}}
-        title="Kingdom Painting Master Estimate"
-        sandbox="allow-scripts allow-same-origin allow-modals allow-downloads allow-forms allow-popups"
-        onLoad={onLoad}
-      />
-    </div>
-  );
-}
 
-function MasterEstimateOnTab({tab}){
-  const ref=useRef(null);
-  const onLoad=useCallback(()=>{
-    try{
-      const win=ref.current?.contentWindow;
-      if(!win)return;
-      if(_session?.access_token) win._session={access_token:_session.access_token,user:_session.user};
-      // Post deals directly into iframe
-      const deals=api.getDeals();
-      const contacts=api.getContacts();
-      win.postMessage({type:'KP_DEALS',deals,contacts},'*');
-      if(win.loadContactsDropdown) win.loadContactsDropdown();
-      if(win.showTab) win.showTab(tab);
-    }catch(e){}
-    setTimeout(()=>{
-      try{
-        const win=ref.current?.contentWindow;
-        if(!win)return;
-        if(_session?.access_token) win._session={access_token:_session.access_token,user:_session.user};
-        win.postMessage({type:'KP_DEALS',deals:api.getDeals(),contacts:api.getContacts()},'*');
-        if(win.showTab) win.showTab(tab);
-        if(win.loadContactsDropdown) win.loadContactsDropdown();
-      }catch(e){}
-    },400);
-  },[tab]);
+  const handleSave = useCallback(async()=>{
+    const ok = await ps.save();
+    if(ok) syncToIframe();
+    return ok;
+  },[ps.save, syncToIframe]);
+
+  const tabBarStyle = {background:'var(--fg)',borderBottom:'1px solid rgba(237,233,222,0.1)',padding:'0 20px',display:'flex',gap:2,flexShrink:0};
+  const tabBtnStyle = (active)=>({background:'none',border:'none',cursor:'pointer',padding:'9px 16px',fontSize:12,fontWeight:500,letterSpacing:'0.03em',color:active?'var(--bg)':'rgba(237,233,222,0.5)',borderBottom:active?'2px solid var(--primary)':'2px solid transparent',transition:'all 0.15s'});
+
   return (
-    <div style={{width:'100%',height:'100%',overflow:'hidden'}}>
-      <iframe
-        ref={ref}
-        srcDoc={KP_MASTER_HTML}
-        style={{width:'100%',height:'100%',border:'none',display:'block'}}
-        title="Kingdom Painting Invoice"
-        sandbox="allow-scripts allow-same-origin allow-modals allow-downloads allow-forms allow-popups"
-        onLoad={onLoad}
-      />
+    <div style={{width:'100%',height:'100%',display:'flex',flexDirection:'column',overflow:'hidden'}}>
+      <div style={tabBarStyle}>
+        {REACT_TABS.map(t=>(
+          <button key={t.k} onClick={()=>setActiveTab(t.k)} style={tabBtnStyle(activeTab===t.k)}>{t.l}</button>
+        ))}
+      </div>
+      <div style={{flex:1,overflow:'hidden'}}>
+        {activeTab==='iframe'&&(
+          <iframe ref={ref} srcDoc={KP_MASTER_HTML}
+            style={{width:'100%',height:'100%',border:'none',display:'block'}}
+            title="Kingdom Painting Master Estimate"
+            sandbox="allow-scripts allow-same-origin allow-modals allow-downloads allow-forms allow-popups"
+            onLoad={onLoad}/>
+        )}
+        {activeTab==='labourrates'&&ps.loaded&&(
+          <LabourRatesTab labour={ps.labour} setLabour={ps.setLabour} onSave={handleSave}/>
+        )}
+        {activeTab==='paintinputs'&&ps.loaded&&(
+          <PaintInputsTab paints={ps.paints} setPaints={ps.setPaints} ceilPaints={ps.ceilPaints} setCeilPaints={ps.setCeilPaints}
+            primers={ps.primers} setPrimers={ps.setPrimers} colours={ps.colours} setColours={ps.setColours}
+            supplies={ps.supplies} setSupplies={ps.setSupplies} onSave={handleSave}/>
+        )}
+        {activeTab==='standards'&&ps.loaded&&(
+          <StandardsTab standards={ps.standards} setStandards={ps.setStandards} onSave={handleSave}/>
+        )}
+      </div>
     </div>
   );
 }

@@ -2861,7 +2861,7 @@ function RoomCard({room,settings,onChange,onRemove}){
 }
 
 // ─── COVER TAB ────────────────────────────────────────────────────────────────
-function CoverTab({client,setClient,deals,onSelectDeal}){
+function CoverTab({client,setClient,deals,onSelectDeal,selectedDealId}){
   const todayStr=new Date().toLocaleDateString('en-CA',{year:'numeric',month:'long',day:'numeric'});
   const docStyle={background:'#fff',color:'#1a1a1a',borderRadius:8,maxWidth:900,margin:'0 auto',padding:40,boxShadow:'0 2px 12px rgba(0,0,0,0.08)'};
   const gold='#C4922A';
@@ -2886,9 +2886,9 @@ function CoverTab({client,setClient,deals,onSelectDeal}){
           <div style={{display:'flex',flexDirection:'column',gap:12}}>
             <div>
               <Label>Project / Deal</Label>
-              <Select value='' onChange={e=>{if(e.target.value)onSelectDeal(e.target.value);}}>
-                <option value=''>Select a deal...</option>
-                {deals.map(d=><option key={d.id} value={d.id}>{d.title||d.name||d.id}</option>)}
+              <Select value={selectedDealId||''} onChange={e=>{if(e.target.value)onSelectDeal(e.target.value);}}>
+                <option value=''>Select a project...</option>
+                {deals.map(d=><option key={d.id} value={d.id}>{d.dealName||'Unnamed project'}</option>)}
               </Select>
             </div>
             <div>
@@ -3845,8 +3845,8 @@ function MasterEstimate(){
   const totalHrs=rooms.reduce((s,r)=>s+calcRoom(r,settings).totalHrs,0);
 
   useEffect(()=>{
-    setDeals(api.getDeals());
-    setContacts(api.getContacts());
+    api.loadDeals().then(d=>{setDeals(d);setContacts(api.getContacts());});
+    api.loadContacts().then(()=>setContacts(api.getContacts()));
   },[]);
 
   const saveTimerRef=useRef(null);
@@ -3980,7 +3980,7 @@ function MasterEstimate(){
       </div>
       <div style={{flex:1,overflow:'hidden',position:'relative'}}>
         {activeTab==='cover'&&(
-          <CoverTab client={client} setClient={setClient} deals={deals} onSelectDeal={onSelectDeal}/>
+          <CoverTab client={client} setClient={setClient} deals={deals} onSelectDeal={onSelectDeal} selectedDealId={selectedDealId}/>
         )}
         {activeTab==='rooms'&&(
           <RoomsTab rooms={rooms} settings={settings}

@@ -6068,11 +6068,6 @@ function LoginScreen(){
               {mode==='login' ? 'Create one' : 'Sign in'}
             </button>
           </div>
-          {mode==='login'&&(
-            <div style={{marginTop:10,padding:'8px 12px',background:'rgba(196,146,42,0.08)',borderRadius:8,border:'1px solid rgba(196,146,42,0.2)',fontSize:11,color:'#7a6e65',textAlign:'center'}}>
-              <span style={{fontWeight:600,color:'#C4922A'}}>Demo account: </span>demo@kingdompainting.ca / Demo1234!
-            </div>
-          )}
           <div style={{textAlign:'center',marginTop:8,fontSize:12,color:'#7a6e65'}}>
             Client Portal{' '}
             <a href="https://kingdom-crm-kingdompaintings-projects.vercel.app/portal"

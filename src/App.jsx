@@ -5738,6 +5738,10 @@ function Financials({showToast}){
   const avgRevenuePerMonth=monthsWithData.length>0?monthsWithData.reduce((s,m)=>s+m.revenue,0)/monthsWithData.length:0;
   const avgProfitPerMonth=monthsWithData.length>0?monthsWithData.reduce((s,m)=>s+m.grossProfit,0)/monthsWithData.length:0;
 
+  // Total Lost — sum of project values with "Lost" label
+  const lostDeals=api.getDeals().filter(d=>(d.labels||[]).includes('Lost'));
+  const totalLostValue=lostDeals.reduce((s,d)=>s+(parseFloat(d.value)||0),0);
+
   const inp={background:'var(--muted)',border:'1px solid var(--border)',borderRadius:6,padding:'5px 8px',fontSize:12,color:'var(--fg)',width:'100%',textAlign:'right'};
   const tdStyle={padding:'8px 10px',borderBottom:'1px solid var(--border)',fontSize:12,verticalAlign:'middle'};
   const thStyle={padding:'8px 10px',fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--muted-fg)',borderBottom:'2px solid var(--border)',whiteSpace:'nowrap',textAlign:'left'};
@@ -5754,7 +5758,7 @@ function Financials({showToast}){
         {[
           {label:'Avg Revenue / Month',value:fmtUSD(avgRevenuePerMonth),color:'var(--primary)'},
           {label:'Avg Profit / Month',value:fmtUSD(avgProfitPerMonth),color:avgProfitPerMonth>=0?'#22c55e':'#ef4444'},
-          {label:'Profit Margin',value:profitMarginF.toFixed(1)+'%',color:profitMarginF>=0?'#22c55e':'#ef4444'},
+          {label:'Total Lost',value:fmtUSD(totalLostValue),color:'#ef4444'},
         ].map(({label,value,color})=>(
           <Card key={label} style={{padding:'14px 18px'}}>
             <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',marginBottom:4}}>{label}</p>

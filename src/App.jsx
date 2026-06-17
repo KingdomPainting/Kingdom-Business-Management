@@ -2869,8 +2869,7 @@ function CoverTab({client,setClient,deals,onSelectDeal,selectedDealId}){
     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:24,padding:24,overflow:'auto',maxHeight:'100%'}}>
       <div style={docStyle}>
         <div style={{textAlign:'center',padding:'48px 24px'}}>
-          <KPLogo height={64}/>
-          <h2 style={{fontSize:22,fontWeight:700,marginTop:16,color:gold,letterSpacing:'0.05em'}}>KINGDOM PAINTING INC.</h2>
+          <img src="/kingdom-logo-dark.svg" alt="Kingdom Painting Inc." style={{height:80,margin:'0 auto'}}/>
           <div style={{width:60,height:2,background:gold,margin:'16px auto'}}/>
           <p style={{fontSize:16,fontWeight:600,letterSpacing:'0.08em',color:'#555',marginTop:24}}>BID PROPOSAL</p>
           <div style={{marginTop:48}}>

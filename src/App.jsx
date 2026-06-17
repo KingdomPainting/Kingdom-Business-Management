@@ -2782,12 +2782,12 @@ function RoomCard({room,settings,onChange,onRemove}){
   return (
     <div style={{border:'1px solid var(--border)',borderRadius:12,marginBottom:12,overflow:'hidden',background:'var(--card)',boxShadow:'var(--shadow)'}}>
       <div onClick={()=>setOpen(!open)} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'12px 16px',cursor:'pointer',userSelect:'none'}}>
-        <div style={{display:'flex',gap:8,alignItems:'center'}}>
-          <ChevronRight size={14} style={{color:'var(--muted-fg)',transform:open?'rotate(90deg)':'none',transition:'transform 0.2s'}}/>
-          <input type='text' value={room.name} onClick={e=>e.stopPropagation()} onChange={e=>u({name:e.target.value})} placeholder='Room name' style={{fontWeight:600,fontSize:13,background:'transparent',border:'none',outline:'none',color:'var(--fg)',width:160}}/>
+        <div style={{display:'flex',gap:8,alignItems:'center',flex:'1 1 0',minWidth:0}}>
+          <ChevronRight size={14} style={{color:'var(--muted-fg)',transform:open?'rotate(90deg)':'none',transition:'transform 0.2s',flexShrink:0}}/>
+          <input type='text' value={room.name} onClick={e=>e.stopPropagation()} onChange={e=>u({name:e.target.value})} placeholder='Room name' style={{fontWeight:600,fontSize:13,background:'transparent',border:'none',outline:'none',color:'var(--fg)',width:'100%',minWidth:0}}/>
         </div>
-        <div style={{display:'flex',gap:10,alignItems:'center'}}>
-          <span style={{fontSize:11,background:'rgba(212,169,106,0.15)',color:'var(--primary)',padding:'3px 10px',borderRadius:999,fontWeight:500}}>{fmtCAD(calc.cost)}</span>
+        <div style={{display:'flex',gap:8,alignItems:'center',flexShrink:0}}>
+          <span style={{fontSize:11,background:'rgba(212,169,106,0.15)',color:'var(--primary)',padding:'3px 8px',borderRadius:999,fontWeight:500,whiteSpace:'nowrap'}}>{fmtCAD(calc.cost)}</span>
           <button onClick={e=>{e.stopPropagation();onRemove();}} style={{background:'none',border:'none',cursor:'pointer',color:'var(--destructive)',padding:3}}><Trash2 size={13}/></button>
         </div>
       </div>
@@ -2795,9 +2795,9 @@ function RoomCard({room,settings,onChange,onRemove}){
         <div style={{borderTop:'1px solid var(--border)'}}>
           <div style={{padding:'14px 16px',borderBottom:'1px solid rgba(0,0,0,0.05)'}}>
             <p style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--muted-fg)',marginBottom:10}}>Dimensions</p>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
-              {[['Length (ft)','length'],['Width (ft)','width'],['Height (ft)','height']].map(([l,k])=>(
-                <div key={k}><Label>{l}</Label><Input type='number' value={room[k]||''} onChange={e=>u({[k]:+e.target.value})} style={{padding:'6px 10px'}}/></div>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(3,minmax(0,1fr))',gap:8}}>
+              {[['L (ft)','length'],['W (ft)','width'],['H (ft)','height']].map(([l,k])=>(
+                <div key={k}><Label>{l}</Label><Input type='number' value={room[k]||''} onChange={e=>u({[k]:+e.target.value})} style={{padding:'6px 8px',minWidth:0}}/></div>
               ))}
             </div>
             <div style={{marginTop:8,display:'flex',gap:8,alignItems:'center'}}>
@@ -2921,7 +2921,7 @@ function CoverTab({client,setClient,deals,onSelectDeal,selectedDealId}){
 function RoomsTab({rooms,settings,onUpdate,onRemove,onAdd,paints,ceilPaints,colours}){
   const totalCost=rooms.reduce((s,r)=>s+calcRoom(r,settings).cost,0);
   return (
-    <div style={{padding:24,overflow:'auto',maxHeight:'100%'}}>
+    <div style={{padding:'16px 12px',overflow:'auto',maxHeight:'100%'}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
         <div style={{display:'flex',gap:12,alignItems:'center'}}>
           <h3 style={{fontSize:15,fontWeight:700}}>Rooms</h3>

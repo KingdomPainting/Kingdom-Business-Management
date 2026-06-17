@@ -3955,8 +3955,8 @@ function MasterEstimate(){
     {k:'standards',l:'Standards'},
   ];
 
-  const tabBarStyle={background:'var(--fg)',borderBottom:'1px solid rgba(237,233,222,0.1)',padding:'0 20px',display:'flex',gap:2,flexShrink:0};
-  const tabBtnStyle=(active)=>({background:'none',border:'none',cursor:'pointer',padding:'9px 16px',fontSize:12,fontWeight:500,letterSpacing:'0.03em',color:active?'var(--bg)':'rgba(237,233,222,0.5)',borderBottom:active?'2px solid var(--primary)':'2px solid transparent',transition:'all 0.15s'});
+  const tabBarStyle={background:'var(--fg)',borderBottom:'1px solid rgba(237,233,222,0.1)',padding:'0 20px',display:'flex',gap:2,flexShrink:0,overflowX:'auto'};
+  const tabBtnStyle=(active)=>({background:'none',border:'none',cursor:'pointer',padding:'9px 16px',fontSize:12,fontWeight:500,letterSpacing:'0.03em',color:active?'var(--bg)':'rgba(237,233,222,0.5)',borderBottom:active?'2px solid var(--primary)':'2px solid transparent',transition:'all 0.15s',whiteSpace:'nowrap',flexShrink:0});
   const actionBarStyle={background:'var(--card)',borderBottom:'1px solid var(--border)',padding:'8px 20px',display:'flex',gap:8,alignItems:'center',flexShrink:0};
   const actionBtnStyle={fontSize:11,fontWeight:600,padding:'6px 14px',borderRadius:6,cursor:'pointer',border:'1px solid var(--border)',background:'var(--card)',color:'var(--fg)'};
 

@@ -1296,8 +1296,14 @@ function TaskModal({open,onClose,task,contacts,deals,onSaved}){
 
   return (
     <Modal open={open} onClose={onClose} title={task?'Edit Task':'New Task'}>
-      <div style={{marginBottom:12}}><Label>Task Title</Label><Input value={f.title} onChange={e=>setF(x=>({...x,title:e.target.value}))} placeholder='What needs to be done?'/></div>
-      <div style={{marginBottom:12}}><Label>Details / Notes</Label><Textarea value={f.details} onChange={e=>setF(x=>({...x,details:e.target.value}))} rows={3} placeholder='Add details, instructions, or notes…'/></div>
+      <div style={{marginBottom:14}}>
+        <Label>Task Title</Label>
+        <Input value={f.title} onChange={e=>setF(x=>({...x,title:e.target.value}))} placeholder='What needs to be done?'/>
+      </div>
+      <div style={{marginBottom:14}}>
+        <Label>Details / Notes</Label>
+        <Textarea value={f.details} onChange={e=>setF(x=>({...x,details:e.target.value}))} rows={2} placeholder='Add details, instructions, or notes…'/>
+      </div>
 
       {/* Subtasks */}
       <div style={{marginBottom:12}}>
@@ -1310,19 +1316,19 @@ function TaskModal({open,onClose,task,contacts,deals,onSaved}){
             <button onClick={()=>removeSub(i)} style={{background:'none',border:'none',cursor:'pointer',color:'var(--muted-fg)',fontSize:15,padding:'0 2px',lineHeight:1}}>×</button>
           </div>
         ))}
-        <div style={{display:'flex',gap:6,marginTop:6}}>
+        <div style={{display:'flex',gap:8,marginTop:8}}>
           <Input value={newSub} onChange={e=>setNewSub(e.target.value)}
             onKeyDown={e=>e.key==='Enter'&&(e.preventDefault(),addSub())}
-            placeholder='Add subtask…' style={{flex:1,fontSize:12}}/>
-          <Btn onClick={addSub} disabled={!newSub.trim()} style={{padding:'6px 12px',fontSize:12}}>Add</Btn>
+            placeholder='Add subtask…' style={{flex:1}}/>
+          <Btn onClick={addSub} disabled={!newSub.trim()}>Add</Btn>
         </div>
       </div>
 
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:14}}>
         <div><Label>Due Date</Label><Input type='date' value={f.dueDate} onChange={e=>setF(x=>({...x,dueDate:e.target.value}))}/></div>
         <div><Label>Due Time</Label><Input type='time' value={f.dueTime} onChange={e=>setF(x=>({...x,dueTime:e.target.value}))}/></div>
       </div>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:14}}>
         <div><Label>Contact</Label>
           <Select value={f.contactId||'__none'} onChange={e=>setF(x=>({...x,contactId:e.target.value==='__none'?'':e.target.value}))}>
             <option value='__none'>None</option>
@@ -1336,15 +1342,15 @@ function TaskModal({open,onClose,task,contacts,deals,onSaved}){
           </Select>
         </div>
       </div>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:14}}>
         <div><Label>Priority</Label>
           <Select value={f.priority} onChange={e=>setF(x=>({...x,priority:e.target.value}))}>
             {['none','low','medium','high'].map(p=><option key={p} value={p}>{p.charAt(0).toUpperCase()+p.slice(1)}</option>)}
           </Select>
         </div>
-        <div style={{display:'flex',alignItems:'flex-end',paddingBottom:2}}>
-          <label style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer',fontSize:13}}>
-            <input type='checkbox' checked={f.completed} onChange={e=>setF(x=>({...x,completed:e.target.checked}))} style={{cursor:'pointer'}}/>
+        <div style={{display:'flex',alignItems:'center',paddingBottom:2}}>
+          <label style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer',fontSize:13,color:'var(--fg)',fontWeight:500}}>
+            <input type='checkbox' checked={f.completed} onChange={e=>setF(x=>({...x,completed:e.target.checked}))} style={{cursor:'pointer',accentColor:'var(--primary)',width:14,height:14}}/>
             Mark as completed
           </label>
         </div>
@@ -1771,6 +1777,33 @@ function Dashboard({toast}){
   );
 }
 
+
+// Auto-create task when deal moves to Scheduled
+async function autoCreateScheduledTask(deal, contacts){
+  try{
+    const cid=Array.isArray(deal.contact)?deal.contact[0]:deal.contact;
+    const contact=contacts.find(c=>c.id===cid);
+    const dueDate=deal.startDate?deal.startDate.slice(0,10):'';
+    const dueTime=deal.startDate&&deal.startDate.includes('T')?deal.startDate.slice(11,16):'';
+    const taskData={
+      type:'Task',
+      title:`${deal.dealName||'Project'} — Prep`,
+      details:`Auto-created when project moved to Scheduled.`,
+      dueDate,
+      dueTime,
+      contactId:cid||'',
+      dealId:deal.id,
+      priority:'high',
+      completed:false,
+      subtasks:[
+        {title:'Buy paint',completed:false},
+        {title:'Google review',completed:false},
+      ],
+    };
+    await api.saveActivity(taskData);
+  }catch(e){console.warn('autoCreateScheduledTask error:',e);}
+}
+
 function Pipeline({showToast}){
   const [deals,setDeals]=useState(()=>api.getDeals());
   const [contacts,setContacts]=useState(()=>api.getContacts());
@@ -1793,8 +1826,10 @@ function Pipeline({showToast}){
   const advance=async deal=>{
     const idx=STAGES.indexOf(deal.stage||'Lead');
     if(idx<STAGES.length-1){
-      await api.saveDeal({stage:STAGES[idx+1]},deal.id);
-      showToast(`Moved to ${STAGES[idx+1]}`);
+      const newStage=STAGES[idx+1];
+      await api.saveDeal({stage:newStage},deal.id);
+      if(newStage==='Scheduled') await autoCreateScheduledTask(deal,contacts);
+      showToast(`Moved to ${newStage}`);
       load();
     }
   };
@@ -1825,6 +1860,7 @@ function Pipeline({showToast}){
     const deal=api.getDeals().find(d=>d.id===id);
     if(!deal||deal.stage===stage)return;
     await api.saveDeal({stage},id);
+    if(stage==='Scheduled') await autoCreateScheduledTask(deal,contacts);
     showToast(`Moved to ${stage}`);
     load();
   };
@@ -5810,18 +5846,18 @@ function Financials({showToast}){
             </Card>
             <Card style={{padding:'14px 18px',display:'flex',flexDirection:'column',gap:8}}>
               <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)'}}>Cost Breakdown (Avg)</p>
-              <div style={{display:'flex',alignItems:'center',gap:16}}>
-                <PieChart width={130} height={130}>
-                  <Pie data={costPieData} cx={60} cy={60} innerRadius={36} outerRadius={58} dataKey='value' startAngle={90} endAngle={-270} strokeWidth={0}>
+              <div style={{display:'flex',alignItems:'center',gap:8,flex:1}}>
+                <PieChart width={150} height={150}>
+                  <Pie data={costPieData} cx={70} cy={70} innerRadius={42} outerRadius={68} dataKey='value' startAngle={90} endAngle={-270} strokeWidth={0}>
                     {costPieData.map((e,i)=><Cell key={i} fill={e.color}/>)}
                   </Pie>
                 </PieChart>
-                <div style={{display:'flex',flexDirection:'column',gap:6,flex:1}}>
+                <div style={{display:'flex',flexDirection:'column',gap:10,flex:1}}>
                   {costPieData.map(d=>(
-                    <div key={d.name} style={{display:'flex',alignItems:'center',gap:6,fontSize:12}}>
-                      <span style={{width:10,height:10,borderRadius:'50%',background:d.color,flexShrink:0,display:'inline-block'}}/>
-                      <span style={{color:'var(--muted-fg)'}}>{d.name}</span>
-                      <span style={{fontWeight:700,marginLeft:'auto',fontSize:13}}>{d.value}%</span>
+                    <div key={d.name} style={{display:'flex',alignItems:'center',gap:8}}>
+                      <span style={{width:12,height:12,borderRadius:'50%',background:d.color,flexShrink:0,display:'inline-block'}}/>
+                      <span style={{fontSize:13,color:'var(--muted-fg)',flex:1}}>{d.name}</span>
+                      <span style={{fontWeight:800,fontSize:18,color:d.color}}>{d.value}%</span>
                     </div>
                   ))}
                 </div>

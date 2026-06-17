@@ -992,6 +992,11 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead'}){
       drive_files:f.drive_files&&f.drive_files.length?f.drive_files:null,
       projectCalEventId:projectCalEventId||undefined,
     },deal?.id);
+    // Auto-create task if stage changed to Scheduled
+    if(f.stage==='Scheduled' && deal?.stage!=='Scheduled'){
+      const dealObj={id:deal?.id,...f};
+      await autoCreateScheduledTask(dealObj, api.getContacts());
+    }
     setSyncing(false);
     onSaved();onClose();
   };
@@ -1296,68 +1301,77 @@ function TaskModal({open,onClose,task,contacts,deals,onSaved}){
 
   return (
     <Modal open={open} onClose={onClose} title={task?'Edit Task':'New Task'}>
-      <div style={{marginBottom:14}}>
-        <Label>Task Title</Label>
-        <Input value={f.title} onChange={e=>setF(x=>({...x,title:e.target.value}))} placeholder='What needs to be done?'/>
-      </div>
-      <div style={{marginBottom:14}}>
-        <Label>Details / Notes</Label>
-        <Textarea value={f.details} onChange={e=>setF(x=>({...x,details:e.target.value}))} rows={2} placeholder='Add details, instructions, or notes…'/>
-      </div>
+      <div style={{display:'flex',flexDirection:'column',gap:14}}>
+        {/* Title */}
+        <div><Label>Task Title</Label><Input value={f.title} onChange={e=>setF(x=>({...x,title:e.target.value}))} placeholder='What needs to be done?'/></div>
 
-      {/* Subtasks */}
-      <div style={{marginBottom:12}}>
-        <Label>Subtasks{f.subtasks.length>0&&<span style={{color:'var(--muted-fg)',fontWeight:400,marginLeft:6}}>{doneCount}/{f.subtasks.length}</span>}</Label>
-        {f.subtasks.map((s,i)=>(
-          <div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'5px 0',borderBottom:'1px solid var(--border)'}}>
-            <input type='checkbox' checked={s.completed} onChange={()=>toggleSub(i)}
-              style={{cursor:'pointer',accentColor:'var(--primary)',flexShrink:0}}/>
-            <span style={{flex:1,fontSize:13,textDecoration:s.completed?'line-through':'none',color:s.completed?'var(--muted-fg)':'var(--fg)'}}>{s.title}</span>
-            <button onClick={()=>removeSub(i)} style={{background:'none',border:'none',cursor:'pointer',color:'var(--muted-fg)',fontSize:15,padding:'0 2px',lineHeight:1}}>×</button>
+        {/* Details */}
+        <div><Label>Details / Notes</Label><Textarea value={f.details} onChange={e=>setF(x=>({...x,details:e.target.value}))} rows={2} placeholder='Add details, instructions, or notes…'/></div>
+
+        {/* Subtasks */}
+        <div>
+          <Label>Subtasks{f.subtasks.length>0&&<span style={{color:'var(--muted-fg)',fontWeight:400,marginLeft:6}}>{doneCount}/{f.subtasks.length}</span>}</Label>
+          <div style={{border:'1px solid var(--border)',borderRadius:6,overflow:'hidden',background:'var(--card)'}}>
+            {f.subtasks.map((s,i)=>(
+              <div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 12px',borderBottom:i<f.subtasks.length-1?'1px solid var(--border)':'none'}}>
+                <input type='checkbox' checked={s.completed} onChange={()=>toggleSub(i)}
+                  style={{cursor:'pointer',accentColor:'var(--primary)',width:14,height:14,flexShrink:0}}/>
+                <span style={{flex:1,fontSize:13,textDecoration:s.completed?'line-through':'none',color:s.completed?'var(--muted-fg)':'var(--fg)'}}>{s.title}</span>
+                <button onClick={()=>removeSub(i)} style={{background:'none',border:'none',cursor:'pointer',color:'var(--muted-fg)',fontSize:16,padding:'0 2px',lineHeight:1,display:'flex',alignItems:'center'}}>×</button>
+              </div>
+            ))}
+            {f.subtasks.length===0&&<p style={{padding:'8px 12px',fontSize:12,color:'var(--muted-fg)'}}>No subtasks yet.</p>}
           </div>
-        ))}
-        <div style={{display:'flex',gap:8,marginTop:8}}>
-          <Input value={newSub} onChange={e=>setNewSub(e.target.value)}
-            onKeyDown={e=>e.key==='Enter'&&(e.preventDefault(),addSub())}
-            placeholder='Add subtask…' style={{flex:1}}/>
-          <Btn onClick={addSub} disabled={!newSub.trim()}>Add</Btn>
+          <div style={{display:'flex',gap:8,marginTop:8}}>
+            <Input value={newSub} onChange={e=>setNewSub(e.target.value)}
+              onKeyDown={e=>e.key==='Enter'&&(e.preventDefault(),addSub())}
+              placeholder='Add subtask…' style={{flex:1}}/>
+            <Btn onClick={addSub} disabled={!newSub.trim()}>Add</Btn>
+          </div>
         </div>
-      </div>
 
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:14}}>
-        <div><Label>Due Date</Label><Input type='date' value={f.dueDate} onChange={e=>setF(x=>({...x,dueDate:e.target.value}))}/></div>
-        <div><Label>Due Time</Label><Input type='time' value={f.dueTime} onChange={e=>setF(x=>({...x,dueTime:e.target.value}))}/></div>
-      </div>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:14}}>
-        <div><Label>Contact</Label>
-          <Select value={f.contactId||'__none'} onChange={e=>setF(x=>({...x,contactId:e.target.value==='__none'?'':e.target.value}))}>
-            <option value='__none'>None</option>
-            {contacts.map(c=><option key={c.id} value={c.id}>{c.fullName||c.email||'Unnamed'}</option>)}
-          </Select>
+        {/* Due date + time */}
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+          <div><Label>Due Date</Label><Input type='date' value={f.dueDate} onChange={e=>setF(x=>({...x,dueDate:e.target.value}))}/></div>
+          <div><Label>Due Time</Label><Input type='time' value={f.dueTime} onChange={e=>setF(x=>({...x,dueTime:e.target.value}))}/></div>
         </div>
-        <div><Label>Project</Label>
-          <Select value={f.dealId||'__none'} onChange={e=>setF(x=>({...x,dealId:e.target.value==='__none'?'':e.target.value}))}>
-            <option value='__none'>None</option>
-            {deals.map(d=><option key={d.id} value={d.id}>{d.dealName}</option>)}
-          </Select>
+
+        {/* Contact + Project */}
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+          <div><Label>Contact</Label>
+            <Select value={f.contactId||'__none'} onChange={e=>setF(x=>({...x,contactId:e.target.value==='__none'?'':e.target.value}))}>
+              <option value='__none'>None</option>
+              {contacts.map(c=><option key={c.id} value={c.id}>{c.fullName||c.email||'Unnamed'}</option>)}
+            </Select>
+          </div>
+          <div><Label>Project</Label>
+            <Select value={f.dealId||'__none'} onChange={e=>setF(x=>({...x,dealId:e.target.value==='__none'?'':e.target.value}))}>
+              <option value='__none'>None</option>
+              {deals.map(d=><option key={d.id} value={d.id}>{d.dealName}</option>)}
+            </Select>
+          </div>
         </div>
-      </div>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:14}}>
-        <div><Label>Priority</Label>
-          <Select value={f.priority} onChange={e=>setF(x=>({...x,priority:e.target.value}))}>
-            {['none','low','medium','high'].map(p=><option key={p} value={p}>{p.charAt(0).toUpperCase()+p.slice(1)}</option>)}
-          </Select>
+
+        {/* Priority + completed */}
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+          <div><Label>Priority</Label>
+            <Select value={f.priority} onChange={e=>setF(x=>({...x,priority:e.target.value}))}>
+              {['none','low','medium','high'].map(p=><option key={p} value={p}>{p.charAt(0).toUpperCase()+p.slice(1)}</option>)}
+            </Select>
+          </div>
+          <div style={{display:'flex',alignItems:'flex-end',paddingBottom:2}}>
+            <label style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer',fontSize:13,color:'var(--fg)',fontWeight:500,padding:'8px 12px',border:'1px solid var(--border)',borderRadius:6,background:'var(--card)',width:'100%'}}>
+              <input type='checkbox' checked={f.completed} onChange={e=>setF(x=>({...x,completed:e.target.checked}))} style={{cursor:'pointer',accentColor:'var(--primary)',width:14,height:14}}/>
+              Completed
+            </label>
+          </div>
         </div>
-        <div style={{display:'flex',alignItems:'center',paddingBottom:2}}>
-          <label style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer',fontSize:13,color:'var(--fg)',fontWeight:500}}>
-            <input type='checkbox' checked={f.completed} onChange={e=>setF(x=>({...x,completed:e.target.checked}))} style={{cursor:'pointer',accentColor:'var(--primary)',width:14,height:14}}/>
-            Mark as completed
-          </label>
+
+        {/* Actions */}
+        <div style={{display:'flex',gap:8,justifyContent:'flex-end',paddingTop:4,borderTop:'1px solid var(--border)'}}>
+          <Btn variant='outline' onClick={onClose}>Cancel</Btn>
+          <Btn onClick={save} disabled={!f.title||saving}>{saving?'Saving…':'Save Task'}</Btn>
         </div>
-      </div>
-      <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
-        <Btn variant='outline' onClick={onClose}>Cancel</Btn>
-        <Btn onClick={save} disabled={!f.title||saving}>{saving?'Saving…':'Save Task'}</Btn>
       </div>
     </Modal>
   );

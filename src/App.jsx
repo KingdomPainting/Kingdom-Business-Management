@@ -10,7 +10,7 @@ import {
   MapPin, Star, CalendarDays, StickyNote, CheckSquare, DollarSign,
   TrendingUp, Percent, Layers, ArrowRight, ArrowLeft,
   ChevronRight, ChevronDown, Archive as ArchiveIcon, Receipt, BarChart2,
-  Save, Loader2, GripVertical,
+  Save, Loader2, GripVertical, Printer, Download, Eye,
 } from "lucide-react";
 
 // ─── Theme / CSS variables ───────────────────────────────────────────────────
@@ -2489,29 +2489,68 @@ const DEFAULT_SETTINGS = { hourlyRate:65, labourBuffer:1.25, taxRate:13, discoun
 function newRoom(id, number){
   return {
     id, name:`Room ${number}`, length:0, width:0, height:9, irregular:false, irregularSqft:0, prepHrs:0,
-    walls:{enabled:true,coats:2}, ceiling:{enabled:false,coats:2},
+    wallSegs:[{l:0},{l:0},{l:0},{l:0},{l:0},{l:0}],
+    ceilSegs:[{l:0,w:0},{l:0,w:0}],
+    walls:{enabled:true,coats:2}, ceiling:{enabled:false,coats:2,type:'flat',removeStucco:false},
     baseboards:{enabled:false,coats:2}, crown:{enabled:false,coats:2},
-    doors:{count:0,coats:2}, windows:{count:0,coats:2},
-    prep:{furniture:false,plastic:false,outlets:false,drywall:false,caulking:false,cleanup:false},
-    paint:{wallProduct:'',wallColour:'',wallSheen:'',ceilProduct:'',ceilColour:'',ceilSheen:'',trimProduct:'',trimColour:'',trimSheen:''},
+    doorFrames:{enabled:false,coats:2},
+    doors:{count:0,coats:2}, windows:{count:0,coats:2,dims:[{l:0,w:0}]},
+    prep:{furniture:false,plastic:false,outlets:false,drywall:false,caulking:false,cleanup:false,custom:''},
+    paint:{wallProduct:'',wallColour:'',wallSheen:'',ceilProduct:'',ceilColour:'',ceilSheen:'',trimProduct:'',trimColour:'',trimSheen:'',wallsPrimer:'',ceilingPrimer:'',trimPrimer:''},
+    notes:'', supplies:[],
   };
+}
+
+function roomWallSqft(room){
+  if(room.irregular){
+    const h = room.height||9;
+    return Math.max(0,(room.wallSegs||[]).reduce((s,seg)=>s+((+seg.l)||0)*h,0)) || (room.irregularSqft||0);
+  }
+  return Math.max(0, 2*(room.length+room.width)*(room.height||9));
+}
+function roomCeilSqft(room){
+  if(room.irregular && room.ceilSegs?.length){
+    const s = room.ceilSegs.reduce((t,seg)=>t+((+seg.l)||0)*((+seg.w)||0),0);
+    if(s>0) return s;
+  }
+  return (room.length||0)*(room.width||0);
+}
+function roomPerimLF(room){ return 2*((room.length||0)+(room.width||0)); }
+function roomWindowLF(room){
+  const dims = room.windows?.dims || [{l:0,w:0}];
+  return dims.reduce((t,d)=>t+2*(((+d.l)||0)+((+d.w)||0)),0);
+}
+function roomTrimLF(room){
+  const p = roomPerimLF(room);
+  let lf = 0;
+  if(room.baseboards?.enabled) lf += p;
+  if(room.crown?.enabled) lf += p;
+  if(room.doorFrames?.enabled) lf += p;
+  if(room.windows?.count>0) lf += roomWindowLF(room);
+  return lf;
 }
 
 function calcRoom(room, settings){
   const std = settings._standards || DEFAULT_STANDARDS;
-  const wallSqft = room.irregular ? (room.irregularSqft||0) : Math.max(0, 2*(room.length+room.width)*(room.height||9));
-  const ceilSqft = (room.length||0)*(room.width||0);
-  const perimLF = 2*((room.length||0)+(room.width||0));
+  const wallSqft = roomWallSqft(room);
+  const ceilSqft = roomCeilSqft(room);
+  const perimLF = roomPerimLF(room);
+  const winLF = roomWindowLF(room);
   let hrs = 0;
-  if(room.walls.enabled && wallSqft) hrs += wallSqft / (std.walls?.[room.walls.coats] || 120);
-  if(room.ceiling.enabled && ceilSqft) hrs += ceilSqft / (std.flatCeiling?.[room.ceiling.coats] || 90);
-  if(room.baseboards.enabled && perimLF) hrs += perimLF / (std.baseboards?.[room.baseboards.coats] || 60);
-  if(room.crown.enabled && perimLF) hrs += perimLF / (std.crown?.[room.crown.coats] || 55);
-  if(room.doors.count > 0) hrs += (room.doors.count * 21) / (std.doors?.[room.doors.coats] || 42);
-  if(room.windows.count > 0) hrs += (room.windows.count * 10) / (std.windows?.[room.windows.coats] || 60);
+  if(room.walls?.enabled && wallSqft) hrs += wallSqft / (std.walls?.[room.walls.coats] || 120);
+  if(room.ceiling?.enabled && ceilSqft){
+    const cstd = room.ceiling.type==='stucco' ? (std.stuccoCeiling||std.flatCeiling) : std.flatCeiling;
+    hrs += ceilSqft / (cstd?.[room.ceiling.coats] || 90);
+    if(room.ceiling.removeStucco) hrs += ceilSqft * (std.removeStucco?.rate || 0.75);
+  }
+  if(room.baseboards?.enabled && perimLF) hrs += perimLF / (std.baseboards?.[room.baseboards.coats] || 60);
+  if(room.crown?.enabled && perimLF) hrs += perimLF / (std.crown?.[room.crown.coats] || 55);
+  if(room.doorFrames?.enabled && perimLF) hrs += perimLF / (std.doorFrames?.[room.doorFrames.coats] || 102);
+  if(room.doors?.count > 0) hrs += (room.doors.count * 21) / (std.doors?.[room.doors.coats] || 42);
+  if(room.windows?.count > 0 && winLF) hrs += winLF / (std.windows?.[room.windows.coats] || 60);
   hrs += (room.prepHrs || 0);
   const cost = hrs * (settings.hourlyRate || 65) * (settings.labourBuffer || 1.25);
-  return { wallSqft, ceilSqft, perimLF, totalHrs:hrs, cost };
+  return { wallSqft, ceilSqft, perimLF, winLF, totalHrs:hrs, cost };
 }
 
 function calcTotals(rooms, settings){
@@ -2529,46 +2568,106 @@ function calcRoomLines(room, settings){
   const std = settings._standards || DEFAULT_STANDARDS;
   const lines = [];
   const rate = (settings.hourlyRate||65) * (settings.labourBuffer||1.25);
-  const wallSqft = room.irregular ? (room.irregularSqft||0) : Math.max(0, 2*(room.length+room.width)*(room.height||9));
-  const ceilSqft = (room.length||0)*(room.width||0);
-  const perimLF = 2*((room.length||0)+(room.width||0));
-  if(room.walls.enabled && wallSqft){
+  const wallSqft = roomWallSqft(room);
+  const ceilSqft = roomCeilSqft(room);
+  const perimLF = roomPerimLF(room);
+  const winLF = roomWindowLF(room);
+  if(room.walls?.enabled && wallSqft){
     const r = std.walls?.[room.walls.coats]||120;
     const h = wallSqft/r;
     lines.push({surface:'Walls',area:Math.round(wallSqft),areaUnit:'sqft',coats:room.walls.coats,rate:r,rateLabel:'sqft/hr',hours:h,cost:h*rate});
   }
-  if(room.ceiling.enabled && ceilSqft){
-    const r = std.flatCeiling?.[room.ceiling.coats]||90;
+  if(room.ceiling?.enabled && ceilSqft){
+    const cstd = room.ceiling.type==='stucco' ? (std.stuccoCeiling||std.flatCeiling) : std.flatCeiling;
+    const r = cstd?.[room.ceiling.coats]||90;
     const h = ceilSqft/r;
     lines.push({surface:'Ceiling',area:Math.round(ceilSqft),areaUnit:'sqft',coats:room.ceiling.coats,rate:r,rateLabel:'sqft/hr',hours:h,cost:h*rate});
   }
-  if(room.baseboards.enabled && perimLF){
+  if(room.baseboards?.enabled && perimLF){
     const r = std.baseboards?.[room.baseboards.coats]||60;
     const h = perimLF/r;
     lines.push({surface:'Baseboards',area:Math.round(perimLF),areaUnit:'lf',coats:room.baseboards.coats,rate:r,rateLabel:'lf/hr',hours:h,cost:h*rate});
   }
-  if(room.crown.enabled && perimLF){
+  if(room.crown?.enabled && perimLF){
     const r = std.crown?.[room.crown.coats]||55;
     const h = perimLF/r;
     lines.push({surface:'Crown',area:Math.round(perimLF),areaUnit:'lf',coats:room.crown.coats,rate:r,rateLabel:'lf/hr',hours:h,cost:h*rate});
   }
-  if(room.doors.count > 0){
+  if(room.doorFrames?.enabled && perimLF){
+    const r = std.doorFrames?.[room.doorFrames.coats]||102;
+    const h = perimLF/r;
+    lines.push({surface:'Door Frames',area:Math.round(perimLF),areaUnit:'lf',coats:room.doorFrames.coats,rate:r,rateLabel:'lf/hr',hours:h,cost:h*rate});
+  }
+  if(room.doors?.count > 0){
     const r = std.doors?.[room.doors.coats]||42;
     const sqft = room.doors.count*21;
     const h = sqft/r;
     lines.push({surface:`Doors (${room.doors.count})`,area:sqft,areaUnit:'sqft',coats:room.doors.coats,rate:r,rateLabel:'sqft/hr',hours:h,cost:h*rate});
   }
-  if(room.windows.count > 0){
+  if(room.windows?.count > 0 && winLF){
     const r = std.windows?.[room.windows.coats]||60;
-    const lf = room.windows.count*10;
-    const h = lf/r;
-    lines.push({surface:`Windows (${room.windows.count})`,area:lf,areaUnit:'lf',coats:room.windows.coats,rate:r,rateLabel:'lf/hr',hours:h,cost:h*rate});
+    const h = winLF/r;
+    lines.push({surface:`Windows (${room.windows.count})`,area:Math.round(winLF),areaUnit:'lf',coats:room.windows.coats,rate:r,rateLabel:'lf/hr',hours:h,cost:h*rate});
   }
   if(room.prepHrs > 0){
     const h = room.prepHrs;
     lines.push({surface:'Prep Work',area:h,areaUnit:'hrs',coats:0,rate:1,rateLabel:'hr',hours:h,cost:h*rate});
   }
   return lines;
+}
+
+function calcPaintCosts(rooms, allPaints, allCeilPaints, allPrimers, allColours, matBuffer){
+  const colMap = {};
+  const addCol = (product,colour,sheen,surface,area)=>{
+    if(!product||!area) return;
+    const key = `${product}·${colour||''}·${sheen||''}·${surface}`;
+    if(!colMap[key]) colMap[key] = {product,colour:colour||'',sheen:sheen||'',surface,area:0};
+    colMap[key].area += area;
+  };
+  rooms.forEach(r=>{
+    const ws = roomWallSqft(r), cs = roomCeilSqft(r);
+    const trimLF = roomTrimLF(r);
+    if(r.walls?.enabled && ws){
+      if(r.walls.coats===3 && r.paint?.wallsPrimer){ addCol(r.paint.wallsPrimer,'','','Walls (Primer)',ws); addCol(r.paint.wallProduct,r.paint.wallColour,r.paint.wallSheen,'Walls (2 Coats)',ws*2); }
+      else addCol(r.paint?.wallProduct,r.paint?.wallColour,r.paint?.wallSheen,'Walls',ws);
+    }
+    if(r.ceiling?.enabled && cs){
+      if(r.ceiling.coats===3 && r.paint?.ceilingPrimer){ addCol(r.paint.ceilingPrimer,'','','Ceiling (Primer)',cs); addCol(r.paint.ceilProduct,r.paint.ceilColour,r.paint.ceilSheen,'Ceiling (2 Coats)',cs*2); }
+      else addCol(r.paint?.ceilProduct,r.paint?.ceilColour,r.paint?.ceilSheen,'Ceiling',cs);
+    }
+    const hasTrim = r.baseboards?.enabled || r.crown?.enabled || r.doorFrames?.enabled || (r.windows?.count>0) || (r.doors?.count>0);
+    if(hasTrim && trimLF){
+      const needsPrimer = (r.baseboards?.coats===3||r.crown?.coats===3||r.doorFrames?.coats===3||r.doors?.coats===3||r.windows?.coats===3) && r.paint?.trimPrimer;
+      if(needsPrimer){ addCol(r.paint.trimPrimer,'','','Trim (Primer)',trimLF); addCol(r.paint.trimProduct,r.paint.trimColour,r.paint.trimSheen,'Trim (2 Coats)',trimLF*2); }
+      else addCol(r.paint?.trimProduct,r.paint?.trimColour,r.paint?.trimSheen,'Trim',trimLF);
+    }
+  });
+  const allProducts = [...(allPaints||[]),...(allCeilPaints||[]),...(allPrimers||[])];
+  let total = 0;
+  const lines = Object.values(colMap).map(cm=>{
+    const sqft = cm.area;
+    const pObj = allProducts.find(p=>p.n===cm.product);
+    let qtyStr = '—', gallons = 0;
+    if(sqft > 0){
+      gallons = Math.ceil(sqft/350);
+      if(sqft <= 1900){ qtyStr = gallons + ' gal'; }
+      else { const pails=Math.floor(sqft/1900); const rem=sqft-pails*1900; const eg=rem>0?Math.ceil(rem/350):0; const p2=[]; if(pails>0)p2.push(pails+' pail'+(pails>1?'s':'')); if(eg>0)p2.push(eg+' gal'); qtyStr=p2.join(' + '); }
+    }
+    const unitPrice = pObj ? (sqft>1900 && pObj.p>0 ? pObj.p : pObj.g||pObj.p||0) : 0;
+    const lineCost = unitPrice>0 ? unitPrice*gallons*matBuffer : 0;
+    total += lineCost;
+    const hex = cm.colour ? ((allColours||[]).find(c=>c.n===cm.colour)?.h||'#ccc') : '';
+    return { ...cm, sqft, qtyStr, lineCost, hex };
+  });
+  return { lines, total };
+}
+
+function calcRoomSupplyCost(room, allSupplies){
+  return (room.supplies||[]).reduce((t,s)=>{
+    if(!s.name) return t;
+    const sup = (allSupplies||[]).find(x=>x.n===s.name);
+    return t + (sup ? sup.p * ((+s.qty)||1) : 0);
+  },0);
 }
 
 // Derived paint name arrays — computed from paint settings state
@@ -2761,2663 +2860,563 @@ function RoomCard({room,settings,onChange,onRemove}){
   );
 }
 
-// ─── ESTIMATE BUILDER ─────────────────────────────────────────────────────────
-function EstimateBuilder({id,onBack,showToast}){
-  const isNew=id==='new';
-  const [tab,setTab]=useState('cover');
-  const [title,setTitle]=useState('New Estimate');
-  const [clientId,setClientId]=useState('');
-  const [status,setStatus]=useState('Draft');
-  const [date,setDate]=useState(new Date().toISOString().split('T')[0]);
-  const [notes,setNotes]=useState('');
-  const [rooms,setRooms]=useState([newRoom('1',1)]);
-  const [settings,setSettings]=useState(DEFAULT_SETTINGS);
-  const [clients]=useState(()=>api.getClients());
-  const [saving,setSaving]=useState(false);
-  const [currentId,setCurrentId]=useState(isNew?null:id);
-
-  useEffect(()=>{
-    if(!isNew&&id){
-      const e=api.getEstimate(id);
-      if(!e){onBack();return;}
-      setTitle(e.estimateTitle||'');setClientId(e.clientId||'');setStatus(e.status||'Draft');
-      setDate(e.date||new Date().toISOString().split('T')[0]);setNotes(e.notes||'');
-      if(e.hourlyRate) setSettings(s=>({...s,hourlyRate:e.hourlyRate}));
-      if(e.roomsJson){try{setRooms(JSON.parse(e.roomsJson));}catch{}}
-    }
-  },[id]);
-
-  const totals=calcTotals(rooms,settings);
-  const addRoom=useCallback(()=>setRooms(prev=>[...prev,newRoom(Date.now().toString(),prev.length+1)]),[]);
-  const updateRoom=useCallback((idx,r)=>setRooms(prev=>prev.map((x,i)=>i===idx?r:x)),[]);
-  const removeRoom=useCallback(idx=>setRooms(prev=>prev.filter((_,i)=>i!==idx)),[]);
-
-  const save=async()=>{
-    if(!title.trim()){showToast('Please enter an estimate title');return;}
-    setSaving(true);
-    const savedId=api.saveEstimate({estimateTitle:title,clientId:clientId||undefined,status,date,subtotal:totals.discounted,tax:totals.taxAmt,total:totals.total,hourlyRate:settings.hourlyRate,roomsJson:JSON.stringify(rooms),notes},currentId);
-    if(isNew)setCurrentId(savedId);
-    showToast(isNew&&!currentId?'Estimate created!':'Estimate saved!');
-    setSaving(false);
-  };
-
-  const TABS=[{k:'cover',l:'Cover'},{k:'rooms',l:`Rooms (${rooms.length})`},{k:'breakdown',l:'Breakdown'}];
-  const client=clients.find(c=>c.id===clientId);
-  const formattedDate=date?new Date(date+'T12:00:00').toLocaleDateString('en-CA',{year:'numeric',month:'long',day:'numeric'}):'—';
-
-  // Aggregate surface+paint data for breakdown
-  const totalWalls=rooms.reduce((s,r)=>s+calcRoom(r,settings).wallSqft,0);
-  const totalCeil=rooms.reduce((s,r)=>s+calcRoom(r,settings).ceilSqft,0);
-  const totalTrimLF=rooms.reduce((s,r)=>s+calcRoom(r,settings).perimLF,0);
-  const totalDoors=rooms.reduce((s,r)=>s+r.doors.count,0);
-  const totalHrs=rooms.reduce((s,r)=>s+calcRoom(r,settings).totalHrs,0);
-  const estDays=Math.ceil(totalHrs/8);
-
+// ─── COVER TAB ────────────────────────────────────────────────────────────────
+function CoverTab({client,setClient,deals,onSelectDeal}){
+  const todayStr=new Date().toLocaleDateString('en-CA',{year:'numeric',month:'long',day:'numeric'});
+  const docStyle={background:'#fff',color:'#1a1a1a',borderRadius:8,maxWidth:900,margin:'0 auto',padding:40,boxShadow:'0 2px 12px rgba(0,0,0,0.08)'};
+  const gold='#C4922A';
   return (
-    <div style={{display:'flex',flexDirection:'column',height:'100%',overflow:'hidden'}}>
-      <div style={{background:'var(--fg)',color:'var(--bg)',padding:'10px 20px',display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0}}>
-        <div style={{display:'flex',gap:10,alignItems:'center'}}>
-          <button onClick={onBack} style={{background:'none',border:'none',cursor:'pointer',color:'rgba(237,233,222,0.6)',display:'flex',gap:4,alignItems:'center',fontSize:12}}>
-            <ArrowLeft size={13}/>Estimates
-          </button>
-          <span style={{color:'rgba(237,233,222,0.3)'}}>|</span>
-          <span style={{fontSize:13,fontWeight:500}}>{title||'Untitled'}</span>
+    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:24,padding:24,overflow:'auto',maxHeight:'100%'}}>
+      <div style={docStyle}>
+        <div style={{textAlign:'center',padding:'48px 24px'}}>
+          <KPLogo height={64}/>
+          <h2 style={{fontSize:22,fontWeight:700,marginTop:16,color:gold,letterSpacing:'0.05em'}}>KINGDOM PAINTING INC.</h2>
+          <div style={{width:60,height:2,background:gold,margin:'16px auto'}}/>
+          <p style={{fontSize:16,fontWeight:600,letterSpacing:'0.08em',color:'#555',marginTop:24}}>BID PROPOSAL</p>
+          <div style={{marginTop:48}}>
+            <p style={{fontSize:11,textTransform:'uppercase',letterSpacing:'0.1em',color:'#999'}}>PREPARED FOR</p>
+            <p style={{fontSize:18,fontWeight:600,marginTop:8,color:'#1a1a1a'}}>{client.name||'Client Name'}</p>
+          </div>
+          <p style={{fontSize:12,color:'#999',marginTop:32}}>{todayStr}</p>
         </div>
-        <button onClick={save} disabled={saving} style={{background:'transparent',border:'1px solid rgba(237,233,222,0.3)',color:'var(--bg)',cursor:'pointer',borderRadius:6,padding:'5px 12px',fontSize:12,display:'flex',gap:6,alignItems:'center'}}>
-          {saving?<Loader2 size={13} className='animate-spin'/>:<Save size={13}/>}{saving?'Saving…':'Save Estimate'}
-        </button>
       </div>
-      <div style={{background:'var(--fg)',borderBottom:'1px solid rgba(237,233,222,0.1)',padding:'0 20px',display:'flex',gap:2,flexShrink:0}}>
-        {TABS.map(t=>(
-          <button key={t.k} onClick={()=>setTab(t.k)} style={{background:'none',border:'none',cursor:'pointer',padding:'8px 14px',fontSize:12,fontWeight:500,color:tab===t.k?'var(--bg)':'rgba(237,233,222,0.5)',borderBottom:tab===t.k?'2px solid var(--primary)':'2px solid transparent'}}>
-            {t.l}
-          </button>
-        ))}
+      <Card>
+        <div style={{padding:20}}>
+          <p style={{fontSize:13,fontWeight:700,marginBottom:16}}>Client Information</p>
+          <div style={{display:'flex',flexDirection:'column',gap:12}}>
+            <div>
+              <Label>Project / Deal</Label>
+              <Select value='' onChange={e=>{if(e.target.value)onSelectDeal(e.target.value);}}>
+                <option value=''>Select a deal...</option>
+                {deals.map(d=><option key={d.id} value={d.id}>{d.title||d.name||d.id}</option>)}
+              </Select>
+            </div>
+            <div>
+              <Label>Client Name</Label>
+              <Input value={client.name} onChange={e=>setClient({...client,name:e.target.value})}/>
+            </div>
+            <div>
+              <Label>Phone</Label>
+              <Input value={client.phone} onChange={e=>setClient({...client,phone:e.target.value})}/>
+            </div>
+            <div>
+              <Label>Address Line 1</Label>
+              <Input value={client.addr1} onChange={e=>setClient({...client,addr1:e.target.value})}/>
+            </div>
+            <div>
+              <Label>Address Line 2</Label>
+              <Input value={client.addr2} onChange={e=>setClient({...client,addr2:e.target.value})}/>
+            </div>
+            <div>
+              <Label>Email</Label>
+              <Input value={client.email} onChange={e=>setClient({...client,email:e.target.value})}/>
+            </div>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+// ─── ROOMS TAB ────────────────────────────────────────────────────────────────
+function RoomsTab({rooms,settings,onUpdate,onRemove,onAdd,paints,ceilPaints,colours}){
+  const totalCost=rooms.reduce((s,r)=>s+calcRoom(r,settings).cost,0);
+  return (
+    <div style={{padding:24,overflow:'auto',maxHeight:'100%'}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+        <div style={{display:'flex',gap:12,alignItems:'center'}}>
+          <h3 style={{fontSize:15,fontWeight:700}}>Rooms</h3>
+          <Badge color='primary'>{rooms.length}</Badge>
+        </div>
+        <span style={{fontSize:13,fontWeight:600,color:'var(--primary)'}}>{fmtCAD(totalCost)}</span>
       </div>
-      <div style={{flex:1,overflowY:'auto'}}>
-        {tab==='cover'&&(
-          <div style={{maxWidth:900,margin:'0 auto',padding:'24px 24px',display:'grid',gridTemplateColumns:'1fr 1fr',gap:24}}>
-            <Card className='overflow-hidden'>
-              <div style={{background:'var(--fg)',color:'var(--bg)',textAlign:'center',padding:'6px 16px',fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.15em'}}>Proposal Preview</div>
-              <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'40px 32px',minHeight:420,textAlign:'center'}}>
-                <div style={{width:56,height:56,borderRadius:'50%',background:'rgba(212,169,106,0.15)',display:'flex',alignItems:'center',justifyContent:'center',marginBottom:16}}>
-                  <span style={{fontWeight:700,fontSize:18,color:'var(--primary)'}}>KP</span>
-                </div>
-                <p style={{fontSize:10,fontWeight:600,letterSpacing:'0.2em',color:'var(--primary)',textTransform:'uppercase',marginBottom:12}}>Kingdom Painting Inc.</p>
-                <h2 style={{fontSize:26,fontWeight:300,marginBottom:12}}>Bid Proposal</h2>
-                <div style={{width:32,height:2,background:'var(--primary)',marginBottom:24}}/>
-                <p style={{fontSize:10,textTransform:'uppercase',letterSpacing:'0.15em',color:'var(--muted-fg)',marginBottom:8}}>Prepared For</p>
-                <p style={{fontSize:18,fontWeight:500}}>{client?.companyName||'—'}</p>
-                {client?.email&&<p style={{fontSize:13,color:'var(--primary)',marginTop:4}}>{client.email}</p>}
-                <div style={{marginTop:24,paddingTop:24,borderTop:'1px solid var(--border)',width:'100%'}}>
-                  <p style={{fontSize:11,color:'var(--muted-fg)'}}>{formattedDate}</p>
-                  <p style={{fontSize:13,fontWeight:500,marginTop:4}}>{title}</p>
-                </div>
+      {rooms.map((r,i)=>(
+        <RoomCard key={r.id} room={r} settings={settings}
+          onChange={updated=>onUpdate(i,updated)}
+          onRemove={()=>onRemove(i)}/>
+      ))}
+      <Btn onClick={onAdd} variant='outline' style={{width:'100%',marginTop:8}}>
+        <Plus size={14}/> Add Room
+      </Btn>
+    </div>
+  );
+}
+
+// ─── BREAKDOWN TAB ────────────────────────────────────────────────────────────
+function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,supplies}){
+  const fmtN=n=>Math.round(n).toLocaleString('en-CA');
+  const activeRooms=rooms.filter(r=>r.walls.enabled||r.ceiling.enabled||r.baseboards.enabled||r.doors.count>0);
+  let tWalls=0,tCeil=0,tTrim=0,tDoors=0,tHrs=0,tCost=0;
+  const roomCalcs=rooms.map(r=>{
+    const c=calcRoom(r,settings);
+    tWalls+=c.wallSqft;tCeil+=c.ceilSqft;tTrim+=c.perimLF;tDoors+=(r.doors.count||0);tHrs+=c.totalHrs;tCost+=c.cost;
+    return {room:r,calc:c,lines:calcRoomLines(r,settings)};
+  });
+  const numWorkers=Math.max(1,settings._standards?.workers||1);
+  const estDays=tHrs>0?Math.ceil(tHrs/numWorkers/8):0;
+  const paintData=calcPaintCosts(rooms,paints||[],ceilPaints||[],primers||[],colours||[],settings._standards?.matBuffer||1.15);
+  const statStyle={background:'var(--card)',border:'1px solid var(--border)',borderRadius:10,padding:'14px 16px',textAlign:'center'};
+  const statLabel={fontSize:10,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',fontWeight:600};
+  const statVal={fontSize:20,fontWeight:700,marginTop:4};
+  const thStyle={fontSize:11,fontWeight:600,textAlign:'left',padding:'8px 10px',borderBottom:'2px solid var(--border)',color:'var(--muted-fg)'};
+  const tdStyle={fontSize:12,padding:'7px 10px',borderBottom:'1px solid var(--border)'};
+  return (
+    <div style={{padding:24,overflow:'auto',maxHeight:'100%'}}>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:24}}>
+        <div style={statStyle}><p style={statLabel}>Total Walls</p><p style={statVal}>{fmtN(tWalls)} sqft</p></div>
+        <div style={statStyle}><p style={statLabel}>Total Ceiling</p><p style={statVal}>{fmtN(tCeil)} sqft</p></div>
+        <div style={statStyle}><p style={statLabel}>Total Trim</p><p style={statVal}>{fmtN(tTrim)} LF</p></div>
+        <div style={statStyle}><p style={statLabel}>Total Doors</p><p style={statVal}>{tDoors}</p></div>
+        <div style={statStyle}><p style={statLabel}>Hours / Worker</p><p style={statVal}>{fmtN(tHrs)}</p></div>
+        <div style={statStyle}><p style={statLabel}>Est. Days</p><p style={statVal}>{estDays}</p></div>
+        <div style={statStyle}><p style={statLabel}>Labour Cost</p><p style={statVal}>{fmtCAD(tCost)}</p></div>
+        <div style={statStyle}><p style={statLabel}>Active Rooms</p><p style={statVal}>{activeRooms.length}</p></div>
+      </div>
+      <Card style={{marginBottom:24}}>
+        <div style={{padding:16}}>
+          <p style={{fontSize:13,fontWeight:700,marginBottom:12}}>Per-Room Labour Breakdown</p>
+          {roomCalcs.map(({room,calc,lines})=>(
+            <div key={room.id} style={{marginBottom:16}}>
+              <p style={{fontSize:12,fontWeight:600,marginBottom:6}}>{room.name} <span style={{color:'var(--muted-fg)',fontWeight:400}}>({fmtCAD(calc.cost)})</span></p>
+              <table style={{width:'100%',borderCollapse:'collapse'}}>
+                <thead><tr>
+                  <th style={thStyle}>Surface</th><th style={thStyle}>Area</th><th style={thStyle}>Coats</th>
+                  <th style={thStyle}>Rate</th><th style={thStyle}>Hours</th><th style={{...thStyle,textAlign:'right'}}>Cost</th>
+                </tr></thead>
+                <tbody>{lines.map((ln,i)=>(
+                  <tr key={i}>
+                    <td style={tdStyle}>{ln.surface}</td>
+                    <td style={tdStyle}>{fmtN(ln.area)} {ln.areaUnit}</td>
+                    <td style={tdStyle}>{ln.coats}</td>
+                    <td style={tdStyle}>{ln.rateLabel}</td>
+                    <td style={tdStyle}>{ln.hours.toFixed(1)}</td>
+                    <td style={{...tdStyle,textAlign:'right'}}>{fmtCAD(ln.cost)}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+          ))}
+        </div>
+      </Card>
+      {paintData.lines.length>0&&(
+        <Card>
+          <div style={{padding:16}}>
+            <p style={{fontSize:13,fontWeight:700,marginBottom:12}}>Paint & Materials <span style={{fontWeight:400,color:'var(--muted-fg)'}}>({fmtCAD(paintData.total)})</span></p>
+            <table style={{width:'100%',borderCollapse:'collapse'}}>
+              <thead><tr>
+                <th style={thStyle}>Product</th><th style={thStyle}>Colour</th><th style={thStyle}>Sheen</th>
+                <th style={thStyle}>Surface</th><th style={thStyle}>Qty</th><th style={{...thStyle,textAlign:'right'}}>Cost</th>
+              </tr></thead>
+              <tbody>{paintData.lines.map((ln,i)=>(
+                <tr key={i}>
+                  <td style={tdStyle}>{ln.product}</td>
+                  <td style={tdStyle}>
+                    <span style={{display:'inline-flex',gap:6,alignItems:'center'}}>
+                      {ln.hex&&<span style={{width:10,height:10,borderRadius:2,background:ln.hex,border:'1px solid #ccc',display:'inline-block'}}/>}
+                      {ln.colour}
+                    </span>
+                  </td>
+                  <td style={tdStyle}>{ln.sheen}</td>
+                  <td style={tdStyle}>{ln.surface}</td>
+                  <td style={tdStyle}>{ln.qtyStr}</td>
+                  <td style={{...tdStyle,textAlign:'right'}}>{fmtCAD(ln.lineCost)}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+// ─── QUOTE TAB ────────────────────────────────────────────────────────────────
+function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colours,supplies}){
+  const fmtN=n=>Math.round(n).toLocaleString('en-CA');
+  const todayStr=new Date().toLocaleDateString('en-CA',{year:'numeric',month:'long',day:'numeric'});
+  const gold='#C4922A';
+  const docStyle={background:'#fff',color:'#1a1a1a',borderRadius:8,maxWidth:900,margin:'0 auto',padding:'32px 40px',boxShadow:'0 2px 12px rgba(0,0,0,0.08)'};
+  const thStyle={fontSize:11,fontWeight:600,textAlign:'left',padding:'8px 10px',borderBottom:'2px solid #e5e5e5',color:'#888'};
+  const tdStyle={fontSize:12,padding:'8px 10px',borderBottom:'1px solid #eee',verticalAlign:'top'};
+  const prepLabels={furniture:'Move furniture',plastic:'Cover w/ plastic',outlets:'Remove outlets',drywall:'Drywall repairs',caulking:'Caulking',cleanup:'Clean up',custom:'Custom prep'};
+  const allColours=[...(colours||[])];
+  const getHex=(name)=>{const c=allColours.find(x=>x.n===name);return c?.hex||null;};
+  return (
+    <div style={{padding:24,overflow:'auto',maxHeight:'100%',background:'#f5f5f0'}}>
+      <div style={docStyle}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:24,paddingBottom:16,borderBottom:`2px solid ${gold}`}}>
+          <div style={{display:'flex',gap:12,alignItems:'center'}}>
+            <KPLogo height={40}/>
+            <div>
+              <p style={{fontSize:14,fontWeight:700,color:gold}}>KINGDOM PAINTING INC.</p>
+              <p style={{fontSize:10,color:'#999'}}>Professional Painting Services</p>
+            </div>
+          </div>
+          <div style={{textAlign:'right'}}>
+            <p style={{fontSize:16,fontWeight:700,color:gold}}>Quote</p>
+            <p style={{fontSize:11,color:'#666'}}>{todayStr}</p>
+            <p style={{fontSize:10,color:'#999',marginTop:4}}>HST# 742813191RT0001</p>
+          </div>
+        </div>
+        <div style={{display:'flex',justifyContent:'space-between',marginBottom:24,fontSize:12}}>
+          <div>
+            <p style={{fontWeight:600,color:'#888',fontSize:10,textTransform:'uppercase',marginBottom:4}}>Prepared For</p>
+            <p style={{fontWeight:600}}>{client.name||'—'}</p>
+            {client.addr1&&<p style={{color:'#666'}}>{client.addr1}</p>}
+            {client.addr2&&<p style={{color:'#666'}}>{client.addr2}</p>}
+            {client.phone&&<p style={{color:'#666'}}>{client.phone}</p>}
+            {client.email&&<p style={{color:'#666'}}>{client.email}</p>}
+          </div>
+        </div>
+        <table style={{width:'100%',borderCollapse:'collapse',marginBottom:24}}>
+          <thead><tr>
+            <th style={thStyle}>Room</th>
+            <th style={thStyle}>Description</th>
+            <th style={{...thStyle,textAlign:'right'}}>Amount</th>
+          </tr></thead>
+          <tbody>
+            {rooms.map(r=>{
+              const c=calcRoom(r,settings);
+              const prepItems=Object.entries(r.prep).filter(([,v])=>v).map(([k])=>prepLabels[k]||k).filter(Boolean);
+              const surfaces=[];
+              if(r.walls.enabled) surfaces.push(`${r.walls.coats} coat${r.walls.coats>1?'s':''} on walls — ${fmtN(c.wallSqft)} sqft`);
+              if(r.ceiling.enabled) surfaces.push(`${r.ceiling.coats} coat${r.ceiling.coats>1?'s':''} on ceiling — ${fmtN(c.ceilSqft)} sqft`);
+              if(r.baseboards.enabled) surfaces.push(`${r.baseboards.coats} coat${r.baseboards.coats>1?'s':''} on baseboards`);
+              if(r.crown.enabled) surfaces.push(`${r.crown.coats} coat${r.crown.coats>1?'s':''} on crown moulding`);
+              if(r.doorFrames?.enabled) surfaces.push(`${r.doorFrames.coats} coat${r.doorFrames.coats>1?'s':''} on door frames`);
+              if(r.doors.count>0) surfaces.push(`${r.doors.count} door${r.doors.count>1?'s':''} — ${r.doors.coats} coat${r.doors.coats>1?'s':''}`);
+              if(r.windows.count>0) surfaces.push(`${r.windows.count} window${r.windows.count>1?'s':''} — ${r.windows.coats} coat${r.windows.coats>1?'s':''}`);
+              const materials=[];
+              if(r.walls.enabled&&r.paint.wallProduct){
+                const hex=getHex(r.paint.wallColour);
+                materials.push({label:`Walls: ${r.paint.wallProduct}`,colour:r.paint.wallColour,sheen:r.paint.wallSheen,hex});
+              }
+              if(r.ceiling.enabled&&r.paint.ceilProduct){
+                const hex=getHex(r.paint.ceilColour);
+                materials.push({label:`Ceiling: ${r.paint.ceilProduct}`,colour:r.paint.ceilColour,sheen:r.paint.ceilSheen,hex});
+              }
+              if((r.baseboards.enabled||r.doors.count>0||r.crown.enabled)&&r.paint.trimProduct){
+                const hex=getHex(r.paint.trimColour);
+                materials.push({label:`Trim: ${r.paint.trimProduct}`,colour:r.paint.trimColour,sheen:r.paint.trimSheen,hex});
+              }
+              return (
+                <tr key={r.id}>
+                  <td style={{...tdStyle,fontWeight:600,whiteSpace:'nowrap'}}>{r.name}</td>
+                  <td style={tdStyle}>
+                    {prepItems.length>0&&<p style={{fontSize:11,marginBottom:4}}><strong>Prep:</strong> {prepItems.join(', ')}</p>}
+                    {surfaces.map((s,i)=><p key={i} style={{fontSize:11,color:'#444'}}>{s}</p>)}
+                    {materials.length>0&&(
+                      <div style={{marginTop:6}}>
+                        {materials.map((m,i)=>(
+                          <p key={i} style={{fontSize:10,color:'#666',display:'flex',gap:4,alignItems:'center'}}>
+                            {m.hex&&<span style={{width:8,height:8,borderRadius:2,background:m.hex,border:'1px solid #ccc',display:'inline-block'}}/>}
+                            {m.label} — {m.colour} ({m.sheen})
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                  </td>
+                  <td style={{...tdStyle,textAlign:'right',fontWeight:600,whiteSpace:'nowrap'}}>{fmtCAD(c.cost)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        <div style={{borderTop:'2px solid #e5e5e5',paddingTop:16,display:'flex',justifyContent:'flex-end'}}>
+          <div style={{width:260}}>
+            {(settings.discount||0)>0&&(
+              <div style={{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:6}}>
+                <span style={{color:'#888'}}>Discount</span>
+                <span style={{color:'#c00'}}>-{fmtCAD(totals.labourSubtotal-totals.discounted)}</span>
               </div>
-            </Card>
-            <div style={{display:'flex',flexDirection:'column',gap:16}}>
-              <Card className='p-5'>
-                <p style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--muted-fg)',marginBottom:16}}>Project Information</p>
-                <div style={{marginBottom:12}}><Label>Estimate Title</Label><Input value={title} onChange={e=>setTitle(e.target.value)} placeholder='e.g. Full Interior Repaint'/></div>
-                <div style={{marginBottom:12}}><Label>Client</Label><Select value={clientId||'none'} onChange={e=>setClientId(e.target.value==='none'?'':e.target.value)}><option value='none'>No client</option>{clients.map(c=><option key={c.id} value={c.id}>{c.companyName}</option>)}</Select></div>
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:12}}>
-                  <div><Label>Status</Label><Select value={status} onChange={e=>setStatus(e.target.value)}>{['Draft','Sent','Approved','Declined'].map(s=><option key={s}>{s}</option>)}</Select></div>
-                  <div><Label>Date</Label><Input type='date' value={date} onChange={e=>setDate(e.target.value)}/></div>
-                </div>
-                <div><Label>Notes / Scope</Label><Textarea value={notes} onChange={e=>setNotes(e.target.value)} rows={3} placeholder='Scope of work...'/></div>
-              </Card>
-              <Card className='p-5'>
-                <p style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--muted-fg)',marginBottom:12}}>Pricing Settings</p>
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-                  <div><Label>Hourly Rate ($)</Label><Input type='number' value={settings.hourlyRate} onChange={e=>setSettings(s=>({...s,hourlyRate:+e.target.value}))}/></div>
-                  <div><Label>Labour Buffer</Label><Input type='number' step='0.05' value={settings.labourBuffer} onChange={e=>setSettings(s=>({...s,labourBuffer:+e.target.value}))}/></div>
-                  <div><Label>Tax Rate (%)</Label><Input type='number' value={settings.taxRate} onChange={e=>setSettings(s=>({...s,taxRate:+e.target.value}))}/></div>
-                  <div><Label>Discount ($)</Label><Input type='number' value={settings.discount} onChange={e=>setSettings(s=>({...s,discount:+e.target.value}))}/></div>
-                </div>
-              </Card>
+            )}
+            <div style={{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:6}}>
+              <span style={{color:'#888'}}>Subtotal</span><span>{fmtCAD(totals.discounted)}</span>
+            </div>
+            <div style={{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:6}}>
+              <span style={{color:'#888'}}>HST (13%)</span><span>{fmtCAD(totals.taxAmt)}</span>
+            </div>
+            <div style={{display:'flex',justifyContent:'space-between',fontSize:14,fontWeight:700,paddingTop:8,borderTop:'2px solid #1a1a1a'}}>
+              <span>Total</span><span style={{color:gold}}>{fmtCAD(totals.total)}</span>
             </div>
           </div>
-        )}
-        {tab==='rooms'&&(
-          <div style={{maxWidth:800,margin:'0 auto',padding:24}}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
-              <p style={{fontSize:13,color:'var(--muted-fg)'}}>{rooms.length} room{rooms.length!==1?'s':''} · {fmtCAD(totals.labourSubtotal)} subtotal</p>
-              <Btn onClick={addRoom} size='sm'><Plus size={13}/>Add Room</Btn>
+        </div>
+        <div style={{marginTop:32,paddingTop:20,borderTop:'1px solid #eee'}}>
+          <p style={{fontSize:12,fontWeight:700,marginBottom:12,color:gold}}>Payment Terms</p>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12}}>
+            <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:14,textAlign:'center'}}>
+              <p style={{fontSize:10,color:'#888',textTransform:'uppercase',fontWeight:600}}>Deposit (10%)</p>
+              <p style={{fontSize:16,fontWeight:700,marginTop:4}}>{fmtCAD(totals.deposit)}</p>
             </div>
-            {rooms.map((room,i)=><RoomCard key={room.id} room={room} settings={settings} onChange={r=>updateRoom(i,r)} onRemove={()=>removeRoom(i)}/>)}
-          </div>
-        )}
-        {tab==='breakdown'&&(
-          <div style={{maxWidth:900,margin:'0 auto',padding:24}}>
-            <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:16}}>
-              {[['Total Walls',`${Math.round(totalWalls)} sqft`],['Total Ceiling',`${Math.round(totalCeil)} sqft`],['Total Trim',`${Math.round(totalTrimLF)} lf`],['Total Doors',totalDoors]].map(([l,v])=>(
-                <Card key={l} className='p-4'><p style={{fontSize:10,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--muted-fg)'}}>{l}</p><p style={{fontSize:22,fontWeight:300,marginTop:4,fontFamily:'monospace'}}>{v}</p></Card>
-              ))}
+            <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:14,textAlign:'center'}}>
+              <p style={{fontSize:10,color:'#888',textTransform:'uppercase',fontWeight:600}}>Midway (45%)</p>
+              <p style={{fontSize:16,fontWeight:700,marginTop:4}}>{fmtCAD(totals.midway)}</p>
             </div>
-            <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:16}}>
-              {[['Total Hours',totalHrs.toFixed(1)],['Est. Days',`${estDays} day${estDays!==1?'s':''}`],['Active Rooms',rooms.length],['Labour Cost',fmtCAD(totals.labourSubtotal)]].map(([l,v])=>(
-                <Card key={l} className='p-4'><p style={{fontSize:10,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--muted-fg)'}}>{l}</p><p style={{fontSize:22,fontWeight:300,marginTop:4,fontFamily:'monospace',color:l==='Labour Cost'?'var(--primary)':'var(--fg)'}}>{v}</p></Card>
-              ))}
-            </div>
-            <Card className='overflow-hidden mb-4'>
-              <div style={{padding:'12px 16px',borderBottom:'1px solid var(--border)'}}><p style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--muted-fg)'}}>Per-Room Labour Breakdown</p></div>
-              <div style={{overflowX:'auto'}}>
-                <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
-                  <thead><tr style={{background:'var(--fg)',color:'var(--bg)'}}>{['Surface','Area','Coats','Rate','Hours','Cost'].map(h=><th key={h} style={{padding:'8px 14px',textAlign:h==='Surface'?'left':'right',fontWeight:400,fontSize:11}}>{h}</th>)}</tr></thead>
-                  <tbody>
-                    {rooms.map(room=>{
-                      const lines=calcRoomLines(room,settings);
-                      const roomCost=lines.reduce((s,l)=>s+l.cost,0);
-                      return lines.length>0?(
-                        <>
-                          {lines.map((line,i)=>(
-                            <tr key={`${room.id}-${i}`} style={{borderBottom:'1px solid rgba(0,0,0,0.04)'}}>
-                              <td style={{padding:'6px 14px'}}>{i===0&&<span style={{color:'var(--muted-fg)',fontWeight:500,marginRight:6}}>{room.name} ·</span>}{line.surface}</td>
-                              <td style={{padding:'6px 14px',textAlign:'right',color:'var(--muted-fg)',fontFamily:'monospace'}}>{line.area} {line.areaUnit}</td>
-                              <td style={{padding:'6px 14px',textAlign:'right',color:'var(--muted-fg)',fontFamily:'monospace'}}>{line.coats>0?line.coats:'—'}</td>
-                              <td style={{padding:'6px 14px',textAlign:'right',color:'var(--muted-fg)',fontFamily:'monospace'}}>{line.rate.toFixed(1)} {line.rateLabel}</td>
-                              <td style={{padding:'6px 14px',textAlign:'right',fontFamily:'monospace'}}>{line.hours.toFixed(2)}</td>
-                              <td style={{padding:'6px 14px',textAlign:'right',fontWeight:500,fontFamily:'monospace'}}>{fmtCAD(line.cost)}</td>
-                            </tr>
-                          ))}
-                          <tr style={{background:'rgba(0,0,0,0.03)',borderBottom:'1px solid var(--border)'}}>
-                            <td colSpan={5} style={{padding:'6px 14px',textAlign:'right',fontSize:11,fontWeight:600,color:'var(--muted-fg)'}}>{room.name} subtotal</td>
-                            <td style={{padding:'6px 14px',textAlign:'right',fontWeight:600,fontFamily:'monospace'}}>{fmtCAD(roomCost)}</td>
-                          </tr>
-                        </>
-                      ):null;
-                    })}
-                    <tr style={{background:'var(--fg)',color:'var(--bg)'}}>
-                      <td colSpan={5} style={{padding:'10px 14px',textAlign:'right',fontWeight:500}}>Grand Total</td>
-                      <td style={{padding:'10px 14px',textAlign:'right',fontWeight:700,fontFamily:'monospace'}}>{fmtCAD(totals.labourSubtotal)}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </Card>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
-              <Card className='overflow-hidden'>
-                <div style={{padding:'12px 16px',borderBottom:'1px solid var(--border)'}}><p style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--muted-fg)'}}>Quote Summary</p></div>
-                {[{l:'Labour Subtotal',v:totals.labourSubtotal},{l:'Subtotal',v:totals.discounted},{l:`HST (${settings.taxRate}%)`,v:totals.taxAmt}].map(({l,v})=>(
-                  <div key={l} style={{display:'flex',justifyContent:'space-between',padding:'10px 16px',borderBottom:'1px solid rgba(0,0,0,0.05)',fontSize:13}}>
-                    <span style={{color:'var(--muted-fg)'}}>{l}</span><span style={{fontWeight:500,fontFamily:'monospace'}}>{fmtCAD(v)}</span>
-                  </div>
-                ))}
-                {settings.discount>0&&<div style={{display:'flex',justifyContent:'space-between',padding:'10px 16px',borderBottom:'1px solid rgba(0,0,0,0.05)',fontSize:13}}><span style={{color:'var(--muted-fg)'}}>Discount</span><span style={{color:'var(--destructive)',fontFamily:'monospace'}}>−{fmtCAD(settings.discount)}</span></div>}
-                <div style={{display:'flex',justifyContent:'space-between',padding:'12px 16px',background:'var(--fg)',color:'var(--bg)'}}>
-                  <span style={{fontWeight:600}}>Total</span><span style={{fontWeight:700,fontSize:16,fontFamily:'monospace'}}>{fmtCAD(totals.total)}</span>
-                </div>
-              </Card>
-              <Card className='overflow-hidden'>
-                <div style={{padding:'12px 16px',borderBottom:'1px solid var(--border)'}}><p style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--muted-fg)'}}>Payment Schedule</p></div>
-                <div style={{padding:14,display:'flex',flexDirection:'column',gap:10}}>
-                  {[{step:'Step 1 · Deposit',desc:'10% on first day',v:totals.deposit},{step:'Step 2 · Midway',desc:'45% midway',v:totals.midway},{step:'Step 3 · Completion',desc:'Balance on completion',v:totals.balance}].map(p=>(
-                    <div key={p.step} style={{background:'rgba(0,0,0,0.03)',borderRadius:10,padding:'12px',textAlign:'center'}}>
-                      <p style={{fontSize:10,fontWeight:600,color:'var(--primary)',textTransform:'uppercase',letterSpacing:'0.1em'}}>{p.step}</p>
-                      <p style={{fontSize:20,fontWeight:300,margin:'4px 0',fontFamily:'monospace'}}>{fmtCAD(p.v)}</p>
-                      <p style={{fontSize:11,color:'var(--muted-fg)'}}>{p.desc}</p>
-                    </div>
-                  ))}
-                </div>
-              </Card>
+            <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:14,textAlign:'center'}}>
+              <p style={{fontSize:10,color:'#888',textTransform:'uppercase',fontWeight:600}}>Balance</p>
+              <p style={{fontSize:16,fontWeight:700,marginTop:4}}>{fmtCAD(totals.balance)}</p>
             </div>
           </div>
-        )}
+          <p style={{fontSize:10,color:'#999',marginTop:12,textAlign:'center'}}>E-transfer to info@kingdompainting.ca</p>
+        </div>
       </div>
     </div>
   );
 }
 
+// ─── CONTRACT TAB ─────────────────────────────────────────────────────────────
+function ContractTab({rooms,settings,client,totals}){
+  const fmtN=n=>Math.round(n).toLocaleString('en-CA');
+  const todayStr=new Date().toLocaleDateString('en-CA',{year:'numeric',month:'long',day:'numeric'});
+  const gold='#C4922A';
+  const docStyle={background:'#fff',color:'#1a1a1a',borderRadius:8,maxWidth:900,margin:'0 auto',padding:'32px 40px',boxShadow:'0 2px 12px rgba(0,0,0,0.08)'};
+  const sectionTitle={fontSize:13,fontWeight:700,color:gold,marginTop:28,marginBottom:10,paddingBottom:6,borderBottom:`1px solid ${gold}`};
+  const bodyText={fontSize:11,lineHeight:'1.7',color:'#444',marginBottom:8};
+  let tWalls=0,tCeil=0,tTrim=0,tDoors=0,tHrs=0;
+  rooms.forEach(r=>{const c=calcRoom(r,settings);tWalls+=c.wallSqft;tCeil+=c.ceilSqft;tTrim+=c.perimLF;tDoors+=(r.doors.count||0);tHrs+=c.totalHrs;});
+  const numWorkers=Math.max(1,settings._standards?.workers||1);
+  const estDays=tHrs>0?Math.ceil(tHrs/numWorkers/8):0;
 
+  const clientSigRef=useRef(null);
+  const contractorSigRef=useRef(null);
+  const clientDrawing=useRef(false);
+  const contractorDrawing=useRef(false);
 
-// ─── MASTER ESTIMATE (full Kingdom Painting HTML app in iframe) ──────────────
-const LOGO_PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANcAAADXCAIAAAAGH1PiAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAABW2SURBVHhe7Z0LcJTXdcdXyLwkLTiAqCWXFHsGRIpdN7ziAo6Btq4LFJyhBhxIJsahAzN4xtjGtB0kCnjSOjgxNiTgYmPqwvCwSRAF7BCbRyDE1gtkJPQC9AIJtNLqsS+BhLZn9x59utr9nvuQ9n57fsOsz/m0rLXsf8+959xz75fg9XotREi4nfbmS+87K08PTn189MwNSdYR+APCIAPwv4RxWov2Oau+BKPdVmS/tJtdJEKAVBgiTnuNoyIbHXArT7fU5qNDGIRUGCJNOb9Aq5vmogNoEQYhFYZC683cu7Yr6HTT3lDUWHISHcIIpMJQsOe8jVZvmosOuh12dAjdkAoNYys62OluQKc3na6G1rL/Q4fQDanQGG5nU1vxPnTkaC07RuHQKKRCYzgrftvV4UJHjq4Od1PBh+gQ+iAVGsBpr2m7+r/oKOOoPNN6uxQdQgekQgO0Fu5ES4um/D1oETogFeql9WaOp+4iOlp4Goqbrv8BHUILUqFeWgt/jZY+Gikc6oZUqAt7+bGO1uvo6KPTZavL+xgdQhVSoTZuZ1PrN8YCIaO19DhVbfRAKtTGde2IenVGia4Ot/3KYXQIZUiFGriaq13XPkXHOC2lJxz2WnQIBUiFGjhK9oYWCCUaLu5Ai1CAVKhG262v3TW/QydUPA1Xm2sK0CHkIBWq4Sj5CK3wuHPxV2gRcpAKFWmuOHqvsRCd8Oh02W4X/gYdIghSoTxuZ5OzNDKBkNFUeJiqNkqQCuVxX//kvvsOOpGgq8PdXEqd2PKQCmXwOJtcNyJf57N/84mj6SY6BAepUAbHlfe84VVnlLDl7UWL4BBGhR2Vmff/OKDzwsB7RT9oV2i4jwjOhiJP7WfoRBpXbZ695hI6UcDlaL7+xa/yd/4Q/tR8dQivxjzCqHBAE3YGJDSfGHDpsXabbzt6NHAUvYtWdLDlRiscttRXXD+a1VLxR+bai08xI/YRRoUJ91vRAu63JVz9p/ay19CNHK3Vv7/XeBmd6HC3ubrhauT1AZHv+tGNHc4m9OEf6Z4HrZhHGBV6k/4KLYn69z25T7bbI3kigvNKdAMhoyH3fyJYtXE03Sr97SbbpZ6DIhhDRoxBK+YRRoVdQ59Ai8dV3FX0nKdyO7rh0fTNr+97bqMTTXxVm5LITD1t5X+6fjTTdbsMfY6BKaPQinmEUaEl8UE0Arjf5q3MdF3+YbvLhldCwuNs9FT23XS+ueRkmFUblojUfPme0sg7ZOS30Yp5xBmRrd9HSw5v0+edudM8d86ibxxn8TZvhxOd6OPbMFoYRsNYfcWN7MyWigvoyzGIYmHE8Q7+C7SU6HR0fvO8q+y/0DWCq7mqvfYEOn1F6/U/2KtDqdrUfnXoRnYWn4jIQiNy5BlsHY+WKver32m7ONtjcI+Is3AzWn2L0XDoS0SO/oft8lH0VRk5Vm4mHZOIMy+UTZPl8DpL7ubNdVXvR18LR93Fjqb+6f9z3ym5c/X36Ghhq7h4PXuDW99++4EpI9ESAaFUOEhrUJbodHSUvNGW+6JHR8rSX4GQ0XT5U7ejGR0FIBG58cWO2i/f69JdAhRoUgiIpEKLvlgocb/xi/acBa7b59GXo6V0b5enHp3+oMPVaL+qVrXxJyIbWq6pJSLBCJQgAyaNhd1422+1F/yorSTw3FWGx9noLv9vdPqP5pLPINqh05u6S8cqj23ocDairxuBUhNAKBVqpskK3Luxo+ncXHfLDfS78VS87+3su+qMEl333A05gfvnQZdl2Rvv5Oid3QYwZATFwugweNTfo2WcLkeZ+0+LHJU9XYPulsr2qlg5ibr1+vmW+nJ0/InItU/X6kxEZKEROZokDkPDON5Oh6dog/2rVTAQg+sukT8VuL9oyPGdSQchsPr8BzdPb4MAya6HRrL1W2iJgGAq1FmsUaGj4Yzj4uLWsj0dYSy0RAP3nZKbXx+o+d2b9qvh7j1NfigDLUGIOxUCkBR7SmMrEDIaC39z116DThgMtIqUmgDCjcgKPQ0Eh1gJMiBaLBz2FFqEMskPTUBLEESLhYNESv36i8TBSWgJgmAqHDxMV09DnPNg2ji0BEG0WOhLUB5Hi5BDoEZ/CfFUaBlMg7IaiYMEG44BAVUYiWKNiUlKEyw1AUQckUmFaojV08UQMBYmDkeDkEO4YiEgngoHp/4dWoQcAjX6SwgYC4HB4qWBfUPioKFoCYWgKgyx0dD0iNVWKCGkCqlkqIRYbYUSgsZCKhnKI2JqAoipQirWKEAjct/hpViowCDROgsZQqpwyDDBVuv7DOvIh9ESCjFHZGDYDDSIboRr9JcQVoW0ghKEcI3+EsKqMJmKNYEImiADoqqQSobBDBUzQQaEjYUP0IgcCI3Ifc2Q1L9Fi+hGuEZ/CWFjIUA9DRwiNvpLCK1Cql33IGKjv4TIKkx+DA1CzEZ/CYqFJkHERn8JoWMhFWt6ELdYCIiswiQakXsQtLOQkeD1etEUEM9Zq9c7wOJN6PI9DvB64e0M8PrelO+iZLPrviuWbtt3nf3pseE72W3AMxMGjfwu/NuAMXD4uISBVrDgemLSnz2Q/BBY3f9s8GQJn42X/f/pdNk6nHi8+/17rrvN1fA7+A3fwVz+/xGQAE+G/wva+Mo9LsBdYfDXfUBq8tcvfYiOgMA/evdbERBPwT94W78KR4WJ1oyEgcMeGDEZ7EGjJsEjaG5on9ymobW+HBTZ4WrscNja7dVd99zuO77DW0NQYfJDEyb8YCM6AgKfhMgqLF7pbTisU4UJicMSrN9JtE5IGPLnicMyBgxNT3rwEXyhmMHRdLPD2ei6XQKPd+017f7jDDVVOHLiM2O//yI6AgIfj8gqvLbFW/u2kgotg8ckpPwl/En81vcGWL8zNNnw/P3CRbwbT5vTVVZeyWxGXV1DXb38zVTS01LT00ej4ydj/CPDUpLBsFqTnnjcWEnFXn3ZVV8KcgRpdt/vJFCFqd997ttPLkFHQMRWYbs9v6voOUunQ1KhZfj0hOF/k5AyccCDTw5NTsXnKWNrtJeVVzGRORzwWAUXS8srnc6wjpXWJC0t9eG00VZrcsb4sdaU5AnjH0lPT310rMb6R0t9hbu+xHW7jCmSfXRDRowZO/ffxDrIOgCxVQj4hFiZaRk2I2H4jKGjZ+FVBSC23aqHGNYAaoNgVlbh01xMkTFuLMRRkObUSY+p6xIU2VbtC9UwHAstQUB4FarA4lxuQRE8QnirVxhAY5mUlCQIk1MmTwRRgjRTR43AH5gLs6kQoh0ILq+gOFKyY0Mns4MnfJrw08fwB3qIlKDIKZMfmzppopkUaQYV3qiqPX0258y5HBAfXjICizdsigYuRB141DNLC5nCK6UOh5vNDZhMwTb6nQFFzp41beH82dH7PfsM4VUIEnx+2Wv6Y8yUSROZ4FjeOnP6JPxBDCBNW/Pyi3XqEr5Cn+z/hehCFF6FH+w9svWdj9AJQppXgeYeTks1WiXpX6R5LYhSZTRftXLx2jU/RkdMhFchxI+XVmeh44dNnkB2UydPNMFoJQHjeG5+Mcw6cvOLJEXC12zPrs1ifbuCMcO88OSp8/sPHIdBNkrTdql2DUBMcjhd6OiAzTIZERz94Vc6fe5rmFBuyVpjgjTFDCoMEzbwgQFjHzyC7XC4fBXsqFUTYW4KjyzjTk8bDTl4VJOh2CfuVChlAExtoaXVUYLPnCaMHxs/ujS5CiGDLi2vKiuvFLFwzadWJisQBmBCFUK0i+x6CV+4lsqKemDhltkhVAQDgF8DtOib+5or6wJMokKIednHz+T5U0i8ZASmMzZRY70FcBHUBppjT4gg/kq1TWrSgd85hDkoqwOsXrnEHAHSJCpc8M9rdH6QbJgDhUFaAAakBWDgz/oVpk6I4r42C5hF6Hg75ijTAGZQ4Ts7Pt61+zA6QUDY8GkufTRrCIhGeIsSECxz84t9jwXFSqM5JDT7P3oLHWExgwqXvbieH4ghQkyd7BOccLJTAUZt0GJeftHpczm8IkmFsQKvwmVL573x6gpmmxUQ4tp1qDxzqFDknaBymCPyqcM2D5gJs6mQEBFSoXi0GVnIFgIzqJAfhfcdOA7TJnTMCLy7zE3b0TELZlDh8qXz0bJYnE43zNzhc5IWLUwDvKNX1r0F745vNMzQvZATy5hBhTOnT2JdKhLHTpx9fvlrefkx1KkQJvBe4B2d6R3mM8aNXb1S4G3IEiZZOwE2/+fO/QdPoNPNqpWLTfA57dx9KLgsv2zpPFrBi0VOnjoPY3FAZzwEjC0b12T4l4aFo6y8MnPTjoDVvJSUpC0bX577zFPoi4+pVAjYGu0weQruaRAxKEKmBVEw4Es1++lp5uiv5jGbChkf7D0S/PnB3BGCYoz0LqjDEpGA7xKEQPgi/fQni9A3EeZUIXCjqvaV198KHsvgg1z+Qk9OHYOwWkzwvGLb2+vN2n1tWhUyZNttIChu27o+Btf6IARCCJfNsUTf66mOyVUIFF4pVZrgz3l6GvoxgGwikpaW+mbWyzG1dT8amF+FDNk6zoJ5s954dUUsBEVIRIL39rNfz8TbTSTiRYXAhYsFGzZvD2gX7fc6DozCP//lnmMnzqLvx3y1GHXiSIWArdEu+5G/u/Vfp0zutfrSN9TVNwSnUCyXj6vtyfGlQoZscXtz1pqF82ej0yfARHDFqqyAX8P0iYgs8ahCQLaO05dCDJYgC8mmT0RkiVMVMtb9+9sBo3PfCDFYguYuB2oS112uW3/2+rKl89DxA7NGkAg60SFYgrOfnvbhrs1xK0EgrmMh49CRz7M270DHPzJ+nr0rSuUbyIhfWpXFzwQWzJsFXwZ04hXq+LcsWfQsSAEdf5/sK9073CKOL9aSBIMgFfoAKcCwiI7FkldQvO/AcXQix+lzOfw0FOaCJEEGqRDZkrUmLa3nLj07dx+C0ROdSMCq0+j4x32YC6IT95AKkdRRI97Mehkd/7jMiyZ8QNb8ss2WjS/Hw9KcTkiFPcycPolPmWH0jNTOlbr6Bn4VG0b/+Fmd0wOpsBerVy6BsRIdfwBDKzwyN/XKwd94VeD7d0YDUmEvYJTkj7mBNCX8cAivwHdNL39hfjyXBmUhFQayZNGzfJqyYXO4W9D5gAqvHIfLxJqQCmXg0xRIKcI57CEgEAq3A6tvIBXKELDNfn8YtcOAQAiBFh2Cg1QoDx+0IJiFtrgMf4sCoR5IhfJAOORnh6EtpfB/iwKhCqRCRfjQdezE2RCWUvgJJX+kExEAqVCROU9P42uHRnOU7ONn+PatPm7kFgtSoSKpo0bwW0UDzsvShH/+gnmzaL1OBVKhGrNnfQ8tv6oMDcq8CvnXIYIhFaox95mnQhuU+WfCK9CqsTqkQg34QTkv33frWj3wz5w6uecWyYQspEINpnAayg06kE6JMv8NlxkB58wSwZAKNZjK7Zavr7fpnBryxWr+FQhZSIUaPDp2DF++5oOcEgELLSa4W2K0IRVqI90cGSjVsZRXSsOxQUiF2vBH2Dh03PGmrr4BLYtJ7gQRbUiF2li5+87paXqtq+tRYTzcly98SIXasFvH66eO2+Uk6L0F+hhSoTGM9jSY7/6d0YBUaIyAY76IiEAq1CY+T3PrS0iF2tyoqkWLiA6kQm3q6nqyDb6CTUQKUqEx+Aq2Hsx3R+1oQCrU5hZXhdZDeq8Vv+ieyWkOSIXaGF0LSU/viZd8BZtQglSoDb9eoudmjnylWk/3A0Eq1MZom9YELl6WVVTZGu3oEAqQCjU4eeo8Wv7efT0rchAv+VRaf29s3EIq1CC03v2pXEOX/n0CcQupUAN+Usiffa0Ov09ATxtOnEMqVONGVS2/cKy/d59/JrwCrb6oQypUI5cLYzDV05MgMwKnhhQOVSEVqtFrUmiwd5+mhvohFarBp7f8VE8P/HkMlCarQypUxNZo5+8NYXRDJx8L4XVoaqgCqVARPoAZmhQyrNbkjHE95WuaGqpAKlSEb0QwOilk8IvO1NagAqlQEb7OF9omJqoa6oRUqAi/Ad7oNjxGwIIyWkQQpEJ5IJngT2LlN8brJyCCFl4pRYvoDalQHr7Ln08yjMKfEMKfHELwkArlyS3oqTPzXatG4RMUvluW4CEVysP3SIdz1gxf36EERQlSoTyROuWDT2uM7l+JH0iF8vAJcjinfPBxlF+JIXhIhfKEnyAzAs7sonU8WUiFMkS2pMKnyXzqTUiQCmVwOLhAGNLanRI0NZSFVBh1qFijCalQBr5YGP5hrHScqyakQg3CKRYGQ0c1yEIqjDp84ZovQxISpEIZQrgVsgpGj/mKQ0iFMtDhMn0MqVCDqZOMbXoiQoBUSPQ/pEKi/yEVEv0PqZDof0iFGvDrKESUIBXKEE4rVzB0zL8mpMKow++HpzVlWUiFGkR2HSWyq9KmgVQoA7/yG/46SmR1bEpIhTJEduWX17HRI5fiBFKhDFZrElqWXreZCA0+FlJngyykQhmeeHwCWn7CHFL5E2rS0+lmjjKQCuXhT6WWnRrW1Tdkbto+Y86Pnpi2CB7Blu3mDzgw7tGxY9AiOEiF8vBDJ783mQHaen7Za8dOnGUbRuER7H9cuDr7+Bn2BIlbXFtrZDdSmQlSoTx84TognsEAvWJVFr9hWeLnv9wTEBH5v8vfK5TgIRXKw58KEnA2OgQ8WQkCcH3fgePo+An/KM54gFQoT8DZ6HyEO3MuBy05AiaRRu/kGJ+QCuVJHTUi/LPR+UCYkpIUkHoTEqRCRfipIR//9K8Fnz73NVq+QEg7BxQhFSrCn43Oq1D9nowL5s9Gy6fCnr9FCbIKpEJF5j7zFAyj6PiTEmYsnD9bSVIwiMNPmQ3ZMX9U3JxZeu8nGoeQCtWYw4U9Phxu27o+WIhw5cNdm9GxWPhkGdRJ9WoVErxeL5pEECdPnV+77i10LJbPsncGnBAsdWJnjH+El6zD4Xp24SqpoLNu7Ys//ckiZhPBkAo1mDxjsSSmVSsXr165hNnqwPCdtXkHOhbLhS8/hqQbHSIIGpE1WP7CfLT8g6zOzoaduw+hBfnKvFkkQXVIhRpI2QbgWxo52GtpRBYIhHxewuuYkIVUqAFkFRDM0NEXDvlACCkLFas1IRVqs/pfeuaCmuEQJMgHQp3zyDiHVKhNQDjctftwQJeNRF19A1+ggUA4c/okdAhlSIW6gHDIV7AzN/XkvzxwXUqogS0b16BFqEIq1AWEQz7JKKuo4id/DIiCfAfNsqXzqFKtE1KhXtau+THfZQPjMr9MDGP01nc+Qse/YYBmhPohFRoARtje4/J2trgMjytWZbGLjHe3rqcaoX5o7cQYh458zi+KyLJq5WIInOgQOqBYaIwli57l8+VgZj89jSRoFFKhYbb+7HUlIcLEcUsW5cWGoRE5RD7Ye2TfweNSgRrmi5BEUxQMBYvl/wEV2/F+BAZN5gAAAABJRU5ErkJggg==";
+  const initCanvas=(canvasRef,drawingRef)=>{
+    const canvas=canvasRef.current;
+    if(!canvas)return;
+    const ctx=canvas.getContext('2d');
+    ctx.lineWidth=2;ctx.lineCap='round';ctx.strokeStyle='#1a1a1a';
+    const getPos=(e)=>{
+      const rect=canvas.getBoundingClientRect();
+      const t=e.touches?e.touches[0]:e;
+      return {x:t.clientX-rect.left,y:t.clientY-rect.top};
+    };
+    const start=(e)=>{e.preventDefault();drawingRef.current=true;const p=getPos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);};
+    const move=(e)=>{if(!drawingRef.current)return;e.preventDefault();const p=getPos(e);ctx.lineTo(p.x,p.y);ctx.stroke();};
+    const end=()=>{drawingRef.current=false;};
+    canvas.addEventListener('mousedown',start);canvas.addEventListener('mousemove',move);canvas.addEventListener('mouseup',end);canvas.addEventListener('mouseleave',end);
+    canvas.addEventListener('touchstart',start,{passive:false});canvas.addEventListener('touchmove',move,{passive:false});canvas.addEventListener('touchend',end);
+  };
 
-const KP_MASTER_HTML = `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KINGDOM PAINTING INC. — Master Estimate</title>
-<style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --ink:#2e3354;--ink2:#4a5080;--ink3:#8a90b0;--ink4:#b8bcd4;
-  --cream:#faf8f4;--cream2:#f0f1f6;--cream3:#dfe0ea;
-  --gold:#c4922a;--gold2:#e8b84b;--gold3:#f5e0a8;
-  --red:#c0392b;--green:#27704a;
-  --serif:'Montserrat',sans-serif;--sans:'Montserrat',sans-serif;
-  --r:8px;--r2:12px;
-}
-html{font-family:var(--sans);background:var(--cream);color:var(--ink);font-size:14px}
-body{overflow:hidden;font-family:'Montserrat',sans-serif}
-.shell{display:flex;flex-direction:column;height:100vh}
-.topbar{background:var(--ink);color:var(--cream);display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:56px;flex-shrink:0}
-.topbar-brand{display:flex;align-items:center;gap:12px}
-.topbar-logo{width:40px;height:40px;border-radius:8px;background:transparent;display:flex;align-items:center;justify-content:center;overflow:hidden}
-.topbar-name{font-family:var(--serif);font-size:16px;letter-spacing:.02em}
-.topbar-sub{font-size:11px;color:var(--ink4);margin-top:1px}
-.topbar-date{font-size:12px;color:var(--ink4)}
-.tabs-wrap{background:var(--ink);border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0}
-.tabs{display:flex;overflow-x:auto;padding:0 24px;gap:2px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
-.tabs::-webkit-scrollbar{display:none}
-.tab{padding:10px 16px;font-size:12px;font-weight:500;color:var(--ink4);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:color .15s,border-color .15s;letter-spacing:.03em;text-transform:uppercase}
-.tab:hover{color:var(--cream3)}
-.tab.active{color:var(--gold2);border-bottom-color:var(--gold2)}
-.main{padding:24px;padding-top:16px;max-width:1100px;margin:0 auto;width:100%;flex:1;overflow-y:auto}
-.page{display:none}.page.active{display:block}
-.card{background:#fff;border:1px solid var(--cream3);border-radius:var(--r2);padding:20px;margin-bottom:16px}
-.card-title{font-size:11px;font-weight:500;color:var(--ink3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px}
-.card-header{font-family:var(--serif);font-size:22px;color:var(--ink);margin-bottom:4px}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
-.grid4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px}
-.field{display:flex;flex-direction:column;gap:4px}
-.field label{font-size:11px;color:var(--ink3);font-weight:500;letter-spacing:.04em;text-transform:uppercase}
-.field input,.field select,.field textarea{font-family:var(--sans);font-size:13px;padding:8px 10px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);color:var(--ink);width:100%;transition:border-color .15s}
-.field input:focus,.field select:focus{outline:none;border-color:var(--gold);background:#fff}
-.field textarea{resize:vertical;min-height:60px}
-.toggle-row{display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px 0}
-.toggle-row input[type=checkbox]{width:16px;height:16px;accent-color:var(--gold);cursor:pointer}
-.toggle-row span{font-size:13px;color:var(--ink2)}
-.room-card{background:#fff;border:1px solid var(--cream3);border-radius:var(--r2);margin-bottom:10px;overflow:hidden;transition:box-shadow .2s}
-.room-card:hover{box-shadow:0 2px 12px rgba(0,0,0,.06)}
-.room-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;cursor:pointer;user-select:none}
-.room-head-left{display:flex;align-items:center;gap:10px}
-.room-arrow{font-size:10px;color:var(--ink4);transition:transform .2s;display:inline-block}
-.room-arrow.open{transform:rotate(90deg)}
-.room-name-input{font-family:var(--serif);font-size:15px;border:none;background:transparent;color:var(--ink);padding:0;width:180px;cursor:text}
-.room-name-input:focus{outline:none;border-bottom:1px solid var(--gold)}
-.room-badge{font-size:11px;color:var(--ink3);background:var(--cream2);border-radius:20px;padding:3px 10px}
-.room-del{background:none;border:none;cursor:pointer;color:var(--ink4);font-size:18px;line-height:1;padding:2px 6px}
-.room-del:hover{color:var(--red)}
-.room-body{display:none;padding:0 18px 18px;border-top:1px solid var(--cream2)}
-.room-body.open{display:block}
-.surf-grid{display:grid;grid-template-columns:160px 80px 80px 90px;gap:8px;align-items:center;margin-bottom:6px}
-.surf-label{font-size:12px;color:var(--ink2);display:flex;align-items:center;gap:6px}
-.surf-label input[type=checkbox]{width:14px;height:14px;accent-color:var(--gold)}
-.coats-sel{font-size:12px;padding:5px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);color:var(--ink);min-width:150px}
-.lf-input{font-size:12px;padding:5px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);color:var(--ink);width:80px}
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
-.stat{background:#fff;border:1px solid var(--cream3);border-radius:var(--r2);padding:14px}
-.stat .lbl{font-size:11px;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em}
-.stat .val{font-size:24px;font-weight:300;color:var(--ink);margin-top:4px;font-variant-numeric:tabular-nums}
-.stat .val.gold{color:var(--gold)}
-.quote-box{border:1px solid var(--cream3);border-radius:var(--r2);overflow:hidden}
-.q-row{display:flex;justify-content:space-between;align-items:center;padding:11px 16px;border-bottom:1px solid var(--cream2);font-size:13px}
-.q-row:last-child{border-bottom:none}
-.q-row.total-row{background:var(--ink);color:#fff;font-size:15px;font-weight:500}
-.q-label{color:var(--ink2)}
-.q-val{font-variant-numeric:tabular-nums;font-weight:500}
-.pay-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
-.pay-card{background:var(--cream2);border-radius:var(--r2);padding:14px;text-align:center}
-.pay-step{font-size:10px;color:var(--gold);font-weight:500;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px}
-.pay-amount{font-family:var(--serif);font-size:20px;color:var(--ink)}
-.pay-desc{font-size:11px;color:var(--ink3);margin-top:3px}
-.doc-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:20px;border-bottom:2px solid var(--ink)}
-.doc-company{font-family:var(--serif);font-size:26px;color:var(--gold)}
-.doc-type{font-size:11px;color:var(--ink);font-weight:500;text-transform:uppercase;letter-spacing:.12em;margin-top:2px}
-.doc-meta{text-align:right;font-size:12px;color:var(--ink2);line-height:1.8}
-.doc-meta strong{color:var(--ink)}
-.doc-section{margin-bottom:20px}
-.doc-section-title{font-size:10px;font-weight:500;color:var(--ink3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--cream3)}
-.doc-table{width:100%;border-collapse:collapse;font-size:12px}
-.doc-table th{text-align:left;padding:8px 10px;background:var(--cream2);font-weight:500;color:var(--ink2);font-size:11px;text-transform:uppercase;letter-spacing:.05em}
-.doc-table td{padding:8px 10px;border-bottom:1px solid var(--cream2);color:var(--ink)}
-.doc-table .right{text-align:right}
-.doc-total-row{background:var(--ink);color:#fff;font-weight:500}
-.doc-total-row td{padding:10px 10px;border:none}
-.prep-checks{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}
-.prep-check{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink2);padding:6px 10px;background:var(--cream2);border-radius:var(--r);cursor:pointer}
-.prep-check input{accent-color:var(--gold);width:14px;height:14px}
-.breakdown-table{width:100%;border-collapse:collapse;font-size:12px}
-.breakdown-table th{padding:8px 12px;background:var(--ink);color:var(--cream3);text-align:left;font-weight:400;font-size:11px;text-transform:uppercase;letter-spacing:.06em}
-.breakdown-table td{padding:8px 12px;border-bottom:1px solid var(--cream2);overflow:hidden;text-overflow:ellipsis}
-.breakdown-table tr:hover td{background:var(--cream)}
-.breakdown-table .subtotal-row td{background:var(--cream2);font-weight:500}
-.breakdown-table .grand-row td{background:var(--ink);color:#fff;font-weight:500}
-.num{text-align:right;font-variant-numeric:tabular-nums}
-.breakdown-table th.num,.breakdown-table td.num{text-align:center}
-.rates-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
-.rates-table td{padding:7px 10px;border-bottom:1px solid var(--cream2)}
-.rates-table td:last-child{text-align:right;font-weight:500;font-variant-numeric:tabular-nums}
-.colour-chip{display:inline-flex;align-items:center;gap:6px;font-size:11px;background:var(--cream2);border-radius:20px;padding:3px 10px;margin:2px}
-.chip-dot{width:12px;height:12px;border-radius:50%;border:1px solid rgba(0,0,0,.12);flex-shrink:0}
-hr.divider{border:none;border-top:1px solid var(--cream3);margin:16px 0}
-.add-btn{width:100%;padding:10px;border:1px dashed var(--ink4);border-radius:var(--r2);background:transparent;color:var(--ink3);font-size:13px;cursor:pointer;font-family:var(--sans);transition:all .15s}
-.add-btn:hover{background:var(--cream2);color:var(--ink);border-color:var(--gold)}
-.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--r);border:1px solid var(--cream3);background:var(--cream);color:var(--ink);font-size:12px;font-family:var(--sans);cursor:pointer;transition:all .15s;font-weight:500}
-.btn:hover{background:#fff;border-color:var(--gold);color:var(--gold)}
-.btn-dark{background:var(--ink);color:var(--cream);border-color:var(--ink)}
-.btn-dark:hover{background:#2d2720}
-.paint-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
-.section-badge{display:inline-block;font-size:10px;font-weight:500;color:var(--gold);background:var(--gold3);border-radius:20px;padding:2px 8px;text-transform:uppercase;letter-spacing:.06em}
-.workers-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.worker-tag{display:flex;align-items:center;gap:6px;background:var(--cream2);border-radius:var(--r);padding:6px 12px;font-size:12px}
-.worker-tag input[type=checkbox]{accent-color:var(--gold)}
-.change-item{display:grid;grid-template-columns:100px 1fr 130px;gap:8px;align-items:start;margin-bottom:8px}
-.export-btn{display:inline-flex;align-items:center;gap:7px;padding:8px 18px;border-radius:var(--r);border:1px solid var(--gold);background:var(--gold);color:#fff;font-size:12px;font-family:var(--sans);cursor:pointer;font-weight:500;letter-spacing:.03em;transition:all .15s;margin-bottom:16px}
-.export-btn:hover{background:#b0821f;border-color:#b0821f}
-.save-btn{display:inline-flex;align-items:center;gap:7px;padding:7px 14px;border-radius:var(--r);border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:#fff;font-size:11px;font-family:var(--sans);cursor:pointer;font-weight:500;letter-spacing:.03em;transition:all .15s;margin-left:8px}
-.save-btn:hover{background:rgba(255,255,255,.2)}
-#save-indicator{font-size:11px;color:var(--ink4);margin-left:8px}
-.gd-panel{display:none;position:fixed;top:64px;right:16px;z-index:200;background:#fff;border:1px solid var(--cream3);border-radius:var(--r2);padding:16px;width:320px;box-shadow:0 8px 32px rgba(0,0,0,.12)}
-.gd-panel.open{display:block}
-.gd-panel h3{font-size:13px;font-weight:500;color:var(--ink);margin-bottom:12px}
-.gd-panel .field{margin-bottom:10px}
-.gd-panel label{font-size:11px;color:var(--ink3);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px}
-.gd-panel input{font-size:13px;padding:7px 10px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);color:var(--ink);width:100%}
-.gd-panel-btn{width:100%;padding:9px;background:var(--gold);color:#fff;border:none;border-radius:var(--r);font-size:13px;font-weight:500;cursor:pointer;font-family:var(--sans);margin-top:4px}
-.gd-panel-btn:hover{background:#b0821f}
-.gd-panel-btn.secondary{background:transparent;color:var(--ink2);border:1px solid var(--cream3);margin-top:6px}
-@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-.page.active{animation:fadeIn .2s ease}
-@media(max-width:700px){
-  .grid2,.grid3,.grid4,.stats,.prep-checks{grid-template-columns:1fr}
-  .main{padding:14px;padding-top:110px}
-}
-@media print{
-  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
-  .topbar,.tabs-wrap,.export-btn,.add-btn,.btn{display:none!important}
-  input,select,textarea{display:none!important}
-  .field{display:none!important}
-  .surf-grid{display:none!important}
-  .page.print-target input,.page.print-target select,.page.print-target textarea{display:block!important}
-  body{background:#fff!important;padding:0!important}
-  .main{padding:0!important;max-width:100%!important}
-  .page{display:none!important}
-  .page.print-target{display:block!important;animation:none!important}
-  .card.print-card{border:none!important;border-radius:0!important;box-shadow:none!important;padding:24px 32px!important;margin:0!important}
-  .doc-header{border-bottom:2px solid #1a1714!important}
-  .q-row.total-row{background:#1a1714!important;color:#fff!important}
-  .doc-total-row td{background:#1a1714!important;color:#fff!important}
-  @page{margin:12mm 14mm;size:A4}
-}
+  useEffect(()=>{initCanvas(clientSigRef,clientDrawing);initCanvas(contractorSigRef,contractorDrawing);},[]);
 
-button.tab{font-family:var(--sans);background:none;border:none;border-bottom:2px solid transparent;padding:10px 16px;font-size:12px;font-weight:500;color:var(--ink4);cursor:pointer;white-space:nowrap;transition:color .15s,border-color .15s;letter-spacing:.03em;text-transform:uppercase}
-button.tab.active{color:var(--gold2);border-bottom-color:var(--gold2)}
-</style>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-</head>
-<body>
-<div class="shell">
-<div class="topbar">
-  
-  <div style="display:flex;align-items:center">
-    <div class="topbar-date" id="topDate"></div>
-    <span id="save-indicator" style="font-size:11px;margin-right:8px;transition:opacity .3s"></span>
-    <button onclick="openLoadPanel()" style="margin-right:6px;font-size:12px;padding:6px 12px;border:1px solid rgba(255,255,255,.25);border-radius:var(--r);background:transparent;color:var(--cream);cursor:pointer">&#8679; Load</button>
-    <button onclick="pushDocsToProject()" style="margin-right:6px;font-size:12px;padding:6px 14px;border:none;border-radius:var(--r);background:var(--gold);color:var(--ink);cursor:pointer;font-weight:600">&#8599; Push</button>
-    <button onclick="newEstimate()" style="margin-right:6px;font-size:12px;padding:6px 12px;border:1px solid rgba(255,255,255,.25);border-radius:var(--r);background:transparent;color:var(--cream);cursor:pointer">+ New</button>
-    <button class="save-btn" onclick="exportInfoPackage()">
-      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" width="14" height="14"><path d="M2 12v2h12v-2M8 2v8m0 0l-3-3m3 3l3-3"/></svg>
-      Export Package
-    </button>
-  </div>
-</div>
+  const clearCanvas=(ref)=>{const c=ref.current;if(c){const ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,c.height);}};
 
-<div class="tabs-wrap">
-  <div class="tabs">
-    <button class="tab active" onclick="showTab('cover')">Cover</button>
-    <button class="tab" onclick="showTab('rooms')">Rooms</button>
-    <button class="tab" onclick="showTab('breakdown')">Breakdown</button>
-    <button class="tab" onclick="showTab('quote')">Quote</button>
-    <button class="tab" onclick="showTab('contract')">Contract</button>
-    <button class="tab" onclick="showTab('changeorder')">Change Order</button>
-  </div>
-</div>
-
-<div class="main">
-
-<!-- COVER -->
-<div class="page active" id="page-cover">
-  <button class="export-btn" onclick="exportPDF(['page-cover','page-quote','page-contract'])">
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" width="14" height="14"><path d="M2 12v2h12v-2M8 2v8m0 0l-3-3m3 3l3-3"/></svg>
-    Export Bid Package
-  </button>
-  <div class="card print-card cover-print-card" style="text-align:center;padding:80px 40px 60px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#fff;border:none;box-shadow:none">
-    <div style="font-family:'Montserrat',Arial,sans-serif;font-size:30px;font-weight:800;color:#C4922A;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:2px">KINGDOM PAINTING INC.</div>
-    <div style="font-family:'Montserrat',Arial,sans-serif;font-size:16px;font-weight:700;color:#C4922A;letter-spacing:0.14em;text-transform:uppercase;margin-bottom:48px">BID PROPOSAL</div>
-    <div style="margin-bottom:52px"><img src="data:image/png;base64,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" alt="Kingdom Painting" style="width:200px;height:auto;display:block"/></div>
-    <div style="width:100%;max-width:440px">
-      <div style="font-family:'Montserrat',Arial,sans-serif;font-size:16px;font-weight:800;color:#1a1714;letter-spacing:0.04em;text-transform:uppercase;margin-bottom:14px">PREPARED FOR</div>
-      <div id="cover-print-name" style="font-family:'Montserrat',Arial,sans-serif;font-size:14px;color:#1a1714;line-height:2;text-align:center"></div>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card-title">Client information</div>
-    <div class="field" style="margin-bottom:12px">
-      <label>Select project</label>
-      <select id="ci-contact-select" onchange="fillFromContact(this.value)" style="font-family:var(--sans);font-size:13px;padding:8px 10px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);color:var(--ink);width:100%">
-        <option value="">— Select a project —</option>
-      </select>
-    </div>
-    <div class="grid2" style="margin-bottom:12px">
-      <div class="field"><label>Client name</label><input type="text" id="ci-name" oninput="syncClient()" placeholder="Full name"></div>
-      <div class="field"><label>Phone</label><input type="text" id="ci-phone" placeholder="(xxx) xxx-xxxx" oninput="fmtPhone(this)" maxlength="14"></div>
-      <div class="field"><label>Address line 1</label><input type="text" id="ci-addr1" oninput="syncClient()" placeholder="Street address"></div>
-      <div class="field"><label>Address line 2</label><input type="text" id="ci-addr2" oninput="syncClient()" placeholder="City, Province, Postal"></div>
-      <div class="field"><label>Email</label><input type="email" id="ci-email" oninput="syncClient()" placeholder="client@email.com"></div>
-    </div>
-  </div>
-</div>
-
-<!-- ROOMS -->
-<div class="page" id="page-rooms">
-  <div class="card" style="padding:14px 18px;margin-bottom:12px">
-    <div style="display:flex;align-items:center;justify-content:space-between">
-      <div>
-        <span class="card-title" style="margin:0">Room areas</span>
-        
-      </div>
-      <span class="section-badge" id="rooms-count-badge">0 rooms</span>
-    </div>
-  </div>
-  <div id="roomsContainer"></div>
-  <button class="add-btn" onclick="addRoom()" id="addRoomBtn">+ Add room / area</button>
-</div>
-
-<!-- BREAKDOWN -->
-<div class="page" id="page-breakdown">
-  <button class="export-btn" onclick="expandAllAndExport(['page-rooms','page-breakdown'])">
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" width="14" height="14"><path d="M2 12v2h12v-2M8 2v8m0 0l-3-3m3 3l3-3"/></svg>
-    Export Rooms + Breakdown PDF
-  </button>
-  <div class="stats" id="breakdown-stats">
-    <div class="stat"><div class="lbl">Total walls sqft</div><div class="val" id="bd-walls">0</div></div>
-    <div class="stat"><div class="lbl">Total ceiling sqft</div><div class="val" id="bd-ceil">0</div></div>
-    <div class="stat"><div class="lbl">Total lin ft trims</div><div class="val" id="bd-trims">0</div></div>
-    <div class="stat"><div class="lbl">Total doors</div><div class="val" id="bd-doors">0</div></div>
-  </div>
-  <div class="stats">
-    <div class="stat"><div class="lbl">Total hours / worker</div><div class="val" id="bd-hours">0</div></div>
-    <div class="stat"><div class="lbl">Est. project days</div><div class="val" id="bd-days">0</div></div>
-    <div class="stat"><div class="lbl">Labour cost</div><div class="val gold" id="bd-labour">$0</div></div>
-    <div class="stat"><div class="lbl">Active rooms</div><div class="val" id="bd-rooms">0</div></div>
-  </div>
-  <div class="card">
-    <div class="card-title">Per-room labour breakdown</div>
-    <table class="breakdown-table" id="bd-table">
-      <thead><tr><th>Surface</th><th class="num">Sqft</th><th class="num">Coats</th><th class="num">Hours</th><th class="num">Cost</th></tr></thead>
-      <tbody id="bd-tbody"></tbody>
-    </table>
-  </div>
-  <div class="card">
-    <div class="card-title">Total labour by surface</div>
-    <table class="breakdown-table">
-      <thead><tr><th>Surface</th><th class="num">Total area</th><th class="num">Hours</th><th class="num">Days</th><th class="num">Cost</th></tr></thead>
-      <tbody id="bd-surface-tbody"></tbody>
-    </table>
-  </div>
-
-  <div class="card">
-    <div class="card-title">Paint colour summary and cost</div>
-    <table class="breakdown-table">
-      <thead><tr><th>Product</th><th>Colour &amp; Sheen</th><th>Surface</th><th class="num">Total Sqft</th><th class="num">Est. Qty</th><th class="num">Cost</th></tr></thead>
-      <tbody id="bd-colour-tbody"></tbody>
-    </table>
-  </div>
-</div>
-
-<!-- QUOTE -->
-<div class="page" id="page-quote">
-  <button class="export-btn" onclick="exportPDF('page-quote')">
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" width="14" height="14"><path d="M2 12v2h12v-2M8 2v8m0 0l-3-3m3 3l3-3"/></svg>
-    Export PDF
-  </button>
-  <button class="export-btn" onclick="pushToProject()" style="background:var(--gold);color:var(--ink);border:none;margin-left:8px">
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" width="14" height="14"><path d="M8 2v12M2 8l6-6 6 6"/></svg>
-    Project $
-  </button>
-  <div class="card print-card">
-    <div class="doc-header">
-      <div style="display:flex;align-items:center;gap:10px">
-        <img class="kp-logo kp-logo-sm" src="data:image/png;base64,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" alt="Kingdom Painting" style="height:44px;width:auto;display:block">
-        <span style="font-family:var(--sans);font-size:13px;font-weight:700;color:#C4922A;letter-spacing:0.04em;white-space:nowrap">KINGDOM PAINTING INC.</span>
-        <div class="doc-type">Quote</div>
-
-      </div>
-      <div class="doc-meta">
-        <div><strong>Client</strong> <span id="q-client-left">—</span></div>
-        <div><strong>Address</strong> <span id="q-addr-left">—</span></div>
-        <div><strong>Date</strong> <span id="q-date"></span></div>
-        <div><strong>HST #</strong> 71164 5556 RT0001</div>
-      </div>
-    </div>
-    <table class="doc-table" style="margin-bottom:16px">
-      <thead><tr><th style="width:110px">Item</th><th>Description</th><th class="right" style="white-space:nowrap;width:90px">Amount</th></tr></thead>
-      <tbody id="q-line-tbody"></tbody>
-      <tfoot>
-        <tr id="q-disc-row" style="display:none"><td colspan="2" style="text-align:right"><span id="q-disc-label">Discount</span></td><td class="right"><span id="q-disc-val">-$0.00</span></td></tr>
-        <tr><td colspan="2" style="text-align:right;font-size:12px;color:var(--ink3)">Subtotal</td><td class="right" id="q-subtotal">$0.00</td></tr>
-        <tr><td colspan="2" style="text-align:right;font-size:12px;color:var(--ink3)" id="q-tax-label">HST (13%)</td><td class="right" id="q-tax">$0.00</td></tr>
-        <tr><td colspan="2" style="text-align:right;font-size:13px;font-weight:500">TOTAL</td><td class="right" id="q-total" style="font-size:15px;font-weight:600">$0.00</td></tr>
-      </tfoot>
-    </table>
-    <div class="doc-section">
-      <div class="doc-section-title">Payment terms</div>
-      <div style="font-size:12px;color:var(--ink2);line-height:1.8;margin-bottom:12px">An initial deposit of 10% is required on the first day, followed by 45% midway through the project, and the balance on completion.</div>
-      <div class="pay-grid">
-        <div class="pay-card"><div class="pay-step">Step 1 · Deposit</div><div class="pay-amount" id="q-pay1">$0.00</div><div class="pay-desc">10% due on first day</div></div>
-        <div class="pay-card"><div class="pay-step">Step 2 · Midway</div><div class="pay-amount" id="q-pay2">$0.00</div><div class="pay-desc">45% due midway</div></div>
-        <div class="pay-card"><div class="pay-step">Step 3 · Completion</div><div class="pay-amount" id="q-pay3">$0.00</div><div class="pay-desc">Balance on completion</div></div>
-      </div>
-    </div>
-    <div style="margin-top:16px;padding:12px;background:var(--cream2);border-radius:var(--r);font-size:12px;color:var(--ink2);line-height:1.7">
-      Thank you for your business! E-transfer payments: <strong>info@kingdompainting.ca</strong>
-    </div>
-  </div>
-</div>
-
-<!-- CONTRACT -->
-<div class="page" id="page-contract">
-  <button class="export-btn" onclick="exportPDF('page-contract')">
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" width="14" height="14"><path d="M2 12v2h12v-2M8 2v8m0 0l-3-3m3 3l3-3"/></svg>
-    Export PDF
-  </button>
-  <div class="card print-card">
-    <div class="doc-header">
-      <div style="display:flex;align-items:center;gap:10px"><img class="kp-logo kp-logo-sm" src="data:image/png;base64,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" alt="Kingdom Painting" style="height:44px;width:auto;display:block">
-        <span style="font-family:var(--sans);font-size:13px;font-weight:700;color:#C4922A;letter-spacing:0.04em;white-space:nowrap">KINGDOM PAINTING INC.</span><div class="doc-type">Painting Service Agreement</div></div>
-      <div class="doc-meta"><div><strong>Date</strong> <span id="con-date"></span></div></div>
-    </div>
-    <div style="font-size:13px;color:var(--ink2);line-height:1.9" id="contract-body"></div>
-  </div>
-</div>
-
-<!-- CHANGE ORDER -->
-<div class="page" id="page-changeorder">
-  <button class="export-btn" onclick="exportPDF('page-changeorder')">
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" width="14" height="14"><path d="M2 12v2h12v-2M8 2v8m0 0l-3-3m3 3l3-3"/></svg>
-    Export PDF
-  </button>
-  <div class="card print-card">
-    <div class="doc-header">
-      <div style="display:flex;align-items:center;gap:10px"><img class="kp-logo kp-logo-sm" src="data:image/png;base64,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" alt="Kingdom Painting" style="height:44px;width:auto;display:block">
-        <span style="font-family:var(--sans);font-size:13px;font-weight:700;color:#C4922A;letter-spacing:0.04em;white-space:nowrap">KINGDOM PAINTING INC.</span><div class="doc-type">Change Order</div></div>
-      <div class="doc-meta"><div><strong>Client</strong> <span id="co-client-left">—</span></div><div><strong>Date</strong> <span id="co-date"></span></div><div><strong>HST #</strong> 71164 5556 RT0001</div></div>
-    </div>
-    <div class="card-title">Change order items</div>
-    <div id="co-items"></div>
-    <button class="add-btn" onclick="addChangeItem()" style="margin-top:8px">+ Add item</button>
-    <hr class="divider">
-    <div class="quote-box" style="margin-top:12px">
-      <div class="q-row"><span class="q-label">Subtotal</span><span class="q-val" id="co-sub">$0.00</span></div>
-      <div class="q-row"><span class="q-label">HST (13%)</span><span class="q-val" id="co-tax">$0.00</span></div>
-      <div class="q-row total-row"><span>Total</span><span id="co-total">$0.00</span></div>
-    </div>
-    <div style="margin-top:12px;font-size:12px;color:var(--ink2)">E-transfer: <strong>info@kingdompainting.ca</strong></div>
-  </div>
-</div>
-
-<!-- LABOUR RATES -->
-<div class="page" id="page-labourrates">
-  <div class="grid2">
-    <div class="card">
-      <div class="card-title">Rate calculation</div>
-      <div class="grid2">
-        <div class="field"><label>Billable hours/year</label><input type="number" id="lr-billable" value="1700" oninput="recalcRates();schedulePaintSave()"></div>
-        <div class="field"><label>Labour buffer</label><input type="number" id="lr-buffer" value="1.25" step="0.05" oninput="recalcRates();schedulePaintSave()"></div><div class="field"><label>Materials buffer</label><input type="number" id="lr-mat-buffer" value="1.25" step="0.05" oninput="recalcAll();schedulePaintSave()"></div>
-      </div>
-      <hr class="divider">
-      <div class="toggle-row"><input type="checkbox" id="lr-taxes" checked onchange="recalcRates();schedulePaintSave()"><span>Apply payroll taxes</span></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">
-        <div style="background:var(--cream2);border-radius:var(--r);padding:10px 12px">
-          <div class="toggle-row" style="margin-bottom:6px"><input type="checkbox" id="lr-discount" onchange="recalcRates();schedulePaintSave()"><span style="font-weight:600">Discount %</span></div>
-          <div class="field" style="margin:0"><label>Percentage</label><input type="number" id="lr-disc-pct" value="10" min="0" max="100" oninput="recalcRates();schedulePaintSave()"></div>
+  return (
+    <div style={{padding:24,overflow:'auto',maxHeight:'100%',background:'#f5f5f0'}}>
+      <div style={docStyle}>
+        <div style={{textAlign:'center',marginBottom:24,paddingBottom:16,borderBottom:`2px solid ${gold}`}}>
+          <KPLogo height={48}/>
+          <h2 style={{fontSize:18,fontWeight:700,color:gold,marginTop:8}}>Painting Service Agreement</h2>
+          <p style={{fontSize:11,color:'#999'}}>{todayStr}</p>
         </div>
-        <div style="background:var(--cream2);border-radius:var(--r);padding:10px 12px">
-          <div class="toggle-row" style="margin-bottom:6px"><input type="checkbox" id="lr-discount-amt" onchange="recalcRates();schedulePaintSave()"><span style="font-weight:600">Discount $</span></div>
-          <div class="field" style="margin:0"><label>Amount</label><input type="number" id="lr-disc-amt" value="0" min="0" oninput="recalcRates();schedulePaintSave()"></div>
+
+        <p style={sectionTitle}>1. Parties</p>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20,marginBottom:8}}>
+          <div style={{fontSize:11,color:'#444',lineHeight:'1.7'}}>
+            <p style={{fontWeight:600,marginBottom:4}}>Client</p>
+            <p>{client.name||'—'}</p>
+            {client.addr1&&<p>{client.addr1}</p>}
+            {client.addr2&&<p>{client.addr2}</p>}
+            {client.phone&&<p>{client.phone}</p>}
+            {client.email&&<p>{client.email}</p>}
+          </div>
+          <div style={{fontSize:11,color:'#444',lineHeight:'1.7'}}>
+            <p style={{fontWeight:600,marginBottom:4}}>Contractor</p>
+            <p>David Truong</p>
+            <p>25 Fieldview Crescent</p>
+            <p>Markham ON L3R 3H6</p>
+            <p>(647) 449-6611</p>
+            <p>info@kingdompainting.ca</p>
+          </div>
+        </div>
+
+        <p style={sectionTitle}>2. Scope of Work</p>
+        <table style={{width:'100%',borderCollapse:'collapse',fontSize:11,marginBottom:12}}>
+          <thead><tr>
+            <th style={{textAlign:'left',padding:'6px 8px',borderBottom:'2px solid #e5e5e5',color:'#888',fontWeight:600}}>Room</th>
+            <th style={{textAlign:'left',padding:'6px 8px',borderBottom:'2px solid #e5e5e5',color:'#888',fontWeight:600}}>Surfaces</th>
+          </tr></thead>
+          <tbody>{rooms.map(r=>{
+            const parts=[];
+            if(r.walls.enabled)parts.push('Walls');
+            if(r.ceiling.enabled)parts.push('Ceiling');
+            if(r.baseboards.enabled)parts.push('Baseboards');
+            if(r.crown.enabled)parts.push('Crown');
+            if(r.doors.count>0)parts.push(`${r.doors.count} Door${r.doors.count>1?'s':''}`);
+            if(r.windows.count>0)parts.push(`${r.windows.count} Window${r.windows.count>1?'s':''}`);
+            return (
+              <tr key={r.id}>
+                <td style={{padding:'6px 8px',borderBottom:'1px solid #eee',fontWeight:500}}>{r.name}</td>
+                <td style={{padding:'6px 8px',borderBottom:'1px solid #eee',color:'#555'}}>{parts.join(', ')||'—'}</td>
+              </tr>
+            );
+          })}</tbody>
+        </table>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:8}}>
+          <div style={{background:'#faf7f2',borderRadius:6,padding:'8px 10px',textAlign:'center'}}>
+            <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>Walls</p>
+            <p style={{fontSize:13,fontWeight:700}}>{fmtN(tWalls)} sqft</p>
+          </div>
+          <div style={{background:'#faf7f2',borderRadius:6,padding:'8px 10px',textAlign:'center'}}>
+            <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>Ceiling</p>
+            <p style={{fontSize:13,fontWeight:700}}>{fmtN(tCeil)} sqft</p>
+          </div>
+          <div style={{background:'#faf7f2',borderRadius:6,padding:'8px 10px',textAlign:'center'}}>
+            <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>Trims</p>
+            <p style={{fontSize:13,fontWeight:700}}>{fmtN(tTrim)} LF</p>
+          </div>
+          <div style={{background:'#faf7f2',borderRadius:6,padding:'8px 10px',textAlign:'center'}}>
+            <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>Doors</p>
+            <p style={{fontSize:13,fontWeight:700}}>{tDoors}</p>
+          </div>
+        </div>
+
+        <p style={sectionTitle}>3. Duration</p>
+        <p style={bodyText}>Estimated project duration: <strong>{estDays} working day{estDays!==1?'s':''}</strong>.</p>
+
+        <p style={sectionTitle}>4. Payment Terms</p>
+        <p style={bodyText}>Total project cost: <strong>{fmtCAD(totals.total)}</strong> (incl. HST 13%)</p>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:12}}>
+          <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:12,textAlign:'center'}}>
+            <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>Deposit (10%)</p>
+            <p style={{fontSize:14,fontWeight:700,marginTop:2}}>{fmtCAD(totals.deposit)}</p>
+          </div>
+          <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:12,textAlign:'center'}}>
+            <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>Midway (45%)</p>
+            <p style={{fontSize:14,fontWeight:700,marginTop:2}}>{fmtCAD(totals.midway)}</p>
+          </div>
+          <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:12,textAlign:'center'}}>
+            <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>Balance</p>
+            <p style={{fontSize:14,fontWeight:700,marginTop:2}}>{fmtCAD(totals.balance)}</p>
+          </div>
+        </div>
+
+        <p style={sectionTitle}>5. Changes & Modifications</p>
+        <p style={bodyText}>Any changes to the scope of work described herein must be agreed upon in writing by both parties. Additional work will be quoted separately and is subject to additional charges.</p>
+
+        <p style={sectionTitle}>6. Warranties</p>
+        <p style={bodyText}>The Contractor warrants all workmanship for a period of two (2) years from the date of project completion. This warranty covers peeling, blistering, and flaking that results from improper application. It does not cover damage caused by the Client, normal wear and tear, or structural defects.</p>
+
+        <p style={sectionTitle}>7. Liability Protection</p>
+        <p style={bodyText}>The Contractor carries comprehensive general liability insurance with coverage of $2,000,000. Proof of insurance is available upon request.</p>
+
+        <p style={sectionTitle}>8. Termination</p>
+        <p style={bodyText}>Either party may terminate this agreement with written notice. If the Client terminates, the Client shall pay for all work completed to date plus materials purchased. If the Contractor terminates, the Contractor shall complete any work in progress and refund payment for incomplete work.</p>
+
+        <p style={sectionTitle}>9. Indemnification</p>
+        <p style={bodyText}>Each party agrees to indemnify and hold harmless the other party from any claims, damages, losses, or expenses arising out of the indemnifying party's breach of this agreement or negligent acts.</p>
+
+        <p style={sectionTitle}>10. Governing Law</p>
+        <p style={bodyText}>This agreement shall be governed by and construed in accordance with the laws of the Province of Ontario, Canada.</p>
+
+        <p style={sectionTitle}>11. Entire Agreement</p>
+        <p style={bodyText}>This document constitutes the entire agreement between the parties and supersedes all prior negotiations, representations, or agreements relating to this subject matter.</p>
+
+        <p style={sectionTitle}>Signatures</p>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:24,marginTop:12}}>
+          <div>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+              <p style={{fontSize:11,fontWeight:600}}>Client Signature</p>
+              <button onClick={()=>clearCanvas(clientSigRef)} style={{fontSize:10,color:gold,background:'none',border:'none',cursor:'pointer',fontWeight:600}}>Clear</button>
+            </div>
+            <canvas ref={clientSigRef} width={350} height={100} style={{border:'1px solid #ddd',borderRadius:6,background:'#fafafa',width:'100%',height:100,cursor:'crosshair'}}/>
+            <p style={{fontSize:10,color:'#999',marginTop:4}}>{client.name||'Client'}</p>
+          </div>
+          <div>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+              <p style={{fontSize:11,fontWeight:600}}>Contractor Signature</p>
+              <button onClick={()=>clearCanvas(contractorSigRef)} style={{fontSize:10,color:gold,background:'none',border:'none',cursor:'pointer',fontWeight:600}}>Clear</button>
+            </div>
+            <canvas ref={contractorSigRef} width={350} height={100} style={{border:'1px solid #ddd',borderRadius:6,background:'#fafafa',width:'100%',height:100,cursor:'crosshair'}}/>
+            <p style={{fontSize:10,color:'#999',marginTop:4}}>David Truong, Kingdom Painting Inc.</p>
+          </div>
         </div>
       </div>
-      <hr class="divider">
-      <table class="rates-table">
-        <tr><td style="color:var(--ink3)">Overhead / hr</td><td id="lr-oh-hr">$0</td></tr>
-        <tr><td style="color:var(--ink3)">Field wage / worker</td><td id="lr-wage">$0</td></tr>
-        <tr style="font-weight:500"><td>Profit / hr</td><td id="lr-total-hr" style="color:var(--gold)">$0</td></tr>
-        <tr style="font-weight:500;border-top:2px solid var(--cream3)"><td>Total hourly rate (all workers)</td><td id="lr-total-all" style="color:var(--gold);font-size:15px">$0</td></tr>
-      </table>
     </div>
-    <div class="card">
-      <div class="card-title">Overhead costs</div>
-      <div id="lr-overhead-fields"></div>
-      <hr class="divider">
-      <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:500">
-        <span>Total overhead</span><span id="lr-oh-sum" style="color:var(--gold)">$0</span>
-      </div>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card-title">Field workers</div>
-    <div id="lr-workers"></div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid var(--cream3)">
-      <div style="font-size:13px">Active workers: <strong id="lr-active-count">0</strong></div>
-      <div style="font-size:15px;font-weight:500;color:var(--gold)"><span id="lr-total-all-workers">$0</span><span style="font-size:11px;color:var(--ink3);margin-left:4px">/hr field wage</span></div>
-    </div>
-  </div>
-  <div class="card" style="margin-top:12px">
-    <div class="card-title">Profit</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:end">
-      <div class="field" style="margin:0">
-        <label>Target profit ($)</label>
-        <input type="number" id="lr-profit-target" value="0" min="0" step="100" oninput="recalcRates();schedulePaintSave()" placeholder="e.g. 5000">
-      </div>
-      <div style="background:var(--cream2);border-radius:var(--r);padding:10px 14px;display:flex;justify-content:space-between;align-items:center">
-        <span style="font-size:12px;color:var(--ink3)">Profit / hr</span>
-        <span id="lr-profit" style="font-size:15px;font-weight:600;color:var(--gold)">$0/hr</span>
-      </div>
-    </div>
-    <div style="font-size:11px;color:var(--ink4);margin-top:8px">Target profit ÷ (billable hours × active workers) = profit / hr added to rate</div>
-  </div>
-<div style="margin-top:18px;display:flex;align-items:center;gap:12px">
-  <button onclick="doSaveSettings(this)" style="padding:9px 24px;background:#C4922A;color:#fff;border:none;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--sans);letter-spacing:.02em">Save Settings</button>
-  <span class="save-status-msg" style="font-size:12px;font-weight:600;display:none"></span>
-</div>
-</div>
-
-<!-- PAINT INPUTS -->
-<div class="page" id="page-paintinputs">
-  <div class="grid2">
-    <div class="card"><div class="card-title">Paints (Walls &amp; Trim)</div><div id="pi-paints-container"></div><div class="card-title" style="margin-top:16px">Paints (Ceiling)</div><div id="pi-ceilpaints-container"></div></div>
-    <div class="card"><div class="card-title">Primers</div><div id="pi-primers-container"></div></div>
-    <div class="card"><div class="card-title">Paint colours</div><div id="pi-colours-container"></div></div>
-    <div class="card"><div class="card-title">Supplies</div><div id="pi-supplies-container"></div></div>
-  </div>
-<div style="margin-top:18px;display:flex;align-items:center;gap:12px">
-  <button onclick="doSaveSettings(this)" style="padding:9px 24px;background:#C4922A;color:#fff;border:none;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--sans);letter-spacing:.02em">Save Settings</button>
-  <span class="save-status-msg" style="font-size:12px;font-weight:600;display:none"></span>
-</div>
-</div>
-
-<!-- STANDARDS -->
-<div class="page" id="page-standards">
-  <div style="font-size:12px;color:var(--ink3);margin-bottom:14px;padding:10px 14px;background:var(--cream2);border-radius:var(--r);border-left:3px solid var(--gold)">
-    All values are editable and update labour calculations in real time.
-  </div>
-  <div class="grid2">
-    <div class="card">
-      <div class="card-title">Walls — sqft per hour</div>
-      <table class="doc-table"><thead><tr><th>Coats</th><th class="right">Sqft/Hr</th></tr></thead>
-        <tbody>
-          <tr><td>1 coat</td><td class="right"><input type="number" min="1" value="200" style="width:80px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('walls',1,+this.value)"></td></tr>
-          <tr><td>2 coats</td><td class="right"><input type="number" min="1" value="120" style="width:80px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('walls',2,+this.value)"></td></tr>
-          <tr><td>Primer &amp; 2 coats</td><td class="right"><input type="number" min="1" value="75" style="width:80px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('walls',3,+this.value)"></td></tr>
-        </tbody>
-      </table>
-    </div>
-    <div class="card">
-      <div class="card-title">Ceiling — sqft per hour</div>
-      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin:4px 0 6px">Flat / Drywall</div>
-      <table class="doc-table"><thead><tr><th>Coats</th><th class="right">Sqft/Hr</th></tr></thead>
-        <tbody>
-          <tr><td>1 coat</td><td class="right"><input type="number" min="1" value="150" style="width:80px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('flatCeiling',1,+this.value)"></td></tr>
-          <tr><td>2 coats</td><td class="right"><input type="number" min="1" value="90" style="width:80px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('flatCeiling',2,+this.value)"></td></tr>
-          <tr><td>Primer &amp; 2 coats</td><td class="right"><input type="number" min="1" value="55" style="width:80px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('flatCeiling',3,+this.value)"></td></tr>
-        </tbody>
-      </table>
-      <hr class="divider" style="margin:12px 0 10px">
-      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin-bottom:6px">Stucco</div>
-      <table class="doc-table"><thead><tr><th>Coats</th><th class="right">Sqft/Hr</th></tr></thead>
-        <tbody>
-          <tr><td>1 coat</td><td class="right"><input type="number" min="1" value="80" style="width:80px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('stuccoCeiling',1,+this.value)"></td></tr>
-          <tr><td>2 coats</td><td class="right"><input type="number" min="1" value="50" style="width:80px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('stuccoCeiling',2,+this.value)"></td></tr>
-          <tr><td>Primer &amp; 2 coats</td><td class="right"><input type="number" min="1" value="35" style="width:80px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('stuccoCeiling',3,+this.value)"></td></tr>
-        </tbody>
-      </table>
-      <hr class="divider" style="margin:12px 0 10px">
-      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin-bottom:8px">Remove Stucco — rate per sqft</div>
-      <div class="field" style="margin:0">
-        <label>$ per sqft</label>
-        <input type="number" min="0" step="0.05" value="0.75" style="width:100px;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="if(+this.value>0){STANDARDS.removeStucco={rate:+this.value};recalcAll();schedulePaintSave();}">
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-title">Trims — linear feet per hour</div>
-      <table class="doc-table"><thead><tr><th>Surface</th><th>Coats</th><th class="right">LF/Hr</th></tr></thead>
-        <tbody>
-          <tr><td rowspan="3">Baseboards</td><td>1</td><td class="right"><input type="number" min="1" value="100" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('baseboards',1,+this.value)"></td></tr>
-          <tr><td>2</td><td class="right"><input type="number" min="1" value="60" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('baseboards',2,+this.value)"></td></tr>
-          <tr><td>Primer &amp; 2 Coats</td><td class="right"><input type="number" min="1" value="40" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('baseboards',3,+this.value)"></td></tr>
-          <tr><td rowspan="3">Crown</td><td>1</td><td class="right"><input type="number" min="1" value="90" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('crown',1,+this.value)"></td></tr>
-          <tr><td>2</td><td class="right"><input type="number" min="1" value="55" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('crown',2,+this.value)"></td></tr>
-          <tr><td>Primer &amp; 2 Coats</td><td class="right"><input type="number" min="1" value="35" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('crown',3,+this.value)"></td></tr>
-          <tr><td rowspan="3">Door Frames</td><td>1</td><td class="right"><input type="number" min="1" value="170" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('doorFrames',1,+this.value)"></td></tr>
-          <tr><td>2</td><td class="right"><input type="number" min="1" value="102" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('doorFrames',2,+this.value)"></td></tr>
-          <tr><td>Primer &amp; 2 Coats</td><td class="right"><input type="number" min="1" value="65" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('doorFrames',3,+this.value)"></td></tr>
-          <tr><td rowspan="3">Windows</td><td>1</td><td class="right"><input type="number" min="1" value="100" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('windows',1,+this.value)"></td></tr>
-          <tr><td>2</td><td class="right"><input type="number" min="1" value="60" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('windows',2,+this.value)"></td></tr>
-          <tr><td>Primer &amp; 2 Coats</td><td class="right"><input type="number" min="1" value="40" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('windows',3,+this.value)"></td></tr>
-        </tbody>
-      </table>
-    </div>
-    <div class="card">
-      <div class="card-title">Doors — sqft per hour</div>
-      <table class="doc-table"><thead><tr><th>Coats</th><th class="right">Sqft/Hr</th></tr></thead>
-        <tbody>
-          <tr><td>1 coat</td><td class="right"><input type="number" min="1" value="84" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('doors',1,+this.value)"></td></tr>
-          <tr><td>2 coats</td><td class="right"><input type="number" min="1" value="42" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('doors',2,+this.value)"></td></tr>
-          <tr><td>Primer &amp; 2 coats</td><td class="right"><input type="number" min="1" value="21" style="width:70px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream)" oninput="updStd('doors',3,+this.value)"></td></tr>
-        </tbody>
-      </table>
-    </div>
-<div style="margin-top:18px;display:flex;align-items:center;gap:12px">
-  <button onclick="doSaveSettings(this)" style="padding:9px 24px;background:#C4922A;color:#fff;border:none;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--sans);letter-spacing:.02em">Save Settings</button>
-  <span class="save-status-msg" style="font-size:12px;font-weight:600;display:none"></span>
-</div>
-</div>
-<script>// ─── DATA ───────────────────────────────────────
-const STANDARDS={
-  walls:{1:200,2:120,3:75},ceiling:{1:150,2:90,3:55},
-  flatCeiling:{1:150,2:90,3:55},stuccoCeiling:{1:80,2:50,3:35},
-  removeStucco:{rate:0.75},
-  baseboards:{1:100,2:60,3:40},crown:{1:90,2:55,3:35},
-  doorFrames:{1:170,2:102,3:65},windows:{1:100,2:60,3:40},doors:{1:84,2:42,3:21}
-};
-const PAINTS=[
-  {n:'Benjamin Moore - Ultra Spec',g:50,p:225},
-  {n:'Benjamin Moore - Ben',g:70,p:0},
-  {n:'Benjamin Moore - Aura',g:115,p:535},
-  {n:'Benjamin Moore - Aura Bath & Spa',g:110,p:0},
-  {n:'Benjamin Moore - Advance',g:75,p:0},
-  {n:'Sherwin Williams - Promar 200',g:50,p:225},
-  {n:'Sherwin Williams - Duration Home',g:70,p:350},
-  {n:'Sherwin Williams - Emerald',g:80,p:400},
-  {n:'Sherwin Williams - Promar 400',g:35,p:140},
-  {n:'Sherwin Williams - Pro Industrial Epoxy',g:75,p:0}
-];
-var CEILING_PAINTS=[
-  {n:'Benjamin Moore - Waterborne Ceiling',g:75,p:0},
-  {n:'Benjamin Moore - Ultra Spec Ceiling',g:50,p:0},
-  {n:'Sherwin Williams - ProMar Ceiling',g:45,p:0}
-];
-const PRIMERS=[
-  {n:'Benjamin Moore - Drywall Primer',g:35,p:0},
-  {n:'Benjamin Moore - Stix Primer',g:85,p:0},
-  {n:'Kilz - Original Oil Primer',g:70,p:0},
-  {n:'Kilz - PVA Primer',g:25,p:0},
-  {n:'Kilz - 1 Primer',g:35,p:0},
-  {n:'Kilz - 2 Primer',g:55,p:0}
-];
-const COLOURS=[
-  // Whites & Off-Whites
-  {n:'OC-65 Chantilly Lace',h:'#f5f5f2'},
-  {n:'OC-117 Simply White',h:'#f7f4e8'},
-  {n:'OC-17 White Dove',h:'#f3efe3'},
-  {n:'OC-20 Pale Oak',h:'#e8ddd1'},
-  {n:'OC-15 Baby Fawn',h:'#ede3d4'},
-  {n:'OC-52 Gray Owl',h:'#d5d6cb'},
-  {n:'OC-45 Swiss Coffee',h:'#ede8dc'},
-  {n:'OC-22 Calm',h:'#d9d5c8'},
-  {n:'OC-150 Brilliant White',h:'#f2f2ef'},
-  {n:'OC-57 White Heron',h:'#f0ece0'},
-  {n:'AF-50 Etiquette',h:'#e8e0d3'},
-  // Neutrals & Grays
-  {n:'HC-172 Revere Pewter',h:'#cbc6b8'},
-  {n:'HC-173 Edgecomb Gray',h:'#cfc9bb'},
-  {n:'HC-170 Stonington Gray',h:'#b5bab6'},
-  {n:'HC-169 Coventry Gray',h:'#9da0a0'},
-  {n:'HC-166 Kendall Charcoal',h:'#74756c'},
-  {n:'HC-165 Boothbay Gray',h:'#afb8b5'},
-  {n:'HC-105 Rockport Gray',h:'#979490'},
-  {n:'AF-100 Pashmina',h:'#d4c9ba'},
-  {n:'1560 Antique Pewter',h:'#b4b5a6'},
-  // Blues
-  {n:'HC-154 Hale Navy',h:'#434c59'},
-  {n:'HC-156 Van Deusen Blue',h:'#4a5f75'},
-  {n:'HC-144 Palladian Blue',h:'#a8bebe'},
-  {n:'2136-40 Aegean Teal',h:'#617f80'},
-  {n:'2123-50 Ocean Air',h:'#92afc0'},
-  {n:'2062-20 Gentleman\\'s Gray',h:'#3d4a57'},
-  {n:'1634 Santorini Blue',h:'#6e8fa5'},
-  // Greens
-  {n:'HC-114 Saybrook Sage',h:'#9ea98c'},
-  {n:'HC-188 Essex Green',h:'#3d4e40'},
-  {n:'HC-158 Newburg Green',h:'#4a6057'},
-  {n:'2144-40 Soft Fern',h:'#b1be9a'},
-  {n:'1495 October Mist',h:'#b9c1a9'},
-  {n:'462 Vintage Vogue',h:'#8fa08a'},
-  {n:'2041-10 Hunter Green',h:'#2e4335'},
-  // Browns & Tans
-  {n:'HC-81 Manchester Tan',h:'#c9b89a'},
-  {n:'HC-76 Davenport Tan',h:'#c2a882'},
-  {n:'HC-72 Branchport Brown',h:'#8e6e52'},
-  {n:'HC-9 Chestertown Buff',h:'#d4bc8a'},
-  {n:'1001 North Creek Brown',h:'#7a5c42'},
-  {n:'2100-20 Leather Saddle Brown',h:'#7a5038'},
-  {n:'2130-10 Black Bean Soup',h:'#3a2820'},
-  {n:'AF-180 Wenge',h:'#4a3830'},
-  // Reds
-  {n:'AF-290 Caliente',h:'#c13030'},
-  {n:'HC-181 Heritage Red',h:'#8c2020'},
-  {n:'2000-10 Red',h:'#b82020'},
-  {n:'2090-40 Wild Flower',h:'#b04860'},
-  {n:'2092-30 Boston Brick',h:'#9a4030'},
-  {n:'AF-300 Dinner Party',h:'#7a2020'},
-  {n:'105 Terra Mauve',h:'#c27860'},
-  // Oranges
-  {n:'2175-70 Peach Parfait',h:'#f0c8a8'},
-  {n:'AF-185 Venetian Portico',h:'#c87848'},
-  {n:'AF-215 Italianate',h:'#c86830'},
-  {n:'070 Topaz',h:'#c88030'},
-  {n:'2015-10 Electric Orange',h:'#e05010'},
-  // Pinks
-  {n:'AF-250 Head Over Heels',h:'#e8b8b0'},
-  {n:'1191 Love and Happiness',h:'#e0a0a0'},
-  {n:'052 Conch Shell',h:'#e8c0b0'},
-  {n:'1296 Sailor\\'s Delight',h:'#d49090'},
-  {n:'2174-60 Dream Whip',h:'#f0d0c8'},
-  {n:'2102-70 First Light',h:'#f0d8d8'},
-  // Purples
-  {n:'1444 New Age',h:'#a090b0'},
-  {n:'2117-60 Winter Gray',h:'#c0b8c8'},
-  {n:'2070-60 Lavender Mist',h:'#c8b8d8'},
-  {n:'2071-60 Lily Lavender',h:'#c8b0d8'},
-  {n:'2116-40 Hazy Lilac',h:'#9888a8'},
-  {n:'2117-30 Shadow',h:'#807090'},
-  // Yellows
-  {n:'CSP-305 Crisp Linen',h:'#ece0c0'},
-  {n:'HC-6 Windham Cream',h:'#ead8a0'},
-  {n:'2152-50 Golden Straw',h:'#e0c878'},
-  {n:'HC-12 Concord Ivory',h:'#deca90'},
-  {n:'HC-11 Marblehead Gold',h:'#d4b860'},
-  // Blacks
-  {n:'HC-190 Black',h:'#1c1c1c'},
-  {n:'2131-10 Black Satin',h:'#2a2820'},
-  {n:'2131-20 Midnight',h:'#302e28'},
-  {n:'2120-30 Witching Hour',h:'#2c2a30'},
-  {n:'1610 French Beret',h:'#302828'},
-  {n:'2124-10 Wrought Iron',h:'#282c2c'}
-];
-const SUPPLIES=[
-  {n:'9" Roller',p:6},{n:'18" Roller',p:22},{n:'Mini Roller',p:3},
-  {n:'FrogTape 4 Pack',p:38.8},{n:'Floor Shield 36x50',p:32.3},
-  {n:'CGC Sheetrock 45 11kg',p:46},{n:'Norton Sanding Sponge',p:5.6}
-];
-const OVERHEAD_ITEMS=[
-  {n:'Salary',v:50000},{n:'Gas',v:4000},{n:'Sprayer',v:1800},{n:'Ads',v:1000},
-  {n:'Company Meals',v:750},{n:'Company Insurance',v:650},{n:'Accountant',v:500},
-  {n:'Mechanical',v:500},{n:'Tools',v:500},{n:'Google Workplace',v:120},{n:'Website',v:50}
-];
-const WORKERS_DEFAULT=[{n:'David',r:40,active:true},{n:'René',r:30,active:true},{n:'Nicky',r:18,active:false}];
-
-let rooms=[],roomCounter=0,changeItems=[],changeCounter=0;
-let workers=JSON.parse(JSON.stringify(WORKERS_DEFAULT));
-let overheadItems=JSON.parse(JSON.stringify(OVERHEAD_ITEMS));
-let globalRate=65;
-let paintMap={};
-const qtyOverrides={};
-let currentEstimateId=null,saveTimer=null;
-
-// ─── UTILS ──────────────────────────────────────
-function fmt(n){return '$'+(+n||0).toFixed(2).replace(/\\\\\\\\B(?=(\\\\\\\\d{3})+(?!\\\\\\\\d))/g,',');}
-function fmtN(n){return Math.round(+n||0).toLocaleString();}
-function fmtPhone(el){var v=el.value.replace(/\\D/g,'').slice(0,10);var o='';if(v.length>0)o='('+v.slice(0,3);if(v.length>=4)o+=') '+v.slice(3,6);if(v.length>=7)o+='-'+v.slice(6,10);el.value=o;}
-function today(){return new Date().toLocaleDateString('en-CA',{year:'numeric',month:'long',day:'numeric'});}
-function sel(id){return document.getElementById(id);}
-function v(id){return sel(id)?sel(id).value:'';}
-function stripUnit(n){return(n||'').replace(/\\\\\\\\s+(Gallon|Pail|Can)\\\\\\\\s*$/i,'').trim();}
-function paintOpts(sv){sv=sv||'';return '<option value="">— Select —</option>'+PAINTS.map(function(p){return '<option value="'+p.n+'" '+(sv===p.n?'selected':'')+'>'+p.n+'</option>';}).join('');}
-function ceilPaintOpts(sv){sv=sv||'';return '<option value="">— Select —</option>'+CEILING_PAINTS.map(function(p){return '<option value="'+p.n+'" '+(sv===p.n?'selected':'')+'>'+p.n+'</option>';}).join('');}
-function primerOpts(sv=''){return '<option value="">— Select primer —</option>'+PRIMERS.map(p=>'<option value="'+p.n+'" '+(sv===p.n?'selected':'')+'>'+p.n+'</option>').join('');}
-function sheenOpts(sv=''){return ['Flat','Matte','Eggshell','Satin','Pearl','Semi-Gloss','TBD'].map(s=>'<option value="'+s+'" '+(sv===s?'selected':'')+'>'+s+'</option>').join('');}
-function colourOpts(sv=''){return '<option value="">— Colour —</option>'+COLOURS.map(c=>'<option value="'+c.n+'" '+(sv===c.n?'selected':'')+'>'+c.n+'</option>').join('');}
-
-// ─── TABS ───────────────────────────────────────
-
-
-// ─── CLIENT SYNC ────────────────────────────────
-function syncClient(){
-  const name=v('ci-name'),a1=v('ci-addr1'),a2=v('ci-addr2'),em=v('ci-email'),ph=v('ci-phone');
-  sel('cover-name').textContent=name||'—';
-  sel('cover-addr').textContent=[a1,a2].filter(Boolean).join(', ');
-  sel('cover-email').textContent=em;
-  // Populate BID PROPOSAL print cover block
-  var cpn=sel('cover-print-name');
-  if(cpn){
-    var lines=[];
-    if(name)lines.push('<strong>'+name+'</strong>');
-    if(a1)lines.push(a1);
-    if(a2)lines.push(a2);
-    if(ph)lines.push(ph);
-    if(em)lines.push('<span style=\\"color:#1a6bbf\\">'+em+'</span>');
-    cpn.innerHTML=lines.join('<br>');
-  }
-  ['q-client','inv-client','co-client'].forEach(id=>{const e=sel(id);if(e)e.textContent=name||'—';});
-  ['q-addr','inv-addr'].forEach(id=>{const e=sel(id);if(e)e.textContent=[a1,a2].filter(Boolean).join(', ')||'—';});
+  );
 }
 
-// ─── ROOMS ──────────────────────────────────────
-
-// ─── ROOM CALCULATIONS ────────────────────────────────
-function calcWalls(r){
-  if(!r.walls)return 0;
-  if(r.irregular){
-    const h=r.height||9;
-    return Math.max(0,(r.wallSegs||[]).reduce(function(s,seg){return s+(+(seg.l)||0)*h;},0));
-  }
-  return Math.max(0,2*(r.length+r.width)*(r.height||9));
-}
-function calcCeil(r){
-  if(!r.ceiling)return 0;
-  if(r.irregular){
-    return Math.max(0,(r.ceilSegs||[]).reduce(function(s,seg){return s+(+(seg.l)||0)*(+(seg.w)||0);},0));
-  }
-  return(r.length||0)*(r.width||0);
-}
-function calcTrims(r){return(r.baseboards?r.baseLF:0)+(r.crown?r.crownLF:0)+(r.doorFrames?r.dfLF:0)+(r.windows?r.winLF:0);}
-
-function upd(id,key,val){
-  const r=rooms.find(x=>x.id===id);if(!r)return;
-  r[key]=val;
-  autoFillLF(r);
-  const rerender=['walls','ceiling','baseboards','crown','doorFrames','windows','doors','wallCoats','ceilCoats','doorCoats','baseCoats','crownCoats','dfCoats','winCoats','irregular','wallsPrimer','ceilingPrimer','trimPrimer'];
-  if(rerender.includes(key)){renderRooms(id);recalcAll();return;}
-  const el_ws=sel('rws_'+id),el_cs=sel('rcs_'+id),el_lc=sel('rlc_'+id),el_t=sel('rtrim_'+id),el_d=sel('rdoors_'+id);
-  if(el_ws)el_ws.textContent=fmtN(calcWalls(r));
-  if(el_cs)el_cs.textContent=fmtN(calcCeil(r));
-  if(el_t)el_t.textContent=fmtN(calcTrims(r));
-  if(el_d)el_d.textContent=r.doors?r.doorCount:0;
-  if(el_lc)el_lc.textContent=fmt(calcRoomCost(r));
-  const b=sel('badge_'+id);if(b)b.textContent=calcWalls(r)>0?fmtN(calcWalls(r))+' sqft walls':'\\u2014';
-  recalcAll();
-
-  scheduleRoomSave();
-}
-function updPrep(id,key,val){const r=rooms.find(x=>x.id===id);if(!r)return;r.prep[key]=val;recalcAll();}
-function updWinDim(id,key,val){
-  var r=rooms.find(function(x){return x.id===id;});if(!r)return;
-  if(!r.winDims||!r.winDims[0])r.winDims=[{l:0,w:0}];
-  r.winDims[0][key]=+(val)||0;
-  r.winLF=2*((r.winDims[0].l||0)+(r.winDims[0].w||0));
-  renderRooms();recalcAll();
-}
-function toggleRoom(id){
-  const b=document.querySelector('.room-body[data-id=\\"'+id+'\\"]');
-  const a=sel('arr_'+id);
-  if(!b)return;
-  const open=b.classList.toggle('open');
-  if(a)a.classList.toggle('open',open);
-}
-
-function calcRoomHrs(r){
-  let h=0;
-  const ws=calcWalls(r),cs=calcCeil(r);
-  if(r.walls&&ws)h+=ws/STANDARDS.walls[r.wallCoats];
-  if(r.ceiling&&cs){
-    var cStd=(r.ceilType==='stucco'?STANDARDS.stuccoCeiling:STANDARDS.flatCeiling)||STANDARDS.ceiling;
-    h+=cs/cStd[r.ceilCoats];
-    if(r.removeStucco)h+=cs/((STANDARDS.removeStucco.rate||0.75));
-  }
-  if(r.baseboards&&r.baseLF)h+=r.baseLF/STANDARDS.baseboards[r.baseCoats];
-  if(r.crown&&r.crownLF)h+=r.crownLF/STANDARDS.crown[r.crownCoats];
-  if(r.doorFrames&&r.dfLF)h+=r.dfLF/STANDARDS.doorFrames[r.dfCoats];
-  if(r.windows&&r.winLF)h+=r.winLF/STANDARDS.windows[r.winCoats];
-  if(r.doors&&r.doorCount)h+=(r.doorCount*21)/STANDARDS.doors[r.doorCoats];
-  h+=(r.prepHrs||0);
-  return h;
-}
-function calcRoomCost(r){const aw=workers.filter(w=>w.active).length||1;return calcRoomHrs(r)*globalRate*aw;}
-
-function updSeg(id,idx,val){
-  var r=rooms.find(function(x){return x.id===id;});if(!r)return;
-  if(!r.wallSegs)r.wallSegs=[{l:0},{l:0},{l:0},{l:0},{l:0},{l:0}];
-  r.wallSegs[idx]={l:+(val)||0};
-  renderRooms(id);recalcAll();
-}
-function updCeilSeg(id,idx,key,val){
-  var r=rooms.find(function(x){return x.id===id;});if(!r)return;
-  if(!r.ceilSegs)r.ceilSegs=[{l:0,w:0},{l:0,w:0}];
-  r.ceilSegs[idx]=Object.assign({},r.ceilSegs[idx]);
-  r.ceilSegs[idx][key]=+(val)||0;
-  renderRooms(id);recalcAll();
-}
-
-function calcRoomSuppliesCost(r){
-  var t=0;
-  (r.supplies||[]).forEach(function(s){
-    if(s.name){var x=SUPPLIES.find(function(q){return q.n===s.name;});if(x)t+=x.p*(+(s.qty)||1);}
-  });
-  return t;
-}
-
-function updWinDimIdx(id,idx,key,val){
-  var r=rooms.find(function(x){return x.id===id;});if(!r)return;
-  if(!r.winDims||!r.winDims.length)r.winDims=[{l:0,w:0}];
-  r.winDims[idx]=Object.assign({},r.winDims[idx]);
-  r.winDims[idx][key]=+(val)||0;
-  r.winLF=r.winDims.reduce(function(t,d){return t+2*((+(d.l)||0)+(+(d.w)||0));},0);
-  renderRooms();recalcAll();
-}
-function updWinAdd(id){
-  var r=rooms.find(function(x){return x.id===id;});if(!r)return;
-  r.winDims=[].concat(r.winDims||[{l:0,w:0}],{l:0,w:0});
-  r.winLF=r.winDims.reduce(function(t,d){return t+2*((+(d.l)||0)+(+(d.w)||0));},0);
-  renderRooms();recalcAll();
-}
-function updWinRemove(id,idx){
-  var r=rooms.find(function(x){return x.id===id;});if(!r)return;
-  r.winDims=[].concat(r.winDims||[]);r.winDims.splice(idx,1);
-  if(!r.winDims.length)r.winDims=[{l:0,w:0}];
-  r.winLF=r.winDims.reduce(function(t,d){return t+2*((+(d.l)||0)+(+(d.w)||0));},0);
-  renderRooms();recalcAll();
-}
-
-function pushDocsToProject(){
-  var projectSel=sel('ci-contact-select');
-  var projectId=projectSel?projectSel.value:'';
-  if(!projectId){alert('Please select a project on the Cover tab first.');return;}
-  if(!_session||!_session.access_token){alert('Session not ready. Please reload the estimates page.');return;}
-  var token=_session.access_token;
-  var btn=document.querySelector('[onclick=\\"pushDocsToProject()\\"]');
-  if(btn){btn._origHtml=btn._origHtml||btn.innerHTML;btn.disabled=true;btn.textContent='Pushing…';}
-
-  // Rooms
-  var coatLabel=function(v){return v==1?'1 Coat':v==3?'Primer & 2 Coats':'2 Coats';};
-  var roomsData=rooms.map(function(r){
-    var surfaces=[];
-    if(r.walls)surfaces.push({label:'Walls',coats:coatLabel(r.wallCoats),sqft:Math.round(calcWalls(r))});
-    if(r.ceiling)surfaces.push({label:'Ceiling',coats:coatLabel(r.ceilCoats),sqft:Math.round(calcCeil(r))});
-    if(r.baseboards)surfaces.push({label:'Baseboards',coats:coatLabel(r.baseCoats),lf:Math.round(r.baseLF||0)});
-    if(r.crown)surfaces.push({label:'Crown',coats:coatLabel(r.crownCoats),lf:Math.round(r.crownLF||0)});
-    if(r.doorFrames)surfaces.push({label:'Door Frames',coats:coatLabel(r.dfCoats),lf:Math.round(r.dfLF||0)});
-    if(r.windows)surfaces.push({label:'Windows',coats:coatLabel(r.winCoats),lf:Math.round(r.winLF||0)});
-    if(r.doors)surfaces.push({label:'Doors',coats:coatLabel(r.doorCoats),count:r.doorCount||0});
-    var sqft=Math.max(1,Math.round(calcWalls(r)+calcCeil(r)+(((r.baseLF||0)+(r.crownLF||0)+(r.dfLF||0)+(r.winLF||0)))*0.5+(r.doors?(r.doorCount||0):0)*20));
-    return {name:r.name||('Room '+r.id),surfaces:surfaces,done:false,sqft:sqft};
-  }).filter(function(r){return r.surfaces.length>0;});
-
-  // Quote HTML — self-contained with CSS vars
-  var qEl=document.getElementById('page-quote');
-  var quoteHtml='';
-  if(qEl){
-    quoteHtml='<!DOCTYPE html><html><head><meta charset="UTF-8"/>'+
-      '<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>'+
-      '<style>'+
-      '*{box-sizing:border-box;margin:0;padding:0}'+
-      'body{font-family:"Montserrat",sans-serif;background:#fff;color:#1a1714;padding:32px 40px;font-size:13px;line-height:1.7;max-width:860px;margin:0 auto}'+
-      ':root{--bg:#ede9de;--fg:#2e3557;--ink:#1a1714;--ink2:#3a3530;--ink3:#7a6e65;'+
-      '--cream:#ede9de;--cream2:#e0dbd0;--cream3:#c8bfb4;'+
-      '--gold:#C4922A;--gold2:#b07e20;--r:6px;--r2:12px}'+
-      'table{border-collapse:collapse;width:100%}'+
-      '@media print{body{padding:16px}}'+
-      '</style></head><body>'+
-      qEl.innerHTML+
-      '</body></html>';
-  }
-
-  // Contract HTML — save as self-contained document with CSS vars resolved
-  var totalEl=sel('q-total');
-  var amount=totalEl?parseFloat((totalEl.textContent||'').replace(/[^0-9.]/g,''))||0:0;
-  try{buildContract(amount,amount*0.1,amount*0.45,amount*0.45,1);}catch(e){}
-  var contractBody=document.getElementById('contract-body');
-  var contractHtml='';
-  if(contractBody&&contractBody.innerHTML.trim()){
-    contractHtml='<!DOCTYPE html><html><head><meta charset="UTF-8"/>'+
-      '<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>'+
-      '<style>'+
-      '*{box-sizing:border-box;margin:0;padding:0}'+
-      'body{font-family:"Montserrat",sans-serif;background:#fff;color:#1a1714;padding:32px 40px;font-size:13px;line-height:1.7;max-width:860px;margin:0 auto}'+
-      ':root{--bg:#ede9de;--fg:#2e3557;--ink:#1a1714;--ink2:#3a3530;--ink3:#7a6e65;'+
-      '--cream:#ede9de;--cream2:#e0dbd0;--cream3:#c8bfb4;'+
-      '--gold:#C4922A;--gold2:#b07e20;--r:6px;--r2:12px;--sans:"Montserrat",sans-serif}'+
-      'table{border-collapse:collapse;width:100%}'+
-      '@media print{body{padding:16px}}'+
-      '</style></head><body>'+
-      contractBody.innerHTML+
-      '</body></html>';
-  }
-
-  // Change order (only if filled)
-  var coEl=document.getElementById('page-changeorder');
-  var coItems=document.querySelectorAll('.co-item');
-  var changeOrderHtml=(coItems&&coItems.length>0&&coEl)?coEl.outerHTML:'';
-
-  var payload={rooms:roomsData,progress:0};
-  if(quoteHtml)payload.quote_html=quoteHtml;
-  if(contractHtml)payload.contract_html=contractHtml;
-  if(changeOrderHtml)payload.change_order_html=changeOrderHtml;
-
-  // Delegate PATCH to React parent which has a fresh session token
-  window.parent.postMessage({type:'KP_PATCH_DEAL',dealId:projectId,data:payload},'*');
-  if(btn){btn.textContent='\\u2713 Pushed!';setTimeout(function(){btn.innerHTML=btn._origHtml||'\\u2599 Push';btn.disabled=false;},2500);}
-}
-
-function addRoom(){
-  roomCounter++;
-  var newId=roomCounter;
-  rooms.push({
-    id:newId,name:'',length:0,width:0,height:0,prepHrs:0,
-    irregular:false,
-    wallSegs:[{l:0},{l:0},{l:0},{l:0},{l:0},{l:0}],
-    ceilSegs:[{l:0,w:0},{l:0,w:0}],
-    walls:true,wallCoats:2,ceiling:false,ceilCoats:2,
-    baseboards:false,baseCoats:2,baseLF:0,crown:false,crownCoats:2,crownLF:0,
-    doorFrames:false,dfCoats:2,dfLF:0,windows:false,winCoats:2,winLF:0,winDims:[{l:0,w:0}],
-    doors:false,doorCoats:2,doorCount:0,
-    prep:{furniture:false,plastic:false,outlets:false,drywall:false,caulking:false,cleanup:false,custom:''},
-    ceilType:'flat',removeStucco:false,
-    wallPaint:'',wallSheen:'',wallColour:'',ceilPaint:'',ceilSheen:'',ceilColour:'',
-    trimPaint:'',trimSheen:'',trimColour:'',notes:'',supplies:[]
-  });
-  renderRooms(newId);
-  recalcAll();
-}
-
-function removeRoom(id){rooms=rooms.filter(r=>r.id!==id);renderRooms();recalcAll();}
-
-function renderRooms(autoOpenId){
-  const c=sel('roomsContainer');
-  const openIds=new Set([...document.querySelectorAll('.room-body.open')].map(el=>+el.dataset.id));
-  if(autoOpenId)openIds.add(+autoOpenId);
-  c.innerHTML='';
-  rooms.forEach(r=>{
-    const isOpen=openIds.has(r.id);
-    const ws=calcWalls(r),cs=calcCeil(r);
-    const badge=ws>0?fmtN(ws)+' sqft walls':'—';
-    const d=document.createElement('div');d.className='room-card';
-    d.innerHTML='<div class="room-head" onclick="toggleRoom('+r.id+')">'      +'<div class="room-head-left"><span class="room-arrow '+(isOpen?'open':'')+'" id="arr_'+r.id+'">&#9658;</span>'      +'<input class="room-name-input" type="text" value="'+r.name+'" placeholder="Room '+r.id+'" onclick="event.stopPropagation()" oninput="rooms.find(x=>x.id=='+r.id+').name=this.value" id="room-name-'+r.id+'"></div>'      +'<div style="display:flex;align-items:center;gap:8px"><span class="room-badge" id="badge_'+r.id+'">'+badge+'</span>'      +'<button class="room-del" onclick="event.stopPropagation();removeRoom('+r.id+')">&#215;</button></div></div>'      +'<div class="room-body '+(isOpen?'open':'')+'" data-id="'+r.id+'">'      +renderRoomBody(r)+'</div>';
-    c.appendChild(d);
-  });
-  sel('rooms-count-badge').textContent=rooms.length+' room'+(rooms.length!==1?'s':'');
-  sel('addRoomBtn').style.display='block';
-  if(autoOpenId){
-    var ni=sel('room-name-'+autoOpenId);
-    if(ni){ni.focus();ni.select();}
-  }
-}
-
-function surfRow(rid,key,en,coats,label,ck){
-  return '<div class="surf-grid"><label class="surf-label"><input type="checkbox" '+(en?'checked':'')+' onchange="upd('+rid+',\\''+key+'\\',this.checked)"> '+label+'</label>'
-    +'<select class="coats-sel" onchange="upd('+rid+',\\''+ck+'\\',+this.value)"><option value="1" '+(coats===1?'selected':'')+'>1 coat</option><option value="2" '+(coats===2?'selected':'')+'>2 coats</option><option value="3" '+(coats===3?'selected':'')+'>Primer &amp; 2 Coats</option></select>'
-    +'<span></span><span></span></div>';
-}
-
-function surfLFRow(rid,key,en,coats,label,ck,lfVal,autoLF){
-  const display=en?(autoLF>0?autoLF:lfVal||0):0;
-  return '<div class="surf-grid"><label class="surf-label"><input type="checkbox" '+(en?'checked':'')+' onchange="upd('+rid+',\\''+key+'\\',this.checked)"> '+label+'</label>'
-    +'<select class="coats-sel" onchange="upd('+rid+',\\''+ck+'\\',+this.value)"><option value="1" '+(coats===1?'selected':'')+'>1 coat</option><option value="2" '+(coats===2?'selected':'')+'>2 coats</option><option value="3" '+(coats===3?'selected':'')+'>Primer &amp; 2 Coats</option></select>'
-    +'<span style="font-size:11px;color:var(--ink3);padding:5px 8px;background:var(--cream2);border-radius:var(--r)">'+(en&&display?fmtN(display)+' lf':'\\u2014')+'</span><span></span></div>';
-}
-
-
-function colourChips(r){
-  const chips=[];
-  if(r.wallColour){const c=COLOURS.find(x=>x.n===r.wallColour);chips.push('<span class="colour-chip"><span class="chip-dot" style="background:'+(c?c.h:'#ccc')+'"></span>Wall: '+r.wallColour+(r.wallSheen?' \\u00b7 '+r.wallSheen:'')+'</span>');}
-  if(r.ceilColour){const c=COLOURS.find(x=>x.n===r.ceilColour);chips.push('<span class="colour-chip"><span class="chip-dot" style="background:'+(c?c.h:'#ccc')+'"></span>Ceil: '+r.ceilColour+(r.ceilSheen?' \\u00b7 '+r.ceilSheen:'')+'</span>');}
-  if(r.trimColour){const c=COLOURS.find(x=>x.n===r.trimColour);chips.push('<span class="colour-chip"><span class="chip-dot" style="background:'+(c?c.h:'#ccc')+'"></span>Trim: '+r.trimColour+(r.trimSheen?' \\u00b7 '+r.trimSheen:'')+'</span>');}
-  return chips.length?'<div class="paint-chips">'+chips.join('')+'</div>':'';
-}
-
-function renderRoomBody(r){
-  var perim=2*(r.length+r.width);
-  var segs=r.wallSegs||[{l:0},{l:0},{l:0},{l:0},{l:0},{l:0}];
-  var csegs=r.ceilSegs||[{l:0,w:0},{l:0,w:0}];
-  var irrWallSqft=segs.reduce(function(s,seg){return s+(+(seg.l)||0)*(r.height||9);},0);
-  var irrCeilSqft=csegs.reduce(function(s,seg){return s+(+(seg.l)||0)*(+(seg.w)||0);},0);
-
-  function coatsSel(key,val){
-    return '<select class="coats-sel" onchange="upd('+r.id+',\\''+key+'\\',+this.value)">'
-      +'<option value="1"'+(val===1?' selected':'')+'>1 Coat</option>'
-      +'<option value="2"'+(val===2?' selected':'')+'>2 Coats</option>'
-      +'<option value="3"'+(val===3?' selected':'')+'>Primer &amp; 2 Coats</option>'
-      +'</select>';
-  }
-
-  function sfRow(key,en,coatsKey,label){
-    return '<div class="surf-grid">'
-      +'<label class="surf-label"><input type="checkbox" '+(en?'checked':'')+' onchange="upd('+r.id+',\\''+key+'\\',this.checked)"> '+label+'</label>'
-      +coatsSel(coatsKey,r[coatsKey])
-      +'<span></span><span></span></div>';
-  }
-
-  function trimRow(key,en,coatsKey,label){
-    return '<div class="surf-grid">'
-      +'<label class="surf-label"><input type="checkbox" '+(en?'checked':'')+' onchange="upd('+r.id+',\\''+key+'\\',this.checked)"> '+label+'</label>'
-      +coatsSel(coatsKey,r[coatsKey])
-      +'<span></span><span></span></div>';
-  }
-
-  var irregHtml='';
-  if(r.irregular){
-    var segInputs=segs.map(function(seg,i){
-      return '<div class="field" style="margin:0"><label>Seg '+(i+1)+' length (ft)</label>'
-        +'<input type="number" min="0" step="0.5" value="'+(seg.l||'')+'" placeholder="0" oninput="updSeg('+r.id+','+i+',this.value)"></div>';
-    }).join('');
-    var stuccoRate=(STANDARDS.removeStucco&&STANDARDS.removeStucco.rate)||0.75;
-    var irrStuccoCost=irrCeilSqft*stuccoRate;
-    irregHtml=
-      '<div style="background:var(--cream2);border-radius:var(--r);padding:10px 12px;margin-bottom:12px">'
-      +'<div style="font-size:11px;font-weight:600;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Wall Segments — each length \\u00d7 height = sqft</div>'
-      +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:6px">'+segInputs+'</div>'
-      +'<div style="font-size:12px;color:var(--gold2);font-weight:600">Wall area: '+fmtN(irrWallSqft)+' sqft</div>'
-      +'</div>'
-      +(r.ceiling?(
-        '<div style="background:var(--cream2);border-radius:var(--r);padding:10px 12px;margin-bottom:12px">'
-        +'<div style="font-size:11px;font-weight:600;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Ceiling Sections \\u2014 two rectangles added together</div>'
-        +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:6px">'
-        +'<div class="field" style="margin:0"><label>Sec 1 Length</label><input type="number" min="0" step="0.5" value="'+(csegs[0].l||'')+'" placeholder="0" oninput="updCeilSeg('+r.id+',0,\\'l\\',this.value)"></div>'
-        +'<div class="field" style="margin:0"><label>Sec 1 Width</label><input type="number" min="0" step="0.5" value="'+(csegs[0].w||'')+'" placeholder="0" oninput="updCeilSeg('+r.id+',0,\\'w\\',this.value)"></div>'
-        +'<div class="field" style="margin:0"><label>Sec 2 Length</label><input type="number" min="0" step="0.5" value="'+(csegs[1].l||'')+'" placeholder="0" oninput="updCeilSeg('+r.id+',1,\\'l\\',this.value)"></div>'
-        +'<div class="field" style="margin:0"><label>Sec 2 Width</label><input type="number" min="0" step="0.5" value="'+(csegs[1].w||'')+'" placeholder="0" oninput="updCeilSeg('+r.id+',1,\\'w\\',this.value)"></div>'
-        +'</div>'
-        +'<div style="font-size:12px;color:var(--gold2);font-weight:600;margin-bottom:8px">Ceiling area: '+fmtN(irrCeilSqft)+' sqft</div>'
-        +'<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;background:var(--cream);padding:6px 10px;border-radius:var(--r)">'
-        +'<input type="checkbox" '+(r.removeStucco?'checked':'')+' onchange="upd('+r.id+',\\'removeStucco\\',this.checked)" style="accent-color:var(--gold)">'
-        +' Remove stucco ($'+stuccoRate.toFixed(2)+'/sqft)'+(r.removeStucco&&irrCeilSqft>0?' \u2014 $'+irrStuccoCost.toFixed(2):'')
-        +'</label>'
-        +'</div>'
-      ):'');
-  }
-
-  return '<div style="padding-top:14px">'
-    +'<div class="card-title">Dimensions</div>'
-    +'<div class="grid4" style="margin-bottom:8px">'
-    +'<div class="field"><label>Length (ft)</label><input type="number" min="0" step="0.5" value="'+(r.length||'')+'" placeholder="0" oninput="upd('+r.id+',\\'length\\',+this.value)"></div>'
-    +'<div class="field"><label>Width (ft)</label><input type="number" min="0" step="0.5" value="'+(r.width||'')+'" placeholder="0" oninput="upd('+r.id+',\\'width\\',+this.value)"></div>'
-    +'<div class="field"><label>Height (ft)</label><input type="number" min="0" step="0.5" value="'+(r.height||'')+'" placeholder="0" oninput="upd('+r.id+',\\'height\\',+this.value)"></div>'
-    +'<div class="field"><label>Prep hours</label><input type="number" min="0" step="0.5" value="'+(r.prepHrs||'')+'" oninput="upd('+r.id+',\\'prepHrs\\',+this.value)" placeholder="0"></div>'
-    +'<div class="field"><label>Doors</label><input type="number" min="0" step="1" value="'+(r.doorCount||'')+'" placeholder="0" oninput="upd('+r.id+',\\'doorCount\\',+this.value)"></div>'
-    +'</div>'
-    +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">'
-    +'<input type="checkbox" id="irreg_'+r.id+'" '+(r.irregular?'checked':'')+' onchange="upd('+r.id+',\\'irregular\\',this.checked);" style="accent-color:var(--gold);width:14px;height:14px">'
-    +'<label for="irreg_'+r.id+'" style="font-size:12px;font-weight:600;color:var(--ink2);cursor:pointer">Irregular Room</label>'
-    +'</div>'
-    +irregHtml
-    +'<div class="card-title">Prep</div>'
-    +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px">'
-    +['furniture','plastic','outlets','drywall','caulking','cleanup'].map(function(k){return '<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink2);background:var(--cream2);padding:6px 10px;border-radius:var(--r);cursor:pointer"><input type="checkbox" '+(r.prep[k]?'checked':'')+' onchange="updPrep('+r.id+',\\''+k+'\\',this.checked)" style="accent-color:var(--gold);width:13px;height:13px"> '+{furniture:'Move furniture',plastic:'Plastic cover',outlets:'Remove outlets',drywall:'Drywall repairs',caulking:'Caulking',cleanup:'Clean up'}[k]+'</label>';}).join('')
-    +'</div>'
-    +'<div class="field" style="margin-bottom:12px"><label>Additional prep notes</label><input type="text" value="'+(r.prep.custom||'')+'" placeholder="Type any additional prep..." oninput="updPrep('+r.id+',\\'custom\\',this.value)"></div>'
-    +'<div class="card-title">Surfaces</div>'
-    +sfRow('walls',r.walls,'wallCoats','Walls')
-    +sfRow('ceiling',r.ceiling,'ceilCoats','Ceiling')
-+(r.ceiling?(
-  '<div style="background:var(--cream2);border-radius:var(--r);padding:10px 12px;margin:4px 0 8px 24px">'
-  +'<div style="font-size:11px;font-weight:600;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Ceiling Type</div>'
-  +'<div style="display:flex;gap:16px;margin-bottom:8px">'
-  +'<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">'
-  +'<input type="radio" name="ctype_'+r.id+'" value="flat" '+((!r.ceilType||r.ceilType==="flat")?'checked':'')+' onchange="upd('+r.id+',\\'ceilType\\',\\'flat\\')"> Flat / Drywall</label>'
-  +'<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">'
-  +'<input type="radio" name="ctype_'+r.id+'" value="stucco" '+(r.ceilType==="stucco"?'checked':'')+' onchange="upd('+r.id+',\\'ceilType\\',\\'stucco\\')"> Stucco</label>'
-  +'</div>'
-  +'<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;background:var(--cream);padding:6px 10px;border-radius:var(--r)">'
-  +'<input type="checkbox" '+(r.removeStucco?'checked':'')+' onchange="upd('+r.id+',\\'removeStucco\\',this.checked)" style="accent-color:var(--gold)">'
-  +' Remove stucco ($'+((STANDARDS.removeStucco.rate||0.75))+'/sqft)</label>'
-  +'</div>'
-):'')
-    +trimRow('baseboards',r.baseboards,'baseCoats','Baseboards')
-    +trimRow('crown',r.crown,'crownCoats','Crown Moulding')
-    +'<div class="surf-grid"><label class="surf-label"><input type="checkbox" '+(r.doors?'checked':'')+' onchange="upd('+r.id+',\\'doors\\',this.checked)"> Doors</label>'
-    +coatsSel('doorCoats',r.doorCoats)
-    +'<span></span><span></span></div>'
-    +trimRow('doorFrames',r.doorFrames,'dfCoats','Door Frames')
-    +trimRow('windows',r.windows,'winCoats','Windows')
-    +(r.windows?(function(){
-      var wDims=r.winDims&&r.winDims.length?r.winDims:[{l:0,w:0}];
-      var totalLF=wDims.reduce(function(t,d){return t+2*((+(d.l)||0)+(+(d.w)||0));},0);
-      var winRows=wDims.map(function(d,i){
-        var lf=2*((+(d.l)||0)+(+(d.w)||0));
-        return '<div style="display:grid;grid-template-columns:1fr 1fr auto auto;gap:8px;align-items:end;margin-bottom:8px">'
-          +'<div class="field" style="margin:0"><label>Window '+(i+1)+' Length (ft)</label>'
-          +'<input type="number" min="0" step="0.5" value="'+(+(d.l)||'')+'" placeholder="0" oninput="updWinDimIdx('+r.id+','+i+',\\'l\\',this.value)"></div>'
-          +'<div class="field" style="margin:0"><label>Window '+(i+1)+' Width (ft)</label>'
-          +'<input type="number" min="0" step="0.5" value="'+(+(d.w)||'')+'" placeholder="0" oninput="updWinDimIdx('+r.id+','+i+',\\'w\\',this.value)"></div>'
-          +'<div style="padding:8px 10px;background:var(--cream);border-radius:var(--r);text-align:center;min-width:56px">'
-          +'<div style="font-size:9px;font-weight:600;color:var(--ink4);text-transform:uppercase">LF</div>'
-          +'<div style="font-size:13px;font-weight:700;color:var(--gold2)">'+fmtN(lf)+'</div></div>'
-          +(wDims.length>1?'<button onclick="updWinRemove('+r.id+','+i+')" style="background:none;border:none;cursor:pointer;color:var(--ink4);font-size:16px;padding:4px">&times;</button>':'<span></span>')
-          +'</div>';
-      }).join('');
-      return '<div style="background:var(--cream2);border-radius:var(--r);padding:10px 12px;margin:4px 0 8px 24px">'
-        +'<div style="font-size:11px;font-weight:600;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Window Dimensions — LF = (L+W)×2 per window</div>'
-        +winRows
-        +'<button onclick="updWinAdd('+r.id+')" style="font-size:12px;padding:5px 12px;border:1px dashed var(--ink4);border-radius:var(--r);background:transparent;color:var(--ink3);cursor:pointer;margin-top:4px;font-family:var(--sans)">+ Add window</button>'
-        +'<div style="font-size:12px;color:var(--gold2);font-weight:600;margin-top:8px">Total: '+fmtN(totalLF)+' lf</div>'
-        +'</div>';
-    }()):'')
-    +'<hr class="divider">'
-    +'<div class="card-title">Paint &amp; Colours</div>'
-    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:4px">'
-    +'<div class="field"><label>Wall paint</label><select onchange="upd('+r.id+',\\'wallPaint\\',this.value)">'+paintOpts(r.wallPaint)+'</select></div>'
-    +'<div class="field"><label>Wall colour</label><select onchange="upd('+r.id+',\\'wallColour\\',this.value)"><option value="">\\u2014 Colour \\u2014</option>'+colourOpts(r.wallColour)+'</select></div>'
-    +'<div class="field"><label>Wall sheen</label><select onchange="upd('+r.id+',\\'wallSheen\\',this.value)"><option value="">\\u2014 Sheen \\u2014</option>'+sheenOpts(r.wallSheen)+'</select></div>'
-    +'</div>'
-    +(r.wallCoats==3?'<div class="field" style="margin-bottom:8px"><label style="color:var(--gold2);font-weight:600">Wall primer</label><select onchange="upd('+r.id+',\\'wallsPrimer\\',this.value)">'+primerOpts(r.wallsPrimer)+'</select></div>':'')
-    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:4px">'
-    +'<div class="field"><label>Ceiling paint</label><select onchange="upd('+r.id+',\\'ceilPaint\\',this.value)">'+ceilPaintOpts(r.ceilPaint)+'</select></div>'
-    +'<div class="field"><label>Ceiling colour</label><select onchange="upd('+r.id+',\\'ceilColour\\',this.value)"><option value="">\\u2014 Colour \\u2014</option>'+colourOpts(r.ceilColour)+'</select></div>'
-    +'<div class="field"><label>Ceiling sheen</label><select onchange="upd('+r.id+',\\'ceilSheen\\',this.value)"><option value="">\\u2014 Sheen \\u2014</option>'+sheenOpts(r.ceilSheen)+'</select></div>'
-    +'</div>'
-    +(r.ceilCoats==3?'<div class="field" style="margin-bottom:8px"><label style="color:var(--gold2);font-weight:600">Ceiling primer</label><select onchange="upd('+r.id+',\\'ceilingPrimer\\',this.value)">'+primerOpts(r.ceilingPrimer)+'</select></div>':'')
-    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:4px">'
-    +'<div class="field"><label>Trim paint</label><select onchange="upd('+r.id+',\\'trimPaint\\',this.value)">'+paintOpts(r.trimPaint)+'</select></div>'
-    +'<div class="field"><label>Trim colour</label><select onchange="upd('+r.id+',\\'trimColour\\',this.value)"><option value="">\\u2014 Colour \\u2014</option>'+colourOpts(r.trimColour)+'</select></div>'
-    +'<div class="field"><label>Trim sheen</label><select onchange="upd('+r.id+',\\'trimSheen\\',this.value)"><option value="">\\u2014 Sheen \\u2014</option>'+sheenOpts(r.trimSheen)+'</select></div>'
-    +'</div>'
-    +((r.baseCoats==3||r.crownCoats==3||r.doorCoats==3||r.dfCoats==3||r.winCoats==3)?'<div class="field" style="margin-bottom:8px"><label style="color:var(--gold2);font-weight:600">Trim primer</label><select onchange="upd('+r.id+',\\'trimPrimer\\',this.value)">'+primerOpts(r.trimPrimer)+'</select></div>':'')
-    +colourChips(r)
-    +(function(){
-      var sups=r.supplies||[];
-      var rows='';
-      sups.forEach(function(item,i){
-        var selOpts=SUPPLIES.map(function(sup){return '<option value="'+sup.n+'"'+(item.name===sup.n?' selected':'')+'>'+sup.n+' ($'+sup.p.toFixed(2)+')</option>';}).join('');
-        rows+='<div style="display:grid;grid-template-columns:1fr 60px 28px;gap:6px;align-items:center;margin-bottom:6px">'
-          +'<select style="font-size:12px;padding:5px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);color:var(--ink)" onchange="(function(v){var r2=rooms.find(function(x){return x.id=='+r.id+';});if(!r2)return;var a=[].concat(r2.supplies||[]);a['+i+']={name:v,qty:a['+i+']?a['+i+'].qty:1};r2.supplies=a;renderRooms();recalcAll();})(this.value)"><option value="">\\u2014 Select supply \\u2014</option>'+selOpts+'</select>'
-          +'<input type="number" min="1" step="1" value="'+(item.qty||1)+'" style="font-size:12px;padding:5px 6px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);text-align:center" oninput="(function(v){var r2=rooms.find(function(x){return x.id=='+r.id+';});if(!r2)return;var a=[].concat(r2.supplies||[]);a['+i+']={name:a['+i+'].name,qty:+v||1};r2.supplies=a;recalcAll();})(this.value)">'  
-          +'<button style="background:none;border:none;cursor:pointer;color:var(--ink4);font-size:14px" onclick="(function(){var r2=rooms.find(function(x){return x.id=='+r.id+';});if(!r2)return;var a=[].concat(r2.supplies||[]);a.splice('+i+',1);r2.supplies=a;renderRooms();recalcAll();})()">&times;</button>'
-          +'</div>';
-      });
-      var addBtn='<button style="font-size:12px;padding:6px 14px;border:1px dashed var(--ink4);border-radius:var(--r);background:transparent;color:var(--ink3);cursor:pointer;width:100%;margin-bottom:8px;font-family:var(--sans)" onclick="(function(){var r2=rooms.find(function(x){return x.id=='+r.id+';});if(!r2)return;r2.supplies=[].concat(r2.supplies||[],{name:\\'\\',qty:1});renderRooms();recalcAll();})();">+ Add supply</button>';
-      return '<div class="card-title">Supplies</div>'+rows+addBtn;
-    }())
-    +'<div class="field" style="margin-top:10px"><label>Notes</label><textarea oninput="upd('+r.id+',\\'notes\\',this.value)">'+(r.notes||'')+'</textarea></div>'
-    +'</div>';
-}
-
-
-// ─── CHANGE ORDER ────────────────────────────────
-function addChangeItem(){
-  changeCounter++;changeItems.push({id:changeCounter,desc:'',amount:0});renderChangeItems();
-}
-function renderChangeItems(){
-  const c=sel('co-items');if(!c)return;c.innerHTML='';
-  changeItems.forEach(item=>{
-    const d=document.createElement('div');d.className='change-item';
-    d.innerHTML='<input type="text" value="'+(item.num||'')+'" placeholder="Item #" style="font-size:13px;padding:7px 9px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);color:var(--ink);width:100%" oninput="changeItems.find(x=>x.id=='+item.id+').num=this.value">'
-      +'<input type="text" value="'+item.desc+'" placeholder="Description" style="font-size:13px;padding:7px 9px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);color:var(--ink)" oninput="changeItems.find(x=>x.id=='+item.id+').desc=this.value">'
-      +'<input type="number" value="'+(item.amount||'')+'" placeholder="0.00" style="font-size:13px;padding:7px 9px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);text-align:right;width:100%" oninput="changeItems.find(x=>x.id=='+item.id+').amount=+this.value;recalcCO()">';
-    c.appendChild(d);
-  });
-}
-function recalcCO(){
-  const sub=changeItems.reduce((s,i)=>s+(+i.amount||0),0);
-  const tax=sub*0.13;
-  if(sel('co-sub'))sel('co-sub').textContent=fmt(sub);
-  if(sel('co-tax'))sel('co-tax').textContent=fmt(tax);
-  if(sel('co-total'))sel('co-total').textContent=fmt(sub+tax);
-}
-
-// ─── POST PROJECT ────────────────────────────────
-function recalcPost(){
-  const cost=+(sel('pp-cost')&&sel('pp-cost').textContent.replace(/[^0-9.]/g,'')||0);
-  const actual=+v('pp-actual')||0;
-  const est=+v('pp-est')||0;
-  const mats=+v('pp-materials')||0;
-  const wages=+v('pp-wages')||0;
-  const gross=cost-mats-wages;
-  const delta=actual-est;
-  if(sel('pp-gross'))sel('pp-gross').textContent=fmt(gross);
-  if(sel('pp-eff'))sel('pp-eff').textContent=est>0?((est/Math.max(actual,.01))*100).toFixed(0)+'%':'—';
-  if(sel('pp-delta'))sel('pp-delta').textContent=delta===0?'On target':delta>0?'+'+delta.toFixed(1)+' hrs over':Math.abs(delta).toFixed(1)+' hrs under';
-  if(sel('pp-margin'))sel('pp-margin').textContent=cost>0?(gross/cost*100).toFixed(1)+'%':'—';
-}
-
-// ─── LABOUR RATES ────────────────────────────────
-function recalcRates(){
-  const billable=+v('lr-billable')||1700;
-  const buf=+v('lr-buffer')||1.25;
-  const taxes=sel('lr-taxes')&&sel('lr-taxes').checked;
-  const numWorkers=workers.filter(w=>w.active).length||1;
-  const totalOH=overheadItems.reduce((s,i)=>s+(i.v||0),0);
-  const ohPerHr=totalOH/(numWorkers*billable);
-  const avgWage=workers.filter(w=>w.active).reduce((s,w)=>s+w.r,0)/Math.max(1,workers.filter(w=>w.active).length);
-  const fieldWage=taxes?avgWage*1.3:avgWage;
-  const profitTarget=+v('lr-profit-target')||0;
-  const profit=profitTarget/(numWorkers*billable);
-  const totalHr=ohPerHr+fieldWage+profit;
-  globalRate=totalHr;
-  if(sel('lr-oh-hr'))sel('lr-oh-hr').textContent='$'+ohPerHr.toFixed(2);
-  if(sel('lr-wage'))sel('lr-wage').textContent='$'+fieldWage.toFixed(2)+'/hr';
-  if(sel('lr-profit'))sel('lr-profit').textContent='$'+profit.toFixed(2)+'/hr';
-  if(sel('lr-total-hr'))sel('lr-total-hr').textContent='$'+profit.toFixed(2)+'/hr';
-  const total=totalHr*numWorkers;
-  if(sel('lr-total-all'))sel('lr-total-all').textContent='$'+total.toFixed(2)+'/hr';
-  if(sel('lr-oh-sum'))sel('lr-oh-sum').textContent=fmt(totalOH);
-  if(sel('lr-active-count'))sel('lr-active-count').textContent=numWorkers;
-  if(sel('lr-total-all-workers'))sel('lr-total-all-workers').textContent='$'+fieldWage.toFixed(2);
-  recalcAll();
-}
-
-function initLabourRates(){
-  const ohC=sel('lr-overhead-fields');
-  if(ohC){
-    let h='';
-    overheadItems.forEach((item,i)=>{
-      h+='<div style="display:grid;grid-template-columns:1fr 90px 28px;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid var(--cream2)">'
-        +'<input type="text" value="'+item.n+'" oninput="overheadItems['+i+'].n=this.value;schedulePaintSave()" style="font-size:12px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);color:var(--ink);width:100%">'
-        +'<input type="number" value="'+item.v+'" min="0" oninput="overheadItems['+i+'].v=+this.value;recalcRates();schedulePaintSave()" style="font-size:12px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);text-align:right;width:100%">'
-        +'<button onclick="overheadItems.splice('+i+',1);initLabourRates();schedulePaintSave()" style="background:none;border:none;cursor:pointer;color:var(--ink4);font-size:14px">&#215;</button>'
-        +'</div>';
-    });
-    h+='<button onclick="overheadItems.push({n:\\'New item\\',v:0});initLabourRates();schedulePaintSave()" style="margin-top:8px;width:100%;padding:7px;border:1px dashed var(--ink4);border-radius:var(--r);background:transparent;color:var(--ink3);font-size:12px;cursor:pointer;font-family:var(--sans)">+ Add item</button>';
-    ohC.innerHTML=h;
-  }
-  const wC=sel('lr-workers');
-  if(wC){
-    let h='<div class="workers-row">';
-    workers.forEach((w,i)=>{
-      h+='<div class="worker-tag" style="position:relative;padding-right:28px">'
-        +'<input type="checkbox" '+(w.active?'checked':'')+' onchange="workers['+i+'].active=this.checked;recalcRates()">'
-        +'<input type="text" value="'+w.n+'" oninput="workers['+i+'].n=this.value;schedulePaintSave()" style="width:72px;font-size:12px;padding:4px 6px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);color:var(--ink)">'
-        +'<span style="font-size:11px;color:var(--ink3)">$</span>'
-        +'<input type="number" value="'+w.r+'" min="0" oninput="workers['+i+'].r=+this.value;recalcRates();schedulePaintSave()" style="width:52px;font-size:12px;padding:4px 6px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);text-align:right">'
-        +'<span style="font-size:10px;color:var(--ink3)">/hr</span>'
-        +'<button onclick="workers.splice('+i+',1);initLabourRates();schedulePaintSave()" style="position:absolute;top:4px;right:4px;background:none;border:none;cursor:pointer;color:var(--ink4);font-size:13px">&#215;</button>'
-        +'</div>';
-    });
-    h+='</div><button onclick="workers.push({n:\\'Worker\\',r:25,active:true});initLabourRates();schedulePaintSave()" style="margin-top:10px;width:100%;padding:7px;border:1px dashed var(--ink4);border-radius:var(--r);background:transparent;color:var(--ink3);font-size:12px;cursor:pointer;font-family:var(--sans)">+ Add worker</button>';
-    wC.innerHTML=h;
-  }
-  recalcRates();
-}
-
-// ─── PAINT INPUTS ────────────────────────────────
-function renderPIList(containerId,dataArr,onName,onPrice,onDel,onAdd,addLabel){
-  const c=sel(containerId);if(!c)return;
-  let rows='';
-  var dragHandle='<td style="padding:4px 2px;width:20px;cursor:grab" class="pi-drag-handle" draggable="true" title="Drag to reorder">'+
-    '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">'+
-    '<line x1="3" y1="5" x2="13" y2="5"/><line x1="3" y1="8" x2="13" y2="8"/><line x1="3" y1="11" x2="13" y2="11"/></svg></td>';
-  dataArr.forEach(function(item,i){
-    rows+='<tr draggable="false" data-idx="'+i+'">'+dragHandle+
-      '<td style="padding:4px 6px"><input type="text" value="'+(item.n||'')+'" oninput="'+onName(i)+'" style="font-size:12px;padding:5px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);color:var(--ink);width:100%"></td>'+
-      (onPrice?'<td style="padding:4px 6px;width:80px"><input type="number" min="0" step="0.01" value="'+(item.p||'')+'" oninput="'+onPrice(i)+'" style="font-size:12px;padding:5px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);text-align:right;width:100%"></td>':'')+
-      '<td style="padding:4px 6px;width:32px"><button onclick="'+onDel(i)+'" style="background:none;border:none;cursor:pointer;color:var(--ink4);font-size:15px">&#215;</button></td></tr>';
-  });
-  var colSpan=(onPrice?4:3);
-  var addRow='<tr><td colspan="'+colSpan+'" style="padding:8px 6px 4px"><button onclick="'+onAdd+'" style="width:100%;padding:7px;border:1px dashed var(--ink4);border-radius:var(--r);background:transparent;color:var(--ink3);font-size:12px;cursor:pointer;font-family:var(--sans)">+ '+addLabel+'</button></td></tr>';
-  var priceHeader=onPrice?'<th style="width:80px;text-align:right">Price</th>':'';
-  c.innerHTML='<table class="doc-table" style="width:100%"><thead><tr><th style="width:20px"></th><th>Name</th>'+priceHeader+'<th style="width:32px"></th></tr></thead><tbody>'+rows+addRow+'</tbody></table>';
-
-  // Attach drag-and-drop to the handle cells
-  var tbody=c.querySelector('tbody');
-  var dragSrcIdx=null;
-  c.querySelectorAll('.pi-drag-handle').forEach(function(handle){
-    handle.addEventListener('dragstart',function(ev){
-      dragSrcIdx=parseInt(handle.parentElement.getAttribute('data-idx'));
-      handle.parentElement.style.opacity='0.4';
-      ev.dataTransfer.effectAllowed='move';
-    });
-    handle.addEventListener('dragend',function(){
-      handle.parentElement.style.opacity='';
-      c.querySelectorAll('tr[data-idx]').forEach(function(r){r.style.borderTop='';});
-    });
-    handle.parentElement.addEventListener('dragover',function(ev){
-      ev.preventDefault();
-      ev.dataTransfer.dropEffect='move';
-      handle.parentElement.style.borderTop='2px solid var(--gold)';
-    });
-    handle.parentElement.addEventListener('dragleave',function(){
-      handle.parentElement.style.borderTop='';
-    });
-    handle.parentElement.addEventListener('drop',function(ev){
-      ev.preventDefault();
-      handle.parentElement.style.borderTop='';
-      var targetIdx=parseInt(handle.parentElement.getAttribute('data-idx'));
-      if(dragSrcIdx===null||dragSrcIdx===targetIdx)return;
-      var moved=dataArr.splice(dragSrcIdx,1)[0];
-      dataArr.splice(targetIdx,0,moved);
-      // Re-render
-      renderPIList(containerId,dataArr,onName,onPrice,onDel,onAdd,addLabel);
-      if(containerId==='pi-paints-container'||containerId==='pi-colours-container')renderRooms();
-    });
-  });
-}
-function renderColoursList(){
-  var c=sel('pi-colours-container');if(!c)return;
-  var rows='';
-  var dragHandle='<td style="padding:4px 2px;width:20px;cursor:grab" class="pi-drag-handle" draggable="true" title="Drag to reorder">'
-    +'<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">'
-    +'<line x1="3" y1="5" x2="13" y2="5"/><line x1="3" y1="8" x2="13" y2="8"/><line x1="3" y1="11" x2="13" y2="11"/></svg></td>';
-  COLOURS.forEach(function(item,i){
-    var hex=item.h||'#cccccc';
-    rows+='<tr draggable="false" data-idx="'+i+'">'+dragHandle
-      +'<td style="padding:4px 6px;width:36px">'
-      +'<input type="color" value="'+hex+'" oninput="COLOURS['+i+'].h=this.value;renderColoursList();renderRooms();schedulePaintSave()" '
-      +'style="width:30px;height:28px;padding:2px;border:1px solid var(--cream3);border-radius:var(--r);cursor:pointer;background:var(--cream)">'
-      +'</td>'
-      +'<td style="padding:4px 6px"><input type="text" value="'+(item.n||'')+'" oninput="COLOURS['+i+'].n=this.value;schedulePaintSave()" '
-      +'style="font-size:12px;padding:5px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);color:var(--ink);width:100%"></td>'
-      +'<td style="padding:4px 6px;width:32px"><button onclick="COLOURS.splice('+i+',1);renderColoursList();renderRooms();schedulePaintSave()" '
-      +'style="background:none;border:none;cursor:pointer;color:var(--ink4);font-size:15px">&#215;</button></td>'
-      +'</tr>';
-  });
-  var addRow='<tr><td colspan="4" style="padding:8px 6px 4px"><button onclick="COLOURS.push({n:\\'\\',h:\\'#cccccc\\'});renderColoursList();schedulePaintSave()" '
-    +'style="width:100%;padding:7px;border:1px dashed var(--ink4);border-radius:var(--r);background:transparent;color:var(--ink3);font-size:12px;cursor:pointer;font-family:var(--sans)">+ Add colour</button></td></tr>';
-  c.innerHTML='<table class="doc-table" style="width:100%"><thead><tr><th style="width:20px"></th><th style="width:36px">Swatch</th><th>Name</th><th style="width:32px"></th></tr></thead><tbody>'+rows+addRow+'</tbody></table>';
-
-  // Drag-and-drop
-  var dragSrcIdx=null;
-  c.querySelectorAll('.pi-drag-handle').forEach(function(handle){
-    handle.addEventListener('dragstart',function(ev){
-      dragSrcIdx=parseInt(handle.parentElement.getAttribute('data-idx'));
-      handle.parentElement.style.opacity='0.4';
-      ev.dataTransfer.effectAllowed='move';
-    });
-    handle.addEventListener('dragend',function(){
-      handle.parentElement.style.opacity='';
-      c.querySelectorAll('tr[data-idx]').forEach(function(r){r.style.borderTop='';});
-    });
-    handle.parentElement.addEventListener('dragover',function(ev){ev.preventDefault();handle.parentElement.style.borderTop='2px solid var(--gold)';});
-    handle.parentElement.addEventListener('dragleave',function(){handle.parentElement.style.borderTop='';});
-    handle.parentElement.addEventListener('drop',function(ev){
-      ev.preventDefault();handle.parentElement.style.borderTop='';
-      var targetIdx=parseInt(handle.parentElement.getAttribute('data-idx'));
-      if(dragSrcIdx===null||dragSrcIdx===targetIdx)return;
-      var moved=COLOURS.splice(dragSrcIdx,1)[0];
-      COLOURS.splice(targetIdx,0,moved);
-      renderColoursList();renderRooms();schedulePaintSave();
-    });
-  });
-}
-var _piSaveTimer=null;
-function schedulePaintSave(){clearTimeout(_piSaveTimer);_piSaveTimer=setTimeout(upsertPaintSettings,1200);}
-
-var _pendingSaveBtn=null,_pendingSaveStatus=null,_pendingSaveTimeout=null;
-window.addEventListener('message',function(ev){
-  if(ev.data&&ev.data.type==='KP_SAVE_DONE'){
-    clearTimeout(_pendingSaveTimeout);
-    var ok=ev.data.ok!==false;
-    if(_pendingSaveBtn){_pendingSaveBtn.disabled=false;_pendingSaveBtn.textContent='Save Settings';_pendingSaveBtn=null;}
-    if(_pendingSaveStatus){
-      _pendingSaveStatus.textContent=ok?'\u2713 Saved':'Save failed \u2014 try again';
-      _pendingSaveStatus.style.color=ok?'#22c55e':'#ef4444';
-      _pendingSaveStatus.style.display='inline';
-      var el=_pendingSaveStatus;
-      setTimeout(function(){el.style.display='none';},3000);
-      _pendingSaveStatus=null;
-    }
-  }
-});
-function doSaveSettings(btn){
-  btn.disabled=true;btn.textContent='Saving\u2026';
-  _pendingSaveBtn=btn;
-  _pendingSaveStatus=btn.parentNode?btn.parentNode.querySelector('.save-status-msg'):null;
-  // Always send to React parent — it has the authenticated session
-  window.parent.postMessage({
-    type:'KP_SAVE_PAINT_SETTINGS',
-    data:{paints:PAINTS,ceilPaints:CEILING_PAINTS,primers:PRIMERS,colours:COLOURS,supplies:SUPPLIES},
-    labour:getLabourData(),
-    standards:JSON.parse(JSON.stringify(STANDARDS))
-  },'*');
-  // Hard timeout — re-enable after 10s if no reply
-  _pendingSaveTimeout=setTimeout(function(){
-    if(_pendingSaveBtn){_pendingSaveBtn.disabled=false;_pendingSaveBtn.textContent='Save Settings';_pendingSaveBtn=null;}
-    if(_pendingSaveStatus){_pendingSaveStatus.textContent='Timed out \u2014 try again';_pendingSaveStatus.style.color='#ef4444';_pendingSaveStatus.style.display='inline';_pendingSaveStatus=null;}
-  },10000);
-}
-function waitForSession(cb,attempts){
-  attempts=attempts||0;
-  var sess=_session;
-  if(!sess||!sess.access_token){
-    try{var s=JSON.parse(localStorage.getItem('kp_session')||'null');if(s&&s.access_token)sess=s;}catch(e){}
-  }
-  if(sess&&sess.access_token&&sess.user&&sess.user.id){cb(sess);return;}
-  if(attempts>20){console.warn('waitForSession: timed out');return;}
-  setTimeout(function(){waitForSession(cb,attempts+1);},300);
-}
-function initPaintInputs(){
-  // Paints: 2-price-column render with drag sort
-  (function(){
-    var c=sel('pi-paints-container');if(!c)return;
-    var h='<table style="width:100%;border-collapse:collapse"><thead><tr>'
-      +'<th style="width:24px"></th>'
-      +'<th style="text-align:left;font-size:11px;color:var(--ink3);padding:4px 8px;font-weight:600">Product</th>'
-      +'<th style="text-align:right;font-size:11px;color:var(--ink3);padding:4px 8px;font-weight:600">Gallon $</th>'
-      +'<th style="text-align:right;font-size:11px;color:var(--ink3);padding:4px 8px;font-weight:600">Pail $</th>'
-      +'<th style="width:28px"></th></tr></thead><tbody>';
-    PAINTS.forEach(function(item,i){
-      h+='<tr style="border-bottom:1px solid var(--cream2)">'
-        +'<td style="padding:4px 2px;width:24px;cursor:grab" draggable="true" class="pa-drag" data-idx="'+i+'">'
-        +'<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="3" y1="5" x2="13" y2="5"/><line x1="3" y1="8" x2="13" y2="8"/><line x1="3" y1="11" x2="13" y2="11"/></svg></td>'
-        +'<td style="padding:4px 6px"><input type="text" value="'+(item.n||'')+'" oninput="PAINTS['+i+'].n=this.value;renderRooms();schedulePaintSave()" style="font-size:12px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);color:var(--ink);width:100%"></td>'
-        +'<td style="padding:4px 6px;width:80px"><input type="number" min="0" step="0.01" value="'+(item.g||0)+'" oninput="PAINTS['+i+'].g=+this.value;schedulePaintSave()" style="font-size:12px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);text-align:right;width:100%"></td>'
-        +'<td style="padding:4px 6px;width:80px"><input type="number" min="0" step="0.01" value="'+(item.p||0)+'" oninput="PAINTS['+i+'].p=+this.value;schedulePaintSave()" style="font-size:12px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);text-align:right;width:100%"></td>'
-        +'<td style="padding:4px 6px"><button onclick="PAINTS.splice('+i+',1);initPaintInputs();schedulePaintSave()" style="background:none;border:none;cursor:pointer;color:var(--ink4);font-size:14px">&times;</button></td>'
-        +'</tr>';
-    });
-    h+='</tbody></table>'
-      +'<button onclick="PAINTS.push({n:\\'\\',g:0,p:0});initPaintInputs();schedulePaintSave()" style="margin-top:8px;width:100%;padding:7px;border:1px dashed var(--ink4);border-radius:var(--r);background:transparent;color:var(--ink3);font-size:12px;cursor:pointer;font-family:var(--sans)">+ Add paint</button>';
-    c.innerHTML=h;
-    // Drag-to-reorder
-    var dragIdx=null;
-    c.querySelectorAll('.pa-drag').forEach(function(handle){
-      handle.addEventListener('dragstart',function(ev){dragIdx=parseInt(handle.dataset.idx);handle.parentElement.style.opacity='0.4';ev.dataTransfer.effectAllowed='move';});
-      handle.addEventListener('dragend',function(){handle.parentElement.style.opacity='';});
-      handle.parentElement.addEventListener('dragover',function(ev){ev.preventDefault();handle.parentElement.style.borderTop='2px solid var(--gold)';});
-      handle.parentElement.addEventListener('dragleave',function(){handle.parentElement.style.borderTop='';});
-      handle.parentElement.addEventListener('drop',function(ev){ev.preventDefault();handle.parentElement.style.borderTop='';var tgt=parseInt(handle.parentElement.querySelector('.pa-drag').dataset.idx);if(dragIdx===null||dragIdx===tgt)return;var moved=PAINTS.splice(dragIdx,1)[0];PAINTS.splice(tgt,0,moved);initPaintInputs();schedulePaintSave();});
-    });
-  }());
-  // Ceiling Paints: same 2-price-column render with drag
-  (function(){
-    var c=sel('pi-ceilpaints-container');if(!c)return;
-    var h='<table style="width:100%;border-collapse:collapse"><thead><tr>'
-      +'<th style="width:24px"></th>'
-      +'<th style="text-align:left;font-size:11px;color:var(--ink3);padding:4px 8px;font-weight:600">Product</th>'
-      +'<th style="text-align:right;font-size:11px;color:var(--ink3);padding:4px 8px;font-weight:600">Gallon $</th>'
-      +'<th style="text-align:right;font-size:11px;color:var(--ink3);padding:4px 8px;font-weight:600">Pail $</th>'
-      +'<th style="width:28px"></th></tr></thead><tbody>';
-    CEILING_PAINTS.forEach(function(item,i){
-      h+='<tr style="border-bottom:1px solid var(--cream2)">'
-        +'<td style="padding:4px 2px;width:24px;cursor:grab" draggable="true" class="cp-drag" data-idx="'+i+'">'
-        +'<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="3" y1="5" x2="13" y2="5"/><line x1="3" y1="8" x2="13" y2="8"/><line x1="3" y1="11" x2="13" y2="11"/></svg></td>'
-        +'<td style="padding:4px 6px"><input type="text" value="'+(item.n||'')+'" oninput="CEILING_PAINTS['+i+'].n=this.value;renderRooms();schedulePaintSave()" style="font-size:12px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);color:var(--ink);width:100%"></td>'
-        +'<td style="padding:4px 6px;width:80px"><input type="number" min="0" step="0.01" value="'+(item.g||0)+'" oninput="CEILING_PAINTS['+i+'].g=+this.value;schedulePaintSave()" style="font-size:12px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);text-align:right;width:100%"></td>'
-        +'<td style="padding:4px 6px;width:80px"><input type="number" min="0" step="0.01" value="'+(item.p||0)+'" oninput="CEILING_PAINTS['+i+'].p=+this.value;schedulePaintSave()" style="font-size:12px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);text-align:right;width:100%"></td>'
-        +'<td style="padding:4px 6px"><button onclick="CEILING_PAINTS.splice('+i+',1);initPaintInputs();schedulePaintSave()" style="background:none;border:none;cursor:pointer;color:var(--ink4);font-size:14px">&times;</button></td>'
-        +'</tr>';
-    });
-    h+='</tbody></table>'
-      +'<button onclick="CEILING_PAINTS.push({n:\\'\\',g:0,p:0});initPaintInputs();schedulePaintSave()" style="margin-top:8px;width:100%;padding:7px;border:1px dashed var(--ink4);border-radius:var(--r);background:transparent;color:var(--ink3);font-size:12px;cursor:pointer;font-family:var(--sans)">+ Add ceiling paint</button>';
-    c.innerHTML=h;
-    // Drag-to-reorder
-    var dragIdx=null;
-    c.querySelectorAll('.cp-drag').forEach(function(handle){
-      handle.addEventListener('dragstart',function(ev){dragIdx=parseInt(handle.dataset.idx);handle.parentElement.style.opacity='0.4';ev.dataTransfer.effectAllowed='move';});
-      handle.addEventListener('dragend',function(){handle.parentElement.style.opacity='';c.querySelectorAll('tr[data-idx]').forEach(function(r){r.style.borderTop='';});});
-      handle.parentElement.addEventListener('dragover',function(ev){ev.preventDefault();handle.parentElement.style.borderTop='2px solid var(--gold)';});
-      handle.parentElement.addEventListener('dragleave',function(){handle.parentElement.style.borderTop='';});
-      handle.parentElement.addEventListener('drop',function(ev){ev.preventDefault();handle.parentElement.style.borderTop='';var tgt=parseInt(handle.parentElement.querySelector('.cp-drag').dataset.idx);if(dragIdx===null||dragIdx===tgt)return;var moved=CEILING_PAINTS.splice(dragIdx,1)[0];CEILING_PAINTS.splice(tgt,0,moved);initPaintInputs();schedulePaintSave();});
-    });
-  }());
-  // Primers: 2-price-column render with drag (gallon + pail)
-  (function(){
-    var c=sel('pi-primers-container');if(!c)return;
-    var h='<table style="width:100%;border-collapse:collapse"><thead><tr>'
-      +'<th style="width:24px"></th>'
-      +'<th style="text-align:left;font-size:11px;color:var(--ink3);padding:4px 8px;font-weight:600">Product</th>'
-      +'<th style="text-align:right;font-size:11px;color:var(--ink3);padding:4px 8px;font-weight:600">Gallon $</th>'
-      +'<th style="text-align:right;font-size:11px;color:var(--ink3);padding:4px 8px;font-weight:600">Pail $</th>'
-      +'<th style="width:28px"></th></tr></thead><tbody>';
-    PRIMERS.forEach(function(item,i){
-      h+='<tr style="border-bottom:1px solid var(--cream2)">'
-        +'<td style="padding:4px 2px;width:24px;cursor:grab" draggable="true" class="pr-drag" data-idx="'+i+'">'
-        +'<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="3" y1="5" x2="13" y2="5"/><line x1="3" y1="8" x2="13" y2="8"/><line x1="3" y1="11" x2="13" y2="11"/></svg></td>'
-        +'<td style="padding:4px 6px"><input type="text" value="'+(item.n||'')+'" oninput="PRIMERS['+i+'].n=this.value;renderRooms();schedulePaintSave()" style="font-size:12px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);color:var(--ink);width:100%"></td>'
-        +'<td style="padding:4px 6px;width:80px"><input type="number" min="0" step="0.01" value="'+(item.g||0)+'" oninput="PRIMERS['+i+'].g=+this.value;schedulePaintSave()" style="font-size:12px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);text-align:right;width:100%"></td>'
-        +'<td style="padding:4px 6px;width:80px"><input type="number" min="0" step="0.01" value="'+(item.p||0)+'" oninput="PRIMERS['+i+'].p=+this.value;schedulePaintSave()" style="font-size:12px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);text-align:right;width:100%"></td>'
-        +'<td style="padding:4px 6px"><button onclick="PRIMERS.splice('+i+',1);initPaintInputs();schedulePaintSave()" style="background:none;border:none;cursor:pointer;color:var(--ink4);font-size:14px">&times;</button></td>'
-        +'</tr>';
-    });
-    h+='</tbody></table>'
-      +'<button onclick="PRIMERS.push({n:\\'\\',g:0,p:0});initPaintInputs();schedulePaintSave()" style="margin-top:8px;width:100%;padding:7px;border:1px dashed var(--ink4);border-radius:var(--r);background:transparent;color:var(--ink3);font-size:12px;cursor:pointer;font-family:var(--sans)">+ Add primer</button>';
-    c.innerHTML=h;
-    var dragIdx=null;
-    c.querySelectorAll('.pr-drag').forEach(function(handle){
-      handle.addEventListener('dragstart',function(ev){dragIdx=parseInt(handle.dataset.idx);handle.parentElement.style.opacity='0.4';ev.dataTransfer.effectAllowed='move';});
-      handle.addEventListener('dragend',function(){handle.parentElement.style.opacity='';c.querySelectorAll('tr[data-idx]').forEach(function(r){r.style.borderTop='';});});
-      handle.parentElement.addEventListener('dragover',function(ev){ev.preventDefault();handle.parentElement.style.borderTop='2px solid var(--gold)';});
-      handle.parentElement.addEventListener('dragleave',function(){handle.parentElement.style.borderTop='';});
-      handle.parentElement.addEventListener('drop',function(ev){ev.preventDefault();handle.parentElement.style.borderTop='';var tgt=parseInt(handle.parentElement.querySelector('.pr-drag').dataset.idx);if(dragIdx===null||dragIdx===tgt)return;var moved=PRIMERS.splice(dragIdx,1)[0];PRIMERS.splice(tgt,0,moved);initPaintInputs();schedulePaintSave();});
-    });
-  }());
-  renderColoursList();
-  renderPIList('pi-supplies-container',SUPPLIES,
-    i=>'SUPPLIES['+i+'].n=this.value;schedulePaintSave()',
-    i=>'SUPPLIES['+i+'].p=+this.value;schedulePaintSave()',
-    i=>'SUPPLIES.splice('+i+',1);initPaintInputs();schedulePaintSave()',
-    'SUPPLIES.push({n:\\'\\',p:0});initPaintInputs();schedulePaintSave()','Add supply');
-}
-
-function updStd(surface,coats,val){if(!val||val<1)return;STANDARDS[surface][coats]=val;recalcAll();schedulePaintSave();}
-
-// ─── SUPABASE SAVE/LOAD ──────────────────────────
-var _session=null; // injected by React parent via win._session
-const SUPA_URL='https://cyzvmcmlpnozwrqifrdt.supabase.co';
-const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN5enZtY21scG5vendycWlmcmR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2Mzk1MzEsImV4cCI6MjA5NDIxNTUzMX0.IeZRx5xcPddSQcL77vhKjOgAKFi8bKpj3dMfajHpV3c';
-
-async function supaFetch(path,method,body){
-  try{
-    const opts={method:method||'GET',headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Content-Type':'application/json','Prefer':method==='POST'?'return=representation':''}};
-    if(body)opts.body=JSON.stringify(body);
-    const res=await fetch(SUPA_URL+path,opts);
-    if(!res.ok){const t=await res.text();if(!t.includes('42P01'))console.warn('[Kingdom DB]',res.status,t.slice(0,80));setSaveStatus('DB not set up','#e07070');return null;}
-    const txt=await res.text();return txt?JSON.parse(txt):null;
-  }catch(e){setSaveStatus('Offline','#e07070');return null;}
-}
-function setSaveStatus(msg,color){
-  const ind=sel('save-indicator');if(!ind)return;
-  ind.textContent=msg;ind.style.color=color||'var(--gold2)';
-  if(!color)setTimeout(()=>{if(ind.textContent===msg)ind.textContent='';},2500);
-}
-function collectState(){
-  return{rooms,workers,changeItems,changeCounter,roomCounter,overheadItems,coverFields:{'ci-name':v('ci-name'),'ci-email':v('ci-email'),'ci-phone':v('ci-phone'),'ci-addr1':v('ci-addr1'),'ci-addr2':v('ci-addr2')}};
-}
-function restoreState(state){
-  if(!state)return;
-  if(state.coverFields)Object.entries(state.coverFields).forEach(([id,val])=>{const e=sel(id);if(e)e.value=val||'';});
-  if(state.rooms&&Array.isArray(state.rooms)){rooms=state.rooms;roomCounter=state.roomCounter||rooms.length;}
-  if(state.workers&&Array.isArray(state.workers))workers=state.workers;
-  if(state.changeItems&&Array.isArray(state.changeItems)){changeItems=state.changeItems;changeCounter=state.changeCounter||changeItems.length;}
-  if(state.overheadItems&&Array.isArray(state.overheadItems))overheadItems=state.overheadItems;
-  renderRooms();initLabourRates();syncClient();recalcAll();
-}
-async function saveEstimate(){
-  const payload={client_name:v('ci-name')||'Untitled',client_email:v('ci-email'),client_phone:v('ci-phone'),addr1:v('ci-addr1'),addr2:v('ci-addr2'),state:collectState()};
-  let result;
-  if(currentEstimateId){result=await supaFetch('/rest/v1/estimates?id=eq.'+currentEstimateId,'PATCH',payload);}
-  else{result=await supaFetch('/rest/v1/estimates','POST',payload);if(result&&result[0])currentEstimateId=result[0].id;}
-  setSaveStatus('✓ Saved');
-}
-function scheduleSave(){clearTimeout(saveTimer);saveTimer=setTimeout(saveEstimate,1500);}
-async function loadEstimatesList(){return await supaFetch('/rest/v1/estimates?select=id,client_name,addr1,updated_at&order=updated_at.desc&limit=50')||[];}
-async function loadEstimateById(id){
-  const res=await supaFetch('/rest/v1/estimates?id=eq.'+id+'&select=*');
-  if(!res||!res[0])return;
-  currentEstimateId=res[0].id;restoreState(res[0].state);closeLoadPanel();
-}
-async function deleteEstimate(id){await supaFetch('/rest/v1/estimates?id=eq.'+id,'DELETE');refreshLoadList();}
-function openLoadPanel(){const p=sel('load-panel');if(p){p.style.display='flex';refreshLoadList();}}
-function closeLoadPanel(){const p=sel('load-panel');if(p)p.style.display='none';}
-async function refreshLoadList(){
-  const list=await loadEstimatesList();
-  const c=sel('load-list');if(!c)return;
-  if(!list.length){c.innerHTML='<p style="color:var(--ink3);text-align:center;padding:20px">No saved estimates yet.</p>';return;}
-  c.innerHTML=list.map(e=>'<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border:1px solid var(--cream3);border-radius:var(--r);margin-bottom:8px;background:var(--cream)">'
-    +'<div style="cursor:pointer;flex:1" onclick="loadEstimateById(\\''+e.id+'\\')">'
-    +'<div style="font-weight:500;font-size:13px">'+(e.client_name||'Untitled')+'</div>'
-    +'<div style="font-size:11px;color:var(--ink3)">'+(e.addr1||'—')+' &middot; '+new Date(e.updated_at).toLocaleDateString('en-CA',{month:'short',day:'numeric',year:'numeric'})+'</div>'
-    +'</div>'
-    +'<button onclick="deleteEstimate(\\''+e.id+'\\')" style="margin-left:12px;font-size:11px;padding:4px 8px;border:1px solid var(--cream3);border-radius:var(--r);background:transparent;color:var(--ink3);cursor:pointer">Delete</button>'
-    +'</div>').join('');
-}
-function newEstimate(){
-  if(!confirm('Start a new estimate? Unsaved changes will be lost.'))return;
-  currentEstimateId=null;rooms=[];roomCounter=0;changeItems=[];changeCounter=0;
-  overheadItems=JSON.parse(JSON.stringify(OVERHEAD_ITEMS));
-  workers=JSON.parse(JSON.stringify(WORKERS_DEFAULT));
-  ['ci-name','ci-email','ci-phone','ci-addr1','ci-addr2'].forEach(id=>{const e=sel(id);if(e)e.value='';});
-  addRoom();initLabourRates();recalcAll();closeLoadPanel();
-}
-
-// ─── PDF EXPORT ──────────────────────────────────
-function expandAllAndExport(ids){
-  document.querySelectorAll('.room-body').forEach(b=>b.classList.add('open'));
-  document.querySelectorAll('.room-arrow').forEach(a=>a.classList.add('open'));
-  exportPDF(ids);
-}
-function exportInfoPackage(){
-  exportPDF(['page-cover','page-quote','page-contract']);
-}
-function exportPDF(id){_loadPDF(function(){_exportPDF(id);});}
-function _exportPDF(pageIdOrArray){
-  const ids=Array.isArray(pageIdOrArray)?pageIdOrArray:[pageIdOrArray];
-  document.querySelectorAll('.page').forEach(p=>{p.classList.remove('print-target');p.classList.remove('cover-target');});
-  ids.map(id=>document.getElementById(id)).filter(Boolean).forEach(t=>{t.classList.add('print-target');if(t.id==='page-cover')t.classList.add('cover-target');});
-  // Force contract body to populate before printing
-  try{recalcAll();}catch(e){}
-  if(ids.includes('page-contract')){
-    try{initSignaturePads();}catch(e){}
-  }
-  setTimeout(()=>{window.print();setTimeout(()=>{document.querySelectorAll('.print-target').forEach(t=>{t.classList.remove('print-target');t.classList.remove('cover-target');});},1000);},300);
-}
-
-// ─── INIT ────────────────────────────────────────
-(function(){
-function updWin(rid,idx,key,val){
-  var r=rooms.find(function(x){return x.id===rid;});if(!r)return;
-  if(!r.winDims)r.winDims=[{l:0,w:0}];
-  r.winDims[idx][key]=val;
-  // Update winLF = sum of all l*w
-  r.winLF=r.winDims.reduce(function(s,w){return s+(w.l||0)*(w.w||0);},0);
-  renderRooms();recalcAll();
-}
-function addWin(rid){
-  var r=rooms.find(function(x){return x.id===rid;});if(!r)return;
-  if(!r.winDims)r.winDims=[];
-  r.winDims.push({l:0,w:0});
-  renderRooms();
-}
-function removeWin(rid,idx){
-  var r=rooms.find(function(x){return x.id===rid;});if(!r)return;
-  r.winDims.splice(idx,1);
-  r.winLF=r.winDims.reduce(function(s,w){return s+(w.l||0)*(w.w||0);},0);
-  renderRooms();recalcAll();
-}
-
-function initSigPad(canvasId){
-  var canvas=document.getElementById(canvasId);
-  if(!canvas)return;
-  var ctx=canvas.getContext('2d');
-  ctx.strokeStyle='#1a1a1a';
-  ctx.lineWidth=2;
-  ctx.lineCap='round';
-  ctx.lineJoin='round';
-  var drawing=false;
-  var lastX=0,lastY=0;
-
-  function getPos(ev){
-    var r=canvas.getBoundingClientRect();
-    var scaleX=canvas.width/r.width;
-    var scaleY=canvas.height/r.height;
-    if(ev.touches){
-      return{x:(ev.touches[0].clientX-r.left)*scaleX,y:(ev.touches[0].clientY-r.top)*scaleY};
-    }
-    return{x:(ev.clientX-r.left)*scaleX,y:(ev.clientY-r.top)*scaleY};
-  }
-
-  function start(ev){ev.preventDefault();drawing=true;var p=getPos(ev);lastX=p.x;lastY=p.y;ctx.beginPath();ctx.moveTo(lastX,lastY);}
-  function move(ev){ev.preventDefault();if(!drawing)return;var p=getPos(ev);ctx.lineTo(p.x,p.y);ctx.stroke();lastX=p.x;lastY=p.y;}
-  function stop(ev){drawing=false;}
-
-  canvas.addEventListener('mousedown',start);
-  canvas.addEventListener('mousemove',move);
-  canvas.addEventListener('mouseup',stop);
-  canvas.addEventListener('mouseleave',stop);
-  canvas.addEventListener('touchstart',start,{passive:false});
-  canvas.addEventListener('touchmove',move,{passive:false});
-  canvas.addEventListener('touchend',stop);
-}
-
-function clearSig(canvasId){
-  var canvas=document.getElementById(canvasId);
-  if(!canvas)return;
-  var ctx=canvas.getContext('2d');
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-}
-
-
-
-function recalcAll(){
-  try{syncClient();}catch(e){}
-
-  const aw=workers.filter(w=>w.active).length||1;
-  const buf=+(v('lr-buffer')||1.25);
-  const discOn=sel('lr-discount')&&sel('lr-discount').checked;
-  const discPct=(+(v('lr-disc-pct')||10))/100;
-  let totWalls=0,totCeil=0,totTrims=0,totDoors=0,totHrs=0;
-  rooms.forEach(r=>{totWalls+=calcWalls(r);totCeil+=calcCeil(r);totTrims+=calcTrims(r);totDoors+=r.doors?r.doorCount:0;totHrs+=calcRoomHrs(r);});
-  const labourAmt=totHrs*globalRate*aw*buf;
-  const discAmt=discOn?labourAmt*discPct:0;
-  const matBuf=+(v('lr-mat-buffer')||1.25);
-  const suppliesRaw=rooms.reduce(function(t,r){return t+calcRoomSuppliesCost(r);},0);
-  const suppliesCost=suppliesRaw*matBuf;
-  // Compute totalPaintCost inline before subtotal (colour summary block runs later)
-  var totalPaintCost=0;
-  var matBufC2=+(v('lr-mat-buffer')||1.25);
-  (function(){
-    var colMap2={};
-    function addCol2(product,sqft){
-      if(!product||!sqft)return;
-      colMap2[product]=(colMap2[product]||0)+sqft;
-    }
-    rooms.forEach(function(r){
-      var wSqft=calcWalls(r),cSqft=calcCeil(r),tSqft=calcTrims(r);
-      if(r.walls&&wSqft){if(r.wallCoats==3&&r.wallsPrimer){addCol2(r.wallsPrimer,wSqft);addCol2(r.wallPaint,wSqft*2);}else addCol2(r.wallPaint,wSqft);}
-      if(r.ceiling&&cSqft){if(r.ceilCoats==3&&r.ceilingPrimer){addCol2(r.ceilingPrimer,cSqft);addCol2(r.ceilPaint,cSqft*2);}else addCol2(r.ceilPaint,cSqft);}
-      var trimSurfs=(r.baseboards||r.crown||r.doorFrames||r.windows||r.doors);
-      if(trimSurfs&&tSqft){var trimHasPrimer=(r.baseCoats==3||r.crownCoats==3||r.dfCoats==3||r.winCoats==3||r.doorCoats==3)&&r.trimPrimer;if(trimHasPrimer){addCol2(r.trimPrimer,tSqft);addCol2(r.trimPaint,tSqft*2);}else addCol2(r.trimPaint,tSqft);}
-    });
-    Object.keys(colMap2).forEach(function(prod){
-      var sqft=colMap2[prod];
-      var pObj=[...PAINTS,...CEILING_PAINTS,...PRIMERS].find(function(p){return p.n===prod;});
-      var unitPrice=pObj?(sqft>1900&&pObj.p>0?pObj.p:pObj.g||pObj.p||0):0;
-      if(unitPrice>0)totalPaintCost+=unitPrice*Math.ceil(sqft/350)*matBufC2;
-    });
-  }());
-  const subtotal=labourAmt-discAmt+suppliesCost+totalPaintCost;
+// ─── CHANGE ORDER TAB ─────────────────────────────────────────────────────────
+function ChangeOrderTab({client,items,setItems}){
+  const todayStr=new Date().toLocaleDateString('en-CA',{year:'numeric',month:'long',day:'numeric'});
+  const gold='#C4922A';
+  const docStyle={background:'#fff',color:'#1a1a1a',borderRadius:8,maxWidth:900,margin:'0 auto',padding:'32px 40px',boxShadow:'0 2px 12px rgba(0,0,0,0.08)'};
+  const subtotal=items.reduce((s,it)=>s+(parseFloat(it.amount)||0),0);
   const tax=subtotal*0.13;
   const total=subtotal+tax;
-  const dep=total*0.1,bal45=total*0.45,fin=total-dep-bal45;
-  const days=Math.ceil(totHrs/6)+1;
-
-  // Breakdown stats
-  const ids_=[['bd-walls',fmtN(totWalls)],['bd-ceil',fmtN(totCeil)],['bd-trims',fmtN(totTrims)],['bd-doors',totDoors],['bd-hours',(totHrs/aw).toFixed(1)],['bd-days',days],['bd-labour',fmt(labourAmt)],['bd-rooms',rooms.length]];
-  ids_.forEach(([id,val])=>{const e=sel(id);if(e)e.textContent=val;});
-
-  // Breakdown table
-  const tbody=sel('bd-tbody');
-  if(tbody){
-    tbody.innerHTML='';
-    const SURFS=[
-      {key:'walls',label:'Walls',aFn:r=>calcWalls(r),ck:'wallCoats',std:'walls'},
-      {key:'ceiling',label:'Ceiling',aFn:r=>calcCeil(r),ck:'ceilCoats',std:'ceiling'},
-      {key:'baseboards',label:'Baseboards',aFn:r=>r.baseLF,ck:'baseCoats',std:'baseboards'},
-      {key:'crown',label:'Crown',aFn:r=>r.crownLF,ck:'crownCoats',std:'crown'},
-      {key:'doorFrames',label:'Door Frames',aFn:r=>r.dfLF,ck:'dfCoats',std:'doorFrames'},
-      {key:'windows',label:'Windows',aFn:r=>r.winLF,ck:'winCoats',std:'windows'},
-      {key:'doors',label:'Doors',aFn:r=>r.doorCount*21,ck:'doorCoats',std:'doors'},
-    ];
-    rooms.forEach(r=>{
-      let rt=0;
-      SURFS.forEach(s=>{
-        const a=s.aFn(r);if(!r[s.key]||!a)return;
-        const rate=STANDARDS[s.std][r[s.ck]];
-        const hrs=a/rate;
-        const cost=hrs*globalRate*aw*buf;
-        rt+=cost;
-        tbody.innerHTML+='<tr><td style=\\"padding-left:20px;font-size:12px;color:var(--ink2)\\">'+s.label+'</td><td class=\\"num\\">'+fmtN(a)+'</td><td class=\\"num\\">'+r[s.ck]+'</td><td class=\\"num\\">'+rate+'</td><td class=\\"num\\">'+hrs.toFixed(1)+'</td><td class=\\"num\\">'+fmt(cost)+'</td></tr>';
-      });
-      if(r.prepHrs>0){const cost=r.prepHrs*globalRate*aw*buf;rt+=cost;tbody.innerHTML+='<tr><td style=\\"padding-left:20px;font-size:12px;color:var(--ink2)\\">Prep</td><td class=\\"num\\">'+r.prepHrs+'</td><td class=\\"num\\">\\u2014</td><td class=\\"num\\">\\u2014</td><td class=\\"num\\">'+r.prepHrs.toFixed(1)+'</td><td class=\\"num\\">'+fmt(cost)+'</td></tr>';}
-      tbody.innerHTML+='<tr class=\\"subtotal-row\\"><td colspan=\\"5\\" style=\\"text-align:right;padding-right:12px\\">'+(r.name||'Room '+r.id)+' subtotal</td><td class=\\"num\\">'+fmt(rt)+'</td></tr>';
-    });
-    tbody.innerHTML+='<tr class=\\"grand-row\\"><td colspan=\\"5\\" style=\\"text-align:right;padding-right:12px\\">Grand total</td><td class=\\"num\\">'+fmt(labourAmt)+'</td></tr>';
-  }
-
-  // Surface summary
-  const stbody=sel('bd-surface-tbody');
-  if(stbody){
-    stbody.innerHTML='';
-    const smap={Walls:{a:0,h:0},Ceiling:{a:0,h:0},'Trims':{a:0,h:0},Prep:{a:0,h:0}};
-    rooms.forEach(r=>{
-      const wa=calcWalls(r);if(r.walls&&wa){smap.Walls.a+=wa;smap.Walls.h+=wa/STANDARDS.walls[r.wallCoats];}
-      const ca=calcCeil(r);if(r.ceiling&&ca){smap.Ceiling.a+=ca;smap.Ceiling.h+=ca/STANDARDS.ceiling[r.ceilCoats];}
-      let ta=0,th=0;
-      if(r.baseboards&&r.baseLF){ta+=r.baseLF;th+=r.baseLF/STANDARDS.baseboards[r.baseCoats];}
-      if(r.crown&&r.crownLF){ta+=r.crownLF;th+=r.crownLF/STANDARDS.crown[r.crownCoats];}
-      if(r.doorFrames&&r.dfLF){ta+=r.dfLF;th+=r.dfLF/STANDARDS.doorFrames[r.dfCoats];}
-      if(r.windows&&r.winLF){ta+=r.winLF;th+=r.winLF/STANDARDS.windows[r.winCoats];}
-      if(r.doors&&r.doorCount){const da=r.doorCount*21;ta+=da;th+=da/STANDARDS.doors[r.doorCoats];}
-      smap.Trims.a+=ta;smap.Trims.h+=th;
-      if(r.prepHrs){smap.Prep.a+=r.prepHrs;smap.Prep.h+=r.prepHrs;}
-    });
-    Object.entries(smap).forEach(([name,d])=>{
-      if(!d.h)return;
-      const cost=d.h*globalRate*aw*buf;
-      stbody.innerHTML+='<tr><td>'+name+'</td><td class=\\"num\\">'+fmtN(d.a)+'</td><td class=\\"num\\">'+d.h.toFixed(1)+'</td><td class=\\"num\\">'+(d.h/6).toFixed(1)+'</td><td class=\\"num\\">'+fmt(cost)+'</td></tr>';
-    });
-  }
-
-  // Colour summary and cost
-  totalPaintCost=0; // reset then recompute for breakdown display
-  var ctbody=sel('bd-colour-tbody');
-  if(ctbody){
-    ctbody.innerHTML='';
-    var colMap={};
-    var addCol=function(product,colour,surface,roomName,area,sheen){
-      if(!colour&&!product)return;
-      var key=(product||'')+'·'+(colour||'')+'·'+(sheen||'')+'·'+surface;
-      if(!colMap[key])colMap[key]={product:product||'',colour:colour||'',surface:surface,rooms:[],area:0};
-      colMap[key].area+=area||0;
-    }
-    rooms.forEach(function(r){
-      var wSqft=calcWalls(r),cSqft=calcCeil(r),tSqft=calcTrims(r);
-      // Walls: if Primer & 2 Coats, add primer row (1 coat sqft) and paint row (2x sqft)
-      if(r.walls&&wSqft){
-        if(r.wallCoats==3&&r.wallsPrimer){addCol(r.wallsPrimer,'','Walls (Primer)',r.name||'Room '+r.id,wSqft);addCol(r.wallPaint,r.wallColour,'Walls (2 Coats)',r.name||'Room '+r.id,wSqft*2);}
-        else addCol(r.wallPaint,r.wallColour,'Walls',r.name||'Room '+r.id,wSqft,r.wallSheen||'');
-      }
-      // Ceiling
-      if(r.ceiling&&cSqft){
-        if(r.ceilCoats==3&&r.ceilingPrimer){addCol(r.ceilingPrimer,'','Ceiling (Primer)',r.name||'Room '+r.id,cSqft);addCol(r.ceilPaint,r.ceilColour,'Ceiling (2 Coats)',r.name||'Room '+r.id,cSqft*2);}
-        else addCol(r.ceilPaint,r.ceilColour,'Ceiling',r.name||'Room '+r.id,cSqft,r.ceilSheen||'');
-      }
-      // Trim
-      var trimSurfs=[];
-      if(r.baseboards&&r.baseLF)trimSurfs.push('Baseboards');
-      if(r.crown&&r.crownLF)trimSurfs.push('Crown');
-      if(r.doorFrames&&r.dfLF)trimSurfs.push('Door Frames');
-      if(r.windows&&r.winLF)trimSurfs.push('Windows');
-      if(r.doors&&r.doorCount)trimSurfs.push('Doors');
-      var trimHasPrimer=(r.baseCoats==3||r.crownCoats==3||r.doorCoats==3||r.dfCoats==3||r.winCoats==3)&&r.trimPrimer;
-      if(trimSurfs.length&&tSqft){
-        if(trimHasPrimer){addCol(r.trimPrimer,'',trimSurfs.join(', ')+' (Primer)',r.name||'Room '+r.id,tSqft);addCol(r.trimPaint,r.trimColour,trimSurfs.join(', ')+' (2 Coats)',r.name||'Room '+r.id,tSqft*2);}
-        else addCol(r.trimPaint,r.trimColour,trimSurfs.join(', '),r.name||'Room '+r.id,tSqft,r.trimSheen||'');
-      }
-    });
-    var matBufC=matBufC2; // use pre-computed mat buffer
-    Object.keys(colMap).forEach(function(key){
-      var cm=colMap[key];
-      var sqft=cm.area;
-      var gallons=Math.ceil(sqft/350);
-      var qtyStr='';
-      if(sqft<=0){qtyStr='—';}
-      else if(sqft<=1900){qtyStr=Math.ceil(sqft/350)+' gal';}
-      else{var pails=Math.floor(sqft/1900);var rem=sqft-pails*1900;var extraGal=rem>0?Math.ceil(rem/350):0;var parts=[];if(pails>0)parts.push(pails+' pail'+(pails>1?'s':''));if(extraGal>0)parts.push(extraGal+' gal');qtyStr=parts.join(' + ');}
-      var pObj=[...PAINTS,...CEILING_PAINTS,...PRIMERS].find(function(p){return p.n===cm.product;});
-      var unitPrice=pObj?(sqft>1900&&pObj.p>0?pObj.p:pObj.g||pObj.p||0):0;
-      var lineCost=unitPrice>0?unitPrice*gallons*matBufC:0;
-      totalPaintCost+=lineCost;
-      var colHex=cm.colour?(function(){var c=COLOURS.find(function(x){return x.n===cm.colour;});return c?c.h:'#ccc';}()):'#ccc';
-      var swatch=cm.colour?'<span style=\\"display:inline-block;width:10px;height:10px;border-radius:2px;background:'+colHex+';border:1px solid rgba(0,0,0,.15);margin-right:4px;vertical-align:middle\\"></span>':'';
-      var productDisplay=cm.product?cm.product.replace(/\\s*\\b(Gallon|Pail)\\b\\s*/gi,'').trim():'\\u2014';
-      var colSheen=(cm.colour||'—')+(cm.sheen?' · '+cm.sheen:'');
-      ctbody.innerHTML+='<tr>'
-        +'<td style=\\"font-size:12px\\">'+productDisplay+'</td>'
-        +'<td style=\\"font-size:12px\\">'+swatch+colSheen+'</td>'
-        +'<td style=\\"font-size:12px\\">'+cm.surface+'</td>'
-        +'<td class=\\"num\\" style=\\"font-size:12px\\">'+fmtN(sqft)+' sqft</td>'
-        +'<td class=\\"num\\" style=\\"font-size:12px\\">'+qtyStr+'</td>'
-        +'<td class=\\"num\\" style=\\"font-size:12px;font-weight:500\\">'+(lineCost>0?fmt(lineCost):'—')+'</td>'
-        +'</tr>';
-    });
-  }
-  if(sel('q-disc-row'))sel('q-disc-row').style.display=discOn?'table-row':'none';
-  if(sel('q-disc-val'))sel('q-disc-val').textContent='-'+fmt(discAmt);
-  if(sel('q-subtotal'))sel('q-subtotal').textContent=fmt(subtotal);
-  if(sel('q-tax'))sel('q-tax').textContent=fmt(tax);
-  if(sel('q-total'))sel('q-total').textContent=fmt(total);
-  if(sel('q-pay1'))sel('q-pay1').textContent=fmt(dep);
-  if(sel('q-pay2'))sel('q-pay2').textContent=fmt(bal45);
-  if(sel('q-pay3'))sel('q-pay3').textContent=fmt(fin);
-  // Quote lines
-  const qlbody=sel('q-line-tbody');
-  if(qlbody){
-    qlbody.innerHTML='';
-    rooms.forEach(r=>{
-      const ws=calcWalls(r),cs=calcCeil(r);
-      const coatLabel=v=>(v==1?'1 coat':v==3?'Primer & 2 coats':'2 coats');
-      const sqLabel=n=>fmtN(n)+' square feet';
-      const lfLabel=n=>fmtN(n)+' linear feet';
-
-      // ── Preparation Services ──
-      const prepLabels={furniture:'Move furniture',plastic:'Plastic cover',outlets:'Remove outlets',drywall:'Drywall repairs',caulking:'Caulking',cleanup:'Clean up'};
-      const prepItems=[];
-      if(r.prep){Object.keys(prepLabels).forEach(k=>{if(r.prep[k])prepItems.push(prepLabels[k]);});}
-      if(r.prep&&r.prep.custom&&r.prep.custom.trim())prepItems.push(r.prep.custom.trim());
-      const prepHtml=prepItems.length
-        ?'<div style=\\"margin-bottom:8px\\">'
-          +'<div style=\\"font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);margin-bottom:4px\\">Preparation Services</div>'
-          +prepItems.map(p=>'<div style=\\"font-size:11px;color:var(--ink2);padding-left:8px\\">— '+p+'</div>').join('')
-          +'</div>':'' ;
-
-      // ── Painting ──
-      const paintingItems=[];
-      if(r.walls&&ws)paintingItems.push(coatLabel(r.wallCoats)+' on walls \\u2014 '+sqLabel(ws));
-      if(r.ceiling&&cs)paintingItems.push(coatLabel(r.ceilCoats)+' on ceiling \\u2014 '+sqLabel(cs));
-      if(r.baseboards&&r.baseLF)paintingItems.push(coatLabel(r.baseCoats)+' on baseboards \\u2014 '+lfLabel(r.baseLF));
-      if(r.crown&&r.crownLF)paintingItems.push(coatLabel(r.crownCoats)+' on crown moulding \\u2014 '+lfLabel(r.crownLF));
-      if(r.doorFrames&&r.dfLF)paintingItems.push(coatLabel(r.dfCoats)+' on door frames \\u2014 '+lfLabel(r.dfLF));
-      if(r.windows&&r.winLF)paintingItems.push(coatLabel(r.winCoats)+' on windows \\u2014 '+lfLabel(r.winLF));
-      if(r.doors&&r.doorCount)paintingItems.push(coatLabel(r.doorCoats)+' on '+r.doorCount+' door'+(r.doorCount>1?'s':''));
-      if(!paintingItems.length&&!prepItems.length)return;
-      const paintingHtml=paintingItems.length
-        ?'<div style=\\"margin-bottom:8px\\">'
-          +'<div style=\\"font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);margin-bottom:4px\\">Painting</div>'
-          +paintingItems.map(p=>'<div style=\\"font-size:11px;color:var(--ink2);padding-left:8px\\">— '+p+'</div>').join('')
-          +'</div>':'';
-
-      // ── Materials ──
-      function matLine(surface,paint,colour,sheen,primer,primerName){
-        const parts=[];
-        if(primerName)parts.push('<div style=\\"font-size:11px;color:var(--ink2);padding-left:8px\\">— '+surface+' Primer: '+(primerName.replace(/\\s*(Gallon|Pail)/gi,'').trim()||primerName)+'</div>');
-        if(paint){const hex=colour?(COLOURS.find(x=>x.n===colour)||{h:'#ccc'}).h:'';const swatch=colour?'<span style=\\"display:inline-block;width:10px;height:10px;border-radius:2px;background:'+hex+';border:1px solid rgba(0,0,0,.15);margin-right:3px;vertical-align:middle\\"></span>':'';parts.push('<div style=\\"font-size:11px;color:var(--ink2);padding-left:8px\\">— '+surface+': '+(paint.replace(/\\s*(Gallon|Pail)/gi,'').trim())+(colour?' · '+swatch+colour:'')+(sheen?' · '+sheen:'')+'</div>');}
-        return parts.join('');
-      }
-      const matItems=[];
-      if(r.walls&&ws){const m=matLine('Walls',r.wallPaint,r.wallColour,r.wallSheen,r.wallCoats==3,r.wallsPrimer);if(m)matItems.push(m);}
-      if(r.ceiling&&cs){const m=matLine('Ceiling',r.ceilPaint,r.ceilColour,r.ceilSheen,r.ceilCoats==3,r.ceilingPrimer);if(m)matItems.push(m);}
-      const hasTrim=r.baseboards||r.crown||r.doorFrames||r.windows||r.doors;
-      if(hasTrim){const m=matLine('Trim',r.trimPaint,r.trimColour,r.trimSheen,(r.baseCoats==3||r.crownCoats==3||r.dfCoats==3||r.winCoats==3||r.doorCoats==3),r.trimPrimer);if(m)matItems.push(m);}
-      const materialsHtml=matItems.length
-        ?'<div style=\\"margin-bottom:4px\\">'
-          +'<div style=\\"font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);margin-bottom:4px\\">Materials</div>'
-          +matItems.join('')
-          +'</div>':'';
-
-      const descHtml=prepHtml+paintingHtml+materialsHtml;
-      const rowCost=calcRoomCost(r)*buf+calcRoomSuppliesCost(r)*matBuf;
-      qlbody.innerHTML+='<tr>'
-        +'<td style=\\"font-size:12px;font-weight:600;vertical-align:top;padding-right:8px\\">'+(r.name||'Room '+r.id)+'</td>'
-        +'<td style=\\"font-size:11px;vertical-align:top\\">'+descHtml+'</td>'
-        +'<td class=\\"right\\" style=\\"font-size:12px;font-weight:500;white-space:nowrap;vertical-align:top\\">'+fmt(rowCost)+'</td>'
-        +'</tr>';
-    });
-  }
-  if(sel('q-disc-row'))sel('q-disc-row').style.display=(discOn||(sel('lr-discount-amt')&&sel('lr-discount-amt').checked))?'table-row':'none';
-  if(sel('q-disc-label')){if(discOn&&!(sel('lr-discount-amt')&&sel('lr-discount-amt').checked))sel('q-disc-label').textContent='Discount ('+Math.round(discPct*100)+'%)';else sel('q-disc-label').textContent='Discount';}
-  if(sel('q-disc-val'))sel('q-disc-val').textContent='-'+fmt(discOn||( sel('lr-discount-amt')&&sel('lr-discount-amt').checked)?0:0);
-  if(sel('q-subtotal'))sel('q-subtotal').textContent=fmt(subtotal);
-  if(sel('q-tax'))sel('q-tax').textContent=fmt(tax);
-  if(sel('q-total'))sel('q-total').textContent=fmt(total);
-  if(sel('q-pay1'))sel('q-pay1').textContent=fmt(dep);
-  if(sel('q-pay2'))sel('q-pay2').textContent=fmt(bal45);
-  if(sel('q-pay3'))sel('q-pay3').textContent=fmt(fin);
-  recalcInvoice(total);
-
-  // Contract
-  buildContract(total,dep,bal45,fin,days);
-
-  // Post project
-  if(sel('pp-date'))sel('pp-date').textContent=today();
-  if(sel('pp-client'))sel('pp-client').textContent=v('ci-name')||'\\u2014';
-  if(sel('pp-cost'))sel('pp-cost').textContent=fmt(total);
-  if(sel('pp-labour'))sel('pp-labour').textContent=fmt(labourAmt);
-  if(sel('pp-est'))sel('pp-est').value=totHrs.toFixed(1);
-  recalcPost();
-
-  if(typeof scheduleSave==='function'&&document.readyState==='complete')scheduleSave();
-}
-
-function buildContract(total,dep,bal45,fin,days){
-  const name=v('ci-name')||'[Client Name]';
-  const addr=v('ci-addr1')||'[Address]';
-  const a2=v('ci-addr2')||'';
-  const phone=v('ci-phone')||'[Phone]';
-  const email=v('ci-email')||'[Email]';
-  const fullAddr=addr+(a2?', '+a2:'');
-  const dateStr=today();
-
-  // Scope: aggregate sqft/lf/doors across all rooms
-  var totWalls=0,totCeil=0,totTrims=0,totDoors=0;
-  var roomRows='';
-  rooms.forEach(r=>{
-    const ws=calcWalls(r),cs=calcCeil(r),tr=calcTrims(r),dc=(r.doors?r.doorCount:0);
-    totWalls+=ws;totCeil+=cs;totTrims+=tr;totDoors+=dc;
-    const d=[];
-    if(ws)d.push(fmtN(ws)+' sqft walls');
-    if(cs)d.push(fmtN(cs)+' sqft ceiling');
-    if(tr)d.push(fmtN(tr)+' lin ft trims');
-    if(dc)d.push(dc+' door'+(dc>1?'s':''));
-    if(d.length)roomRows+='<tr>'
-      +'<td style=\\"padding:5px 8px;font-weight:500;border-bottom:1px solid var(--cream2);font-size:12px\\">'+(r.name||'Room '+r.id)+'</td>'
-      +'<td style=\\"padding:5px 8px;color:var(--ink2);border-bottom:1px solid var(--cream2);font-size:12px\\">'+d.join(' &middot; ')+'</td>'
-      +'</tr>';
-  });
-
-  const scopeTable=roomRows
-    ?'<table style=\\"width:100%;border-collapse:collapse;margin:8px 0\\"><thead><tr>'
-      +'<th style=\\"padding:5px 8px;text-align:left;font-size:11px;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;background:var(--cream2)\\">Area</th>'
-      +'<th style=\\"padding:5px 8px;text-align:left;font-size:11px;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;background:var(--cream2)\\">Surfaces</th>'
-      +'</tr></thead><tbody>'+roomRows+'</tbody></table>'
-    :'<p style=\\"color:var(--ink3);font-size:12px\\">No rooms configured.</p>';
-
-  const totalStr=total>0?fmt(total):'$0.00';
-
-  function section(title){
-    return '<div style=\\"font-size:10px;font-weight:600;color:var(--ink3);text-transform:uppercase;letter-spacing:.08em;margin:18px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--cream2)\\">'+title+'</div>';
-  }
-  function para(text){
-    return '<p style=\\"font-size:12px;color:var(--ink2);line-height:1.8;margin-bottom:8px\\">'+text+'</p>';
-  }
-
-
-  var html='';
-    // ── Header ──
-  html+=para('This Painting Service Agreement (&ldquo;Agreement&rdquo;) is made and entered into on <strong>'+dateStr+'</strong> by and between:');
-  html+='<div style=\\"display:grid;grid-template-columns:1fr 1fr;gap:20px;margin:14px 0;padding:14px 16px;background:var(--cream2);border-radius:var(--r)\\">';
-  html+='<div>';
-  html+='<div style=\\"font-size:10px;font-weight:600;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px\\">Client</div>';
-  html+='<div style=\\"font-size:13px;font-weight:600\\">'+name+'</div>';
-  html+='<div style=\\"font-size:12px;color:var(--ink2)\\">'+fullAddr+'</div>';
-  html+='<div style=\\"font-size:12px;color:var(--ink2)\\">'+phone+'</div>';
-  html+='<div style=\\"font-size:12px;color:var(--ink2)\\">'+email+'</div>';
-  html+='</div>';
-  html+='<div>';
-  html+='<div style=\\"font-size:10px;font-weight:600;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px\\">Contractor</div>';
-  html+='<div style=\\"font-size:13px;font-weight:600\\">David Truong</div>';
-  html+='<div style=\\"font-size:12px;color:var(--ink2)\\">25 Fieldview Crescent</div>';
-  html+='<div style=\\"font-size:12px;color:var(--ink2)\\">Markham, ON L3R 3H6</div>';
-  html+='<div style=\\"font-size:12px;color:var(--ink2)\\">(647) 449-6611</div>';
-  html+='<div style=\\"font-size:12px;color:var(--ink2)\\">info@kingdompainting.ca</div>';
-  html+='</div>';
-  html+='</div>';
-
-    // ── Scope of Work ──
-  html+=section('Scope of Work');
-  html+=para('The Contractor agrees to perform the following painting services (&ldquo;Services&rdquo;) at the Client\\'s property located at <strong>'+fullAddr+'</strong>.');
-  html+=scopeTable;
-  html+='<div style=\\"display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0;padding:10px;background:var(--cream2);border-radius:var(--r)\\">';
-  html+='<div style=\\"text-align:center\\"><div style=\\"font-size:10px;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em\\">Walls</div><div style=\\"font-size:14px;font-weight:600\\">'+fmtN(totWalls)+'</div><div style=\\"font-size:11px;color:var(--ink3)\\">sqft</div></div>';
-  html+='<div style=\\"text-align:center\\"><div style=\\"font-size:10px;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em\\">Ceiling</div><div style=\\"font-size:14px;font-weight:600\\">'+fmtN(totCeil)+'</div><div style=\\"font-size:11px;color:var(--ink3)\\">sqft</div></div>';
-  html+='<div style=\\"text-align:center\\"><div style=\\"font-size:10px;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em\\">Trims</div><div style=\\"font-size:14px;font-weight:600\\">'+fmtN(totTrims)+'</div><div style=\\"font-size:11px;color:var(--ink3)\\">lin ft</div></div>';
-  html+='<div style=\\"text-align:center\\"><div style=\\"font-size:10px;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em\\">Doors</div><div style=\\"font-size:14px;font-weight:600\\">'+totDoors+'</div><div style=\\"font-size:11px;color:var(--ink3)\\">total</div></div>';
-  html+='</div>';
-
-    // ── Duration ──
-  html+=section('Duration of Work');
-  html+=para('The Contractor will commence work on the scheduled date and is expected to complete the work in approximately <strong>'+days+' day(s)</strong>, subject to any unforeseen delays.');
-
-    // ── Payment Terms ──
-  html+=section('Payment Terms');
-  html+=para('The total cost for the Services shall be <strong>'+fmt(total)+'</strong>, which includes labour, materials, and any applicable taxes. A different payment plan can be discussed.');
-  html+='<div style=\\"display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:10px 0\\">';
-  html+='<div style=\\"background:var(--cream2);padding:12px;border-radius:var(--r)\\">';
-  html+='<div style=\\"font-size:10px;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em\\">10% Deposit</div>';
-  html+='<div style=\\"font-size:15px;font-weight:600;color:var(--ink);margin:4px 0\\">'+fmt(dep)+'</div>';
-  html+='<div style=\\"font-size:11px;color:var(--ink3)\\">Due on first day</div>';
-  html+='</div>';
-  html+='<div style=\\"background:var(--cream2);padding:12px;border-radius:var(--r)\\">';
-  html+='<div style=\\"font-size:10px;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em\\">45% Balance</div>';
-  html+='<div style=\\"font-size:15px;font-weight:600;color:var(--ink);margin:4px 0\\">'+fmt(bal45)+'</div>';
-  html+='<div style=\\"font-size:11px;color:var(--ink3)\\">Due midway through</div>';
-  html+='</div>';
-  html+='<div style=\\"background:var(--cream2);padding:12px;border-radius:var(--r)\\">';
-  html+='<div style=\\"font-size:10px;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em\\">Final Balance</div>';
-  html+='<div style=\\"font-size:15px;font-weight:600;color:var(--ink);margin:4px 0\\">'+fmt(fin)+'</div>';
-  html+='<div style=\\"font-size:11px;color:var(--ink3)\\">Due on completion</div>';
-  html+='</div>';
-  html+='</div>';
-
-    // ── Changes & Modifications ──
-  html+=section('Changes and Modifications');
-  html+=para('Any changes or modifications to the Scope of Work must be agreed upon in writing by both the Client and the Contractor. Additional work or changes may result in additional charges.');
-
-    // ── Warranties ──
-  html+=section('Warranties');
-  html+=para('The Contractor warrants that the Services provided will be performed in a professional manner and in accordance with industry standards. The Contractor also warrants that all materials used are of good quality and fit for the intended purpose.');
-
-    // ── Liability Protection ──
-  html+=section('Liability Protection');
-  html+=para('<strong>Insurance:</strong> The Contractor maintains general liability insurance with coverage of <strong>$2,000,000</strong> to protect against any claims arising from the performance of the Services.');
-  html+=para('<strong>Limitation of Liability:</strong> The Contractor shall not be liable for any indirect, incidental, or consequential damages arising out of or in connection with the performance of the Services. The total liability of the Contractor for any and all claims shall not exceed the total amount paid by the Client under this Agreement.');
-  html+=para('<strong>Damage to Property:</strong> The Contractor will take all reasonable precautions to protect the Client\\'s property. However, the Contractor is not liable for any damage to the property that occurs as a result of pre-existing conditions or any conditions outside the Contractor\\'s control.');
-
-    // ── Termination ──
-  html+=section('Termination');
-  html+=para('Either party may terminate this Agreement upon written notice if the other party breaches any material term of this Agreement. In the event of termination, the Client shall pay for all Services rendered up to the date of termination.');
-
-    // ── Indemnification ──
-  html+=section('Indemnification');
-  html+=para('The Client agrees to indemnify and hold harmless the Contractor and its employees, agents, and subcontractors from any claims, damages, or expenses arising from the Client\\'s negligence or breach of this Agreement.');
-
-    // ── Governing Law ──
-  html+=section('Governing Law');
-  html+=para('This Agreement shall be governed by and construed in accordance with the laws of the Province of Ontario.');
-
-    // ── Entire Agreement ──
-  html+=section('Entire Agreement');
-  html+=para('This Agreement constitutes the entire understanding between the parties and supersedes all prior agreements, whether oral or written.');
-
-    // ── Signatures ──
-  html+=section('Signatures');
-  html+=para('By signing below, the parties agree to the terms and conditions outlined in this Agreement.');
-  html+='<div style=\\"display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-top:20px\\">';
-  html+='<div>';
-  html+='<canvas id=\\"sig-client\\" width=\\"320\\" height=\\"80\\" style=\\"border:1px solid var(--cream3);border-radius:var(--r);background:#fff;width:100%;cursor:crosshair\\"></canvas>';
-  html+='<div style=\\"font-size:12px;color:var(--ink3);margin-top:4px\\">'+name+' &middot; '+dateStr+'</div>';
-  html+='<button onclick=\\"clearSig(\\'sig-client\\')\\" style=\\"margin-top:4px;font-size:11px;padding:3px 10px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);cursor:pointer;color:var(--ink3)\\">Clear</button>';
-  html+='</div>';
-  html+='<div>';
-  html+='<canvas id=\\"sig-contractor\\" width=\\"320\\" height=\\"80\\" style=\\"border:1px solid var(--cream3);border-radius:var(--r);background:#fff;width:100%;cursor:crosshair\\"></canvas>';
-  html+='<div style=\\"font-size:12px;color:var(--ink3);margin-top:4px\\">David Truong &middot; '+dateStr+'</div>';
-  html+='<button onclick=\\"clearSig(\\'sig-contractor\\')\\" style=\\"margin-top:4px;font-size:11px;padding:3px 10px;border:1px solid var(--cream3);border-radius:var(--r);background:var(--cream);cursor:pointer;color:var(--ink3)\\">Clear</button>';
-  html+='</div>';
-  html+='</div>';;
-
-  if(sel('contract-body'))sel('contract-body').innerHTML=html;
-  setTimeout(function(){try{initSignaturePads();}catch(e){}},100);
-}
-function initSignaturePads(){
-  initSigPad('sig-client');
-  initSigPad('sig-contractor');
-}
-function init(){
-  const ds=today();
-  sel('topDate').textContent=ds;
-  ['q-date','inv-date','con-date','co-date'].forEach(id=>{const e=sel(id);if(e)e.textContent=ds;});
-  try{initLabourRates();}catch(e){console.warn('initLabourRates:',e);}
-  try{
-    loadPaintSettings(function(){
-      try{initPaintInputs();}catch(e){console.warn('initPaintInputs:',e);}
-    });
-  }catch(e){try{initPaintInputs();}catch(e2){console.warn('initPaintInputs:',e2);}}
-  try{addRoom();}catch(e){console.warn('addRoom:',e);}
-  // loadContactsDropdown is called from React onLoad after session is injected
-}
-function showTab(id){
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  const tabMap={cover:0,rooms:1,breakdown:2,quote:3,contract:4,changeorder:5};
-  const tabs=document.querySelectorAll('.tab');
-  if(tabMap[id]!==undefined)tabs[tabMap[id]].classList.add('active');
-  const pg=sel('page-'+id);if(pg)pg.classList.add('active');
-  if(['breakdown','quote','contract','changeorder'].includes(id)){
-    try{syncClient();}catch(e){}
-    try{recalcAll();}catch(e){
-      console.warn('recalcAll error on tab '+id+':',e.message,e.stack&&e.stack.split('\\n').slice(0,4).join(' | '));
-      // If recalcAll failed, still try to build contract directly
-      if(id==='contract'){try{buildContract(0,0,0,0,0);}catch(e2){console.warn('buildContract direct error:',e2.message);}}
-    }
-  }
-  if(id==='contract'){
-    setTimeout(function(){
-      try{initSignaturePads();}catch(e){}
-      // Safety net: ensure contract body is populated even if recalcAll failed
-      var cb=sel('contract-body');
-      if(cb&&!cb.innerHTML.trim()){try{buildContract(0,0,0,0,0);}catch(e){}}
-    },150);
-  }
-  if(id==='rooms'){
-    setTimeout(function(){
-      const firstRoom=rooms[0];
-      if(firstRoom){
-        const body=document.querySelector('.room-body[data-id="'+firstRoom.id+'"]');
-        const arr=sel('arr_'+firstRoom.id);
-        if(body&&!body.classList.contains('open')){body.classList.add('open');if(arr)arr.classList.add('open');}
-        const ni=sel('room-name-'+firstRoom.id);
-        if(ni){ni.focus();ni.select();}
-      }
-    },80);
-  }
-}
-
-// Expose functions to global scope for inline onclick handlers
-window.updSeg=updSeg;
-window.updWinDimIdx=updWinDimIdx;
-window.updWinAdd=updWinAdd;
-window.updWinRemove=updWinRemove;
-window.updWinDim=updWinDim;
-window.updCeilSeg=updCeilSeg;
-window.showTab=showTab;
-window.schedulePaintSave=schedulePaintSave;
-window.loadContactsDropdown=loadContactsDropdown;
-window.populateDealsDropdown=populateDealsDropdown;
-window.ceilPaintOpts=ceilPaintOpts;
-window.loadPaintSettings=loadPaintSettings;
-window.renderRooms=renderRooms;
-window.addRoom=addRoom;
-window.removeRoom=removeRoom;
-window.toggleRoom=toggleRoom;
-window.upd=upd;
-window.updPrep=updPrep;
-window.updStd=updStd;
-window.updWin=updWin;
-window.addWin=addWin;
-window.removeWin=removeWin;
-window.clearSig=clearSig;
-window.addChangeItem=addChangeItem;
-window.renderChangeItems=renderChangeItems;
-window.recalcCO=recalcCO;
-window.exportPDF=exportPDF;
-window.exportInfoPackage=exportInfoPackage;
-window.expandAllAndExport=expandAllAndExport;
-window.saveEstimate=saveEstimate;
-window.newEstimate=newEstimate;
-window.openLoadPanel=openLoadPanel;
-window.closeLoadPanel=closeLoadPanel;
-window.loadEstimateById=loadEstimateById;
-window.deleteEstimate=deleteEstimate;
-window.syncClient=syncClient;
-window.fillFromContact=fillFromContact;
-window.pushToProject=pushToProject;
-window.pushDocsToProject=pushDocsToProject;
-
-init();
-
-function savePaintSettings(){
-  var token=(_session&&_session.access_token)?_session.access_token:SUPA_KEY;
-  var uid=_session&&_session.user?_session.user.id:null;
-  if(!uid)return;
-  var data={paints:PAINTS,ceilPaints:CEILING_PAINTS,primers:PRIMERS,colours:COLOURS,supplies:SUPPLIES};
-  fetch(SUPA_URL+'/rest/v1/paint_settings?id=eq.singleton',{
-    method:'PATCH',
-    headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json','Prefer':'return=minimal'},
-    body:JSON.stringify({id:'singleton',user_id:uid,data:data,updated_at:new Date().toISOString()})
-  }).then(function(r){
-    if(r.status===404||r.status===0||r.statusText==='Not Found'){
-      // Row doesn't exist yet, insert
-      return fetch(SUPA_URL+'/rest/v1/paint_settings',{
-        method:'POST',
-        headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json','Prefer':'return=minimal'},
-        body:JSON.stringify({id:'singleton',user_id:uid,data:data})
-      });
-    }
-  }).catch(function(err){console.warn('savePaintSettings error:',err);});
-}
-
-function gv(id){var e=sel(id);return e?e.value:'';}
-function getLabourData(){
-  return {
-    workers:JSON.parse(JSON.stringify(workers)),
-    overheadItems:JSON.parse(JSON.stringify(overheadItems)),
-    billable:gv('lr-billable'),buffer:gv('lr-buffer'),matBuffer:gv('lr-mat-buffer'),
-    taxes:(function(){var e=sel('lr-taxes');return e?e.checked:true;}()),
-    discount:(function(){var e=sel('lr-discount');return e?e.checked:false;}()),
-    discountAmt:(function(){var e=sel('lr-discount-amt');return e?e.checked:false;}()),
-    discAmt:gv('lr-disc-amt'),discPct:gv('lr-disc-pct'),profitTarget:gv('lr-profit-target')
+  const updateItem=(idx,patch)=>setItems(items.map((it,i)=>i===idx?{...it,...patch}:it));
+  const removeItem=(idx)=>setItems(items.filter((_,i)=>i!==idx));
+  const addItem=()=>{
+    const nextNum=items.length>0?Math.max(...items.map(it=>it.num||0))+1:1;
+    setItems([...items,{id:genId(),num:nextNum,desc:'',amount:0}]);
   };
-}
-function upsertPaintSettings(){
-  window.parent.postMessage({
-    type:'KP_SAVE_PAINT_SETTINGS',
-    data:{paints:PAINTS,ceilPaints:CEILING_PAINTS,primers:PRIMERS,colours:COLOURS,supplies:SUPPLIES},
-    labour:getLabourData(),
-    standards:JSON.parse(JSON.stringify(STANDARDS))
-  },'*');
-}
-
-function sv(id,val){var e=sel(id);if(e&&val!==undefined&&val!=='')e.value=val;}
-function loadPaintSettings(cb){
-  window._paintSettingsCb=cb;
-  window.parent.postMessage({type:'KP_LOAD_PAINT_SETTINGS'},'*');
-  // Fallback if parent doesn't respond
-  var t=setTimeout(function(){if(window._paintSettingsCb){window._paintSettingsCb();window._paintSettingsCb=null;}},4000);
-  window._paintSettingsTimeout=t;
-}
-// Called when React parent sends back paint settings
-function applyPaintSettings(settingsData){
-  clearTimeout(window._paintSettingsTimeout);
-  var cb=window._paintSettingsCb;
-  window._paintSettingsCb=null;
-  if(!settingsData){if(cb)cb();return;}
-  var d=settingsData.data||{};
-  var L=settingsData.labour||{};
-  var S=settingsData.standards||{};
-  if(d.paints&&d.paints.length)PAINTS.splice(0,PAINTS.length,...d.paints);
-  if(d.ceilPaints&&d.ceilPaints.length)CEILING_PAINTS.splice(0,CEILING_PAINTS.length,...d.ceilPaints);
-  if(d.primers&&d.primers.length)PRIMERS.splice(0,PRIMERS.length,...d.primers);
-  if(d.colours&&d.colours.length)COLOURS.splice(0,COLOURS.length,...d.colours);
-  if(d.supplies&&d.supplies.length)SUPPLIES.splice(0,SUPPLIES.length,...d.supplies);
-  if(S&&Object.keys(S).length){Object.keys(S).forEach(function(surf){if(STANDARDS[surf])Object.assign(STANDARDS[surf],S[surf]);});}
-  if(L.workers&&L.workers.length)workers.splice(0,workers.length,...L.workers);
-  if(L.overheadItems&&L.overheadItems.length)overheadItems.splice(0,overheadItems.length,...L.overheadItems);
-  function sv(id,val){var e=sel(id);if(e&&val!==undefined&&val!==null&&val!=='')e.value=val;}
-  try{initLabourRates();}catch(e){}
-  sv('lr-billable',L.billable);sv('lr-buffer',L.buffer);sv('lr-mat-buffer',L.matBuffer);
-  if(L.taxes!==undefined){var et=sel('lr-taxes');if(et)et.checked=(L.taxes===true||L.taxes==='true');}
-  if(L.discount!==undefined){var ed=sel('lr-discount');if(ed)ed.checked=(L.discount===true||L.discount==='true');}
-  if(L.discountAmt!==undefined){var eda=sel('lr-discount-amt');if(eda)eda.checked=(L.discountAmt===true||L.discountAmt==='true');}
-  sv('lr-disc-amt',L.discAmt);sv('lr-disc-pct',L.discPct);sv('lr-profit-target',L.profitTarget);
-  try{recalcRates();}catch(e){}
-  if(cb)cb();
-}
-// Listen for paint settings sent back from React parent
-window.addEventListener('message',function(ev){
-  if(ev.data&&ev.data.type==='KP_PAINT_SETTINGS_DATA'){
-    applyPaintSettings(ev.data.settings);
-  }
-});
-
-})();
-
-
-// Contacts dropdown
-var _kpMap={};
-function loadContactsDropdown(){
-  var selEl=document.getElementById('ci-contact-select');
-  if(!selEl)return;
-  // Data may already be loaded via postMessage — check first
-  if(selEl.options.length>1)return;
-  // Try Supabase fetch
-  var token=(_session&&_session.access_token)?_session.access_token:null;
-  var headers={'apikey':SUPA_KEY,'Authorization':'Bearer '+(token||SUPA_KEY)};
-  Promise.all([
-    fetch(SUPA_URL+'/rest/v1/deals?select=*&order=dealName.asc',{headers:headers}).then(function(r){return r.json();}),
-    fetch(SUPA_URL+'/rest/v1/contacts?select=*&order=fullName.asc',{headers:headers}).then(function(r){return r.json();})
-  ]).then(function(results){
-    var deals=Array.isArray(results[0])?results[0]:[];
-    var contacts=Array.isArray(results[1])?results[1]:[];
-    populateDealsDropdown(deals,contacts);
-  }).catch(function(err){console.warn('loadContactsDropdown error:',err);});
+  return (
+    <div style={{padding:24,overflow:'auto',maxHeight:'100%',background:'#f5f5f0'}}>
+      <div style={docStyle}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:24,paddingBottom:16,borderBottom:`2px solid ${gold}`}}>
+          <div style={{display:'flex',gap:12,alignItems:'center'}}>
+            <KPLogo height={40}/>
+            <div>
+              <p style={{fontSize:14,fontWeight:700,color:gold}}>KINGDOM PAINTING INC.</p>
+              <p style={{fontSize:10,color:'#999'}}>Professional Painting Services</p>
+            </div>
+          </div>
+          <div style={{textAlign:'right'}}>
+            <p style={{fontSize:16,fontWeight:700,color:gold}}>Change Order</p>
+            <p style={{fontSize:11,color:'#666'}}>{todayStr}</p>
+            <p style={{fontSize:10,color:'#999',marginTop:4}}>HST# 742813191RT0001</p>
+          </div>
+        </div>
+        <p style={{fontSize:12,marginBottom:20}}><strong>Client:</strong> {client.name||'—'}</p>
+        <table style={{width:'100%',borderCollapse:'collapse',marginBottom:16}}>
+          <thead><tr>
+            <th style={{fontSize:11,fontWeight:600,textAlign:'left',padding:'8px 10px',borderBottom:'2px solid #e5e5e5',color:'#888',width:60}}>Item #</th>
+            <th style={{fontSize:11,fontWeight:600,textAlign:'left',padding:'8px 10px',borderBottom:'2px solid #e5e5e5',color:'#888'}}>Description</th>
+            <th style={{fontSize:11,fontWeight:600,textAlign:'right',padding:'8px 10px',borderBottom:'2px solid #e5e5e5',color:'#888',width:120}}>Amount</th>
+            <th style={{width:40,borderBottom:'2px solid #e5e5e5'}}/>
+          </tr></thead>
+          <tbody>
+            {items.map((it,idx)=>(
+              <tr key={it.id}>
+                <td style={{padding:'6px 10px',borderBottom:'1px solid #eee'}}>
+                  <input type='number' value={it.num||''} onChange={e=>updateItem(idx,{num:+e.target.value})} style={{width:40,border:'1px solid #ddd',borderRadius:4,padding:'4px 6px',fontSize:12,textAlign:'center'}}/>
+                </td>
+                <td style={{padding:'6px 10px',borderBottom:'1px solid #eee'}}>
+                  <input type='text' value={it.desc} onChange={e=>updateItem(idx,{desc:e.target.value})} placeholder='Description' style={{width:'100%',border:'1px solid #ddd',borderRadius:4,padding:'4px 8px',fontSize:12}}/>
+                </td>
+                <td style={{padding:'6px 10px',borderBottom:'1px solid #eee',textAlign:'right'}}>
+                  <input type='number' value={it.amount||''} onChange={e=>updateItem(idx,{amount:+e.target.value})} style={{width:100,border:'1px solid #ddd',borderRadius:4,padding:'4px 8px',fontSize:12,textAlign:'right'}}/>
+                </td>
+                <td style={{padding:'6px 10px',borderBottom:'1px solid #eee',textAlign:'center'}}>
+                  <button onClick={()=>removeItem(idx)} style={{background:'none',border:'none',cursor:'pointer',color:'#c00',fontSize:14}}><Trash2 size={13}/></button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <button onClick={addItem} style={{fontSize:12,color:gold,background:'none',border:`1px dashed ${gold}`,borderRadius:6,padding:'8px 16px',cursor:'pointer',width:'100%',fontWeight:600}}>
+          + Add Item
+        </button>
+        <div style={{borderTop:'2px solid #e5e5e5',marginTop:20,paddingTop:16,display:'flex',justifyContent:'flex-end'}}>
+          <div style={{width:220}}>
+            <div style={{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:6}}>
+              <span style={{color:'#888'}}>Subtotal</span><span>{fmtCAD(subtotal)}</span>
+            </div>
+            <div style={{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:6}}>
+              <span style={{color:'#888'}}>HST (13%)</span><span>{fmtCAD(tax)}</span>
+            </div>
+            <div style={{display:'flex',justifyContent:'space-between',fontSize:14,fontWeight:700,paddingTop:8,borderTop:'2px solid #1a1a1a'}}>
+              <span>Total</span><span style={{color:gold}}>{fmtCAD(total)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
-function populateDealsDropdown(deals,contacts){
-  var selEl=document.getElementById('ci-contact-select');
-  if(!selEl||!deals||!deals.length)return;
-  var contactMap={};
-  (contacts||[]).forEach(function(c){contactMap[c.id]=c;});
-  while(selEl.options.length>1)selEl.remove(1);
-  deals.forEach(function(deal){
-    var contact=contactMap[deal.contact]||{};
-    var label=deal.dealName||'Unnamed project';
-    var id=String(deal.id);
-    _kpMap[id]={
-      _isDeal:true,dealId:id,dealName:label,
-      fullName:contact.fullName||contact.full_name||contact.name||deal.contactFreeText||'',
-      phone:contact.phone||contact.phoneNumber||contact.phone_number||'',
-      email:contact.email||'',
-      address:deal.address||contact.address||''
-    };
-    var opt=document.createElement('option');
-    opt.value=id;
-    var clientName=contact.fullName||deal.contactFreeText||'';
-    opt.textContent=label+(clientName?' — '+clientName:'');
-    selEl.appendChild(opt);
-  });
-  console.log('Populated '+deals.length+' projects');
-}
-
-// Listen for deals data posted from React parent
-window.addEventListener('message',function(evt){
-  if(evt.data&&evt.data.type==='KP_DEALS'){
-    populateDealsDropdown(evt.data.deals,evt.data.contacts);
-  }
-  if(evt.data&&evt.data.type==='KP_SESSION'){
-    _session=evt.data.session;
-  }
-});
-function fillFromContact(val){
-  if(!val)return;
-  var c=_kpMap[val];if(!c)return;
-  function sv(id,v){var el=document.getElementById(id);if(el){el.value=v||'';el.dispatchEvent(new Event('input'));}}
-  sv('ci-name',c.fullName||c.full_name||c.name||'');
-  // Strip existing phone formatting before setting so fmtPhone works correctly
-  var rawPhone=(c.phone||c.phone_number||'').replace(/\\D/g,'');
-  var el_phone=document.getElementById('ci-phone');
-  if(el_phone){el_phone.value=rawPhone;fmtPhone(el_phone);}
-  sv('ci-email',c.email||'');
-  // Split address on first comma: "123 Main St, Toronto ON" -> addr1="123 Main St" addr2="Toronto ON"
-  var addr=c.address||c.addr||c.address_line1||'';
-  var commaIdx=addr.indexOf(',');
-  var addr1=commaIdx>=0?addr.slice(0,commaIdx).trim():addr.trim();
-  var addr2=commaIdx>=0?addr.slice(commaIdx+1).trim():(c.city||c.addr2||c.address_line2||'');
-  sv('ci-addr1',addr1);
-  sv('ci-addr2',addr2);
-  syncClient();
-}
-
-var _pdfReady=false;
-function _loadPDF(cb){
-  if(_pdfReady){cb();return;}
-  var s1=document.createElement('script');
-  s1.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-  s1.onload=function(){
-    var s2=document.createElement('script');
-    s2.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-    s2.onload=function(){_pdfReady=true;cb();};
-    document.head.appendChild(s2);
-  };
-  document.head.appendChild(s1);
-}
-
-// Push quote total to connected pipeline project
-function pushToProject(){
-  var totalEl=sel('q-total');
-  if(!totalEl){alert('No total found. Please fill in rooms first.');return;}
-  var totalText=totalEl.textContent||totalEl.innerText||'';
-  var amount=parseFloat(totalText.replace(/[^0-9.]/g,''));
-  if(isNaN(amount)||amount===0){alert('Could not read total amount. Make sure rooms are filled in.');return;}
-  var projectSel=sel('ci-contact-select');
-  var projectId=projectSel?projectSel.value:'';
-  if(!projectId){alert('Please select a project on the Cover tab first.');return;}
-  if(!_session||!_session.access_token){alert('Session not ready. Please reload the estimates page.');return;}
-  var token=_session.access_token;
-  console.log('pushToProject: token prefix',token.slice(0,20),'projectId',projectId);
-  var btn=document.querySelector('[onclick=\\"pushToProject()\\"]');
-  if(btn){btn._origHtml=btn._origHtml||btn.innerHTML;btn.disabled=true;btn.textContent='Saving…';}
-  window.parent.postMessage({type:'KP_PATCH_DEAL',dealId:projectId,data:{value:amount,quote_date:new Date().toISOString().slice(0,10)}},'*');
-  if(btn){btn.textContent='\\u2713 Saved!';setTimeout(function(){btn.innerHTML=btn._origHtml||'Project $';btn.disabled=false;},2000);}
-
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-</script>
-</body>
-</html>`;
 
 
 // ─── LABOUR RATES TAB (React) ────────────────────────────────────────────────
@@ -5808,167 +3807,228 @@ function StandardsTab({standards,setStandards,onSave}){
   );
 }
 
-// ─── MASTER ESTIMATE (full Kingdom Painting HTML app in iframe + React tabs) ─
+// ─── MASTER ESTIMATE (React-based with tabs) ─────────────────────────────────
 function MasterEstimate(){
-  const ref=useRef(null);
-  const [activeTab, setActiveTab] = useState('iframe');
-  const ps = usePaintSettings();
+  const [rooms,setRooms]=useState(()=>[newRoom('1',1)]);
+  const [roomCounter,setRoomCounter]=useState(1);
+  const [client,setClient]=useState({name:'',email:'',phone:'',addr1:'',addr2:''});
+  const [changeItems,setChangeItems]=useState([]);
+  const [changeCounter,setChangeCounter]=useState(0);
+  const [currentEstimateId,setCurrentEstimateId]=useState(null);
+  const [activeTab,setActiveTab]=useState('cover');
+  const [savedEstimates,setSavedEstimates]=useState([]);
+  const [showLoadPanel,setShowLoadPanel]=useState(false);
+  const [saving,setSaving]=useState(false);
+  const [saveMsg,setSaveMsg]=useState('');
+  const [deals,setDeals]=useState([]);
+  const [contacts,setContacts]=useState([]);
+  const [selectedDealId,setSelectedDealId]=useState(null);
 
-  const REACT_TABS = [
-    {k:'iframe', l:'Estimate'},
-    {k:'labourrates', l:'Labour Rates'},
-    {k:'paintinputs', l:'Paint Inputs'},
-    {k:'standards', l:'Standards'},
+  const ps=usePaintSettings();
+
+  const workers=ps.labour.workers?.filter(w=>w.active)||[];
+  const numWorkers=workers.length||1;
+  const avgWage=workers.reduce((s,w)=>s+w.r,0)/numWorkers;
+  const fieldWage=ps.labour.taxes?avgWage*1.3:avgWage;
+  const ohPerHr=(ps.labour.overheadItems||[]).reduce((s,i)=>s+(i.v||0),0)/(numWorkers*(ps.labour.billable||1700));
+  const profitPerHr=(ps.labour.profitTarget||0)/(numWorkers*(ps.labour.billable||1700));
+  const hourlyRate=(ohPerHr+fieldWage+profitPerHr)*numWorkers;
+  const settings={
+    hourlyRate:hourlyRate||65,
+    labourBuffer:ps.labour.buffer||1.25,
+    taxRate:13,
+    discount:ps.labour.discount||0,
+    _standards:ps.standards
+  };
+
+  const totals=calcTotals(rooms,settings);
+  const totalHrs=rooms.reduce((s,r)=>s+calcRoom(r,settings).totalHrs,0);
+
+  useEffect(()=>{
+    setDeals(api.getDeals());
+    setContacts(api.getContacts());
+  },[]);
+
+  const saveTimerRef=useRef(null);
+  const doSave=useCallback(async(rid,rms,cli,ci,cc,rc)=>{
+    if(!_session?.user?.id)return;
+    setSaving(true);setSaveMsg('');
+    try{
+      const payload={
+        user_id:_session.user.id,
+        client_name:cli.name,client_email:cli.email,client_phone:cli.phone,
+        addr1:cli.addr1,addr2:cli.addr2,
+        state:JSON.stringify({rooms:rms,roomCounter:rc,changeItems:ci,changeCounter:cc,client:cli})
+      };
+      if(rid){
+        await supaFetch(`/rest/v1/estimates?id=eq.${rid}`,{method:'PATCH',body:JSON.stringify(payload)});
+      }else{
+        const rows=await supaFetch('/rest/v1/estimates',{method:'POST',body:JSON.stringify(payload),headers:{'Prefer':'return=representation'}});
+        if(rows&&rows[0])setCurrentEstimateId(rows[0].id);
+      }
+      setSaveMsg('Saved');
+    }catch(e){setSaveMsg('Error');console.warn('Save error:',e);}
+    finally{setSaving(false);}
+    setTimeout(()=>setSaveMsg(''),3000);
+  },[]);
+
+  useEffect(()=>{
+    if(saveTimerRef.current)clearTimeout(saveTimerRef.current);
+    saveTimerRef.current=setTimeout(()=>{
+      doSave(currentEstimateId,rooms,client,changeItems,changeCounter,roomCounter);
+    },1500);
+    return ()=>{if(saveTimerRef.current)clearTimeout(saveTimerRef.current);};
+  },[rooms,client,changeItems,roomCounter,changeCounter,currentEstimateId,doSave]);
+
+  const loadEstimates=async()=>{
+    if(!_session?.user?.id)return;
+    try{
+      const rows=await supaFetch(`/rest/v1/estimates?user_id=eq.${_session.user.id}&select=id,client_name,client_email,updated_at&order=updated_at.desc&limit=50`);
+      setSavedEstimates(rows||[]);
+    }catch(e){console.warn('Load estimates error:',e);}
+    setShowLoadPanel(true);
+  };
+
+  const loadEstimate=async(eid)=>{
+    try{
+      const rows=await supaFetch(`/rest/v1/estimates?id=eq.${eid}&select=*`);
+      if(rows&&rows[0]){
+        const est=rows[0];
+        const st=JSON.parse(est.state||'{}');
+        if(st.rooms)setRooms(st.rooms);
+        if(st.roomCounter)setRoomCounter(st.roomCounter);
+        if(st.client)setClient(st.client);
+        if(st.changeItems)setChangeItems(st.changeItems);
+        if(st.changeCounter!=null)setChangeCounter(st.changeCounter);
+        setCurrentEstimateId(eid);
+      }
+    }catch(e){console.warn('Load estimate error:',e);}
+    setShowLoadPanel(false);
+  };
+
+  const newEstimate=()=>{
+    if(!confirm('Start a new estimate? Unsaved changes will be lost.'))return;
+    setRooms([newRoom('1',1)]);setRoomCounter(1);
+    setClient({name:'',email:'',phone:'',addr1:'',addr2:''});
+    setChangeItems([]);setChangeCounter(0);
+    setCurrentEstimateId(null);setActiveTab('cover');
+  };
+
+  const onSelectDeal=(dealId)=>{
+    setSelectedDealId(dealId);
+    const deal=deals.find(d=>d.id===dealId);
+    if(!deal)return;
+    const contact=contacts.find(c=>c.id===deal.contact_id);
+    if(contact){
+      setClient({
+        name:contact.fullName||contact.full_name||[contact.first_name,contact.last_name].filter(Boolean).join(' ')||'',
+        email:contact.email||'',
+        phone:contact.phone||'',
+        addr1:contact.address||deal.address||'',
+        addr2:'',
+      });
+    }
+  };
+
+  const pushToProject=async()=>{
+    if(!selectedDealId){alert('Select a deal on the Cover tab first.');return;}
+    try{
+      await api.saveDeal({value:totals.total,estimateHrs:totalHrs},selectedDealId);
+      setSaveMsg('Pushed!');setTimeout(()=>setSaveMsg(''),3000);
+    }catch(e){console.warn('Push error:',e);setSaveMsg('Push failed');}
+  };
+
+  const handlePaintSave=useCallback(async()=>{
+    const ok=await ps.save();
+    return ok;
+  },[ps.save]);
+
+  const TABS=[
+    {k:'cover',l:'Cover'},
+    {k:'rooms',l:`Rooms (${rooms.length})`},
+    {k:'breakdown',l:'Breakdown'},
+    {k:'quote',l:'Quote'},
+    {k:'contract',l:'Contract'},
+    {k:'changeorder',l:'Change Order'},
+    {k:'labourrates',l:'Labour Rates'},
+    {k:'paintinputs',l:'Paint Inputs'},
+    {k:'standards',l:'Standards'},
   ];
 
-  // Listen for PATCH requests from the iframe (which can't reliably use its own session)
-  useEffect(()=>{
-    const handler=async(ev)=>{
-      if(ev.data?.type==='KP_PATCH_DEAL'){
-        const {dealId,data}=ev.data;
-        if(!dealId||!data)return;
-        try{
-          await api.saveDeal(data,dealId);
-          const existing=DB.deals.find(d=>d.id===dealId);
-          if(existing) Object.assign(existing,data);
-        }catch(e){console.warn('KP_PATCH_DEAL error:',e);}
-      }
-      if(ev.data?.type==='KP_CONTRACT_SIGNED'){
-        const {dealId}=ev.data;
-        // Reload deal from DB to get updated contract_signed fields
-        if(dealId){
-          supaFetch(`/rest/v1/deals?id=eq.${dealId}&select=*`).then(rows=>{
-            if(rows&&rows[0]){DB.deals=DB.deals.map(d=>d.id===dealId?{...d,...rows[0]}:d);}
-          }).catch(()=>{});
-        }
-        // Show toast notification
-        const toastFn=window.__kpToast;
-        if(toastFn)toastFn('Contract signed by client!');
-      }
-      if(ev.data?.type==='KP_LOAD_PAINT_SETTINGS'){
-        (async()=>{
-          try{
-            if(!_session?.access_token){
-              try{const stored=localStorage.getItem('kp_session');if(stored){const s=JSON.parse(stored);if(s?.access_token)setSession(s);}}catch(e2){}
-            }
-            const session=_session;
-            if(!session?.access_token||!session?.user?.id)return;
-            const rows=await supaFetch(`/rest/v1/paint_settings?user_id=eq.${session.user.id}&select=data,labour,standards`);
-            const settings=(rows&&rows.length)?rows[0]:null;
-            const win=ref.current?.contentWindow;
-            if(win) win.postMessage({type:'KP_PAINT_SETTINGS_DATA',settings},'*');
-          }catch(e){console.warn('KP_LOAD_PAINT_SETTINGS error:',e);}
-        })();
-      }
-      if(ev.data?.type==='KP_SAVE_PAINT_SETTINGS'){
-        const {data,labour,standards}=ev.data;
-        if(!data)return;
-        const reply=(ok)=>{
-          // Send to all iframes on page — srcDoc origin means ev.source may be null
-          try{ref.current?.contentWindow?.postMessage({type:'KP_SAVE_DONE',ok},'*');}catch(e){}
-          // Also broadcast to any other estimate iframes (deal modal tabs)
-          try{document.querySelectorAll('iframe').forEach(fr=>{
-            try{if(fr.contentWindow!==ref.current?.contentWindow)fr.contentWindow?.postMessage({type:'KP_SAVE_DONE',ok},'*');}catch(e2){}
-          });}catch(e){}
-        };
-        const doSave=async(attempt=0)=>{
-          try{
-            if(!_session?.access_token){
-              try{const stored=localStorage.getItem('kp_session');if(stored){const s=JSON.parse(stored);if(s?.access_token)setSession(s);}}catch(e2){}
-            }
-            if(!_session?.access_token||!_session?.user?.id){
-              if(attempt<20){setTimeout(()=>doSave(attempt+1),500);}
-              else{reply(false);}
-              return;
-            }
-            const uid=_session.user.id;
-            const token=_session.access_token;
-            const res=await fetch(`${SUPA_URL}/rest/v1/paint_settings?on_conflict=user_id`,{
-              method:'POST',
-              headers:{'apikey':SUPA_KEY,'Authorization':`Bearer ${token}`,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates,return=minimal'},
-              body:JSON.stringify({user_id:uid,data,labour,standards,updated_at:new Date().toISOString()})
-            });
-            reply(res.ok);
-            if(!res.ok){const t=await res.text();console.warn('KP_SAVE_PAINT_SETTINGS failed:',res.status,t.slice(0,80));}
-          }catch(e){reply(false);console.warn('KP_SAVE_PAINT_SETTINGS error:',e);}
-        };
-        doSave();
-      }
-    };
-    window.addEventListener('message',handler);
-    return ()=>window.removeEventListener('message',handler);
-  },[]);
-
-  const syncToIframe = useCallback(()=>{
-    try{
-      const win = ref.current?.contentWindow;
-      if(!win) return;
-      win.postMessage({type:'KP_PAINT_SETTINGS_DATA', settings:{
-        data:{paints:ps.paints, ceilPaints:ps.ceilPaints, primers:ps.primers, colours:ps.colours, supplies:ps.supplies},
-        labour:ps.labour,
-        standards:ps.standards,
-      }},'*');
-    }catch(e){}
-  },[ps.paints,ps.ceilPaints,ps.primers,ps.colours,ps.supplies,ps.labour,ps.standards]);
-
-  const onLoad=useCallback(()=>{
-    try{
-      const win=ref.current?.contentWindow;
-      if(!win)return;
-      const injectAndLoad=()=>{
-        try{
-          if(_session?.access_token){
-            win._session={access_token:_session.access_token,user:_session.user};
-            win.postMessage({type:'KP_SESSION',session:{access_token:_session.access_token,user:_session.user}},'*');
-          }
-          const deals=api.getDeals();
-          const contacts=api.getContacts();
-          win.postMessage({type:'KP_DEALS',deals,contacts},'*');
-          if(win.loadContactsDropdown) win.loadContactsDropdown();
-          if(win.loadPaintSettings) win.loadPaintSettings(function(){
-            if(win.initPaintInputs) win.initPaintInputs();
-          });
-        }catch(e){console.warn('injectAndLoad error:',e);}
-      };
-      injectAndLoad();
-      if(!_session?.access_token) setTimeout(injectAndLoad, 800);
-    }catch(e){console.warn('MasterEstimate onLoad error:',e);}
-  },[]);
-
-  const handleSave = useCallback(async()=>{
-    const ok = await ps.save();
-    if(ok) syncToIframe();
-    return ok;
-  },[ps.save, syncToIframe]);
-
-  const tabBarStyle = {background:'var(--fg)',borderBottom:'1px solid rgba(237,233,222,0.1)',padding:'0 20px',display:'flex',gap:2,flexShrink:0};
-  const tabBtnStyle = (active)=>({background:'none',border:'none',cursor:'pointer',padding:'9px 16px',fontSize:12,fontWeight:500,letterSpacing:'0.03em',color:active?'var(--bg)':'rgba(237,233,222,0.5)',borderBottom:active?'2px solid var(--primary)':'2px solid transparent',transition:'all 0.15s'});
+  const tabBarStyle={background:'var(--fg)',borderBottom:'1px solid rgba(237,233,222,0.1)',padding:'0 20px',display:'flex',gap:2,flexShrink:0};
+  const tabBtnStyle=(active)=>({background:'none',border:'none',cursor:'pointer',padding:'9px 16px',fontSize:12,fontWeight:500,letterSpacing:'0.03em',color:active?'var(--bg)':'rgba(237,233,222,0.5)',borderBottom:active?'2px solid var(--primary)':'2px solid transparent',transition:'all 0.15s'});
+  const actionBarStyle={background:'var(--card)',borderBottom:'1px solid var(--border)',padding:'8px 20px',display:'flex',gap:8,alignItems:'center',flexShrink:0};
+  const actionBtnStyle={fontSize:11,fontWeight:600,padding:'6px 14px',borderRadius:6,cursor:'pointer',border:'1px solid var(--border)',background:'var(--card)',color:'var(--fg)'};
 
   return (
     <div style={{width:'100%',height:'100%',display:'flex',flexDirection:'column',overflow:'hidden'}}>
       <div style={tabBarStyle}>
-        {REACT_TABS.map(t=>(
+        {TABS.map(t=>(
           <button key={t.k} onClick={()=>setActiveTab(t.k)} style={tabBtnStyle(activeTab===t.k)}>{t.l}</button>
         ))}
       </div>
-      <div style={{flex:1,overflow:'hidden'}}>
-        {activeTab==='iframe'&&(
-          <iframe ref={ref} srcDoc={KP_MASTER_HTML}
-            style={{width:'100%',height:'100%',border:'none',display:'block'}}
-            title="Kingdom Painting Master Estimate"
-            sandbox="allow-scripts allow-same-origin allow-modals allow-downloads allow-forms allow-popups"
-            onLoad={onLoad}/>
+      <div style={actionBarStyle}>
+        <button onClick={loadEstimates} style={actionBtnStyle}>Load</button>
+        <button onClick={pushToProject} style={{...actionBtnStyle,background:'var(--primary)',color:'#fff',border:'none'}}>Push to Project</button>
+        <button onClick={newEstimate} style={actionBtnStyle}>New</button>
+        <div style={{flex:1}}/>
+        {saving&&<Loader2 size={14} style={{animation:'spin 1s linear infinite',color:'var(--muted-fg)'}}/>}
+        {saveMsg&&<span style={{fontSize:11,fontWeight:600,color:saveMsg==='Saved'||saveMsg==='Pushed!'?'#22c55e':'#ef4444'}}>{saveMsg}</span>}
+      </div>
+      <div style={{flex:1,overflow:'hidden',position:'relative'}}>
+        {activeTab==='cover'&&(
+          <CoverTab client={client} setClient={setClient} deals={deals} onSelectDeal={onSelectDeal}/>
+        )}
+        {activeTab==='rooms'&&(
+          <RoomsTab rooms={rooms} settings={settings}
+            onUpdate={(i,updated)=>setRooms(rooms.map((r,j)=>j===i?updated:r))}
+            onRemove={(i)=>{if(rooms.length>1)setRooms(rooms.filter((_,j)=>j!==i));}}
+            onAdd={()=>{const next=roomCounter+1;setRoomCounter(next);setRooms([...rooms,newRoom(String(next),next)]);}}
+            paints={ps.paints} ceilPaints={ps.ceilPaints} colours={ps.colours}/>
+        )}
+        {activeTab==='breakdown'&&(
+          <BreakdownTab rooms={rooms} settings={settings}
+            paints={ps.paints} ceilPaints={ps.ceilPaints} primers={ps.primers} colours={ps.colours} supplies={ps.supplies}/>
+        )}
+        {activeTab==='quote'&&(
+          <QuoteTab rooms={rooms} settings={settings} client={client} totals={totals}
+            paints={ps.paints} ceilPaints={ps.ceilPaints} primers={ps.primers} colours={ps.colours} supplies={ps.supplies}/>
+        )}
+        {activeTab==='contract'&&(
+          <ContractTab rooms={rooms} settings={settings} client={client} totals={totals}/>
+        )}
+        {activeTab==='changeorder'&&(
+          <ChangeOrderTab client={client} items={changeItems} setItems={setChangeItems}/>
         )}
         {activeTab==='labourrates'&&ps.loaded&&(
-          <LabourRatesTab labour={ps.labour} setLabour={ps.setLabour} onSave={handleSave}/>
+          <LabourRatesTab labour={ps.labour} setLabour={ps.setLabour} onSave={handlePaintSave}/>
         )}
         {activeTab==='paintinputs'&&ps.loaded&&(
           <PaintInputsTab paints={ps.paints} setPaints={ps.setPaints} ceilPaints={ps.ceilPaints} setCeilPaints={ps.setCeilPaints}
             primers={ps.primers} setPrimers={ps.setPrimers} colours={ps.colours} setColours={ps.setColours}
-            supplies={ps.supplies} setSupplies={ps.setSupplies} onSave={handleSave}/>
+            supplies={ps.supplies} setSupplies={ps.setSupplies} onSave={handlePaintSave}/>
         )}
         {activeTab==='standards'&&ps.loaded&&(
-          <StandardsTab standards={ps.standards} setStandards={ps.setStandards} onSave={handleSave}/>
+          <StandardsTab standards={ps.standards} setStandards={ps.setStandards} onSave={handlePaintSave}/>
+        )}
+        {showLoadPanel&&(
+          <div style={{position:'absolute',top:0,right:0,width:360,height:'100%',background:'var(--card)',borderLeft:'1px solid var(--border)',boxShadow:'-4px 0 20px rgba(0,0,0,0.1)',zIndex:10,display:'flex',flexDirection:'column'}}>
+            <div style={{padding:'16px 20px',borderBottom:'1px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <p style={{fontSize:14,fontWeight:700}}>Saved Estimates</p>
+              <button onClick={()=>setShowLoadPanel(false)} style={{background:'none',border:'none',cursor:'pointer',fontSize:18,color:'var(--muted-fg)'}}>&times;</button>
+            </div>
+            <div style={{flex:1,overflow:'auto',padding:12}}>
+              {savedEstimates.length===0&&<p style={{fontSize:12,color:'var(--muted-fg)',textAlign:'center',padding:20}}>No saved estimates</p>}
+              {savedEstimates.map(est=>(
+                <div key={est.id} onClick={()=>loadEstimate(est.id)}
+                  style={{padding:'12px 14px',borderRadius:8,marginBottom:6,cursor:'pointer',border:'1px solid var(--border)',background:'var(--bg)'}}>
+                  <p style={{fontSize:13,fontWeight:600}}>{est.client_name||'Untitled'}</p>
+                  <p style={{fontSize:11,color:'var(--muted-fg)'}}>{est.client_email||''}</p>
+                  {est.updated_at&&<p style={{fontSize:10,color:'var(--muted-fg)',marginTop:4}}>{new Date(est.updated_at).toLocaleDateString('en-CA')}</p>}
+                </div>
+              ))}
+            </div>
+          </div>
         )}
       </div>
     </div>
@@ -6021,6 +4081,7 @@ function KPLogo({height=32}){
 }
 // ─── LAYOUT + APP ─────────────────────────────────────────────────────────────
 // ─── Financials Page ─────────────────────────────────────────────────────────
+const LOGO_PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANcAAADXCAIAAAAGH1PiAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAABW2SURBVHhe7Z0LcJTXdcdXyLwkLTiAqCWXFHsGRIpdN7ziAo6Btq4LFJyhBhxIJsahAzN4xtjGtB0kCnjSOjgxNiTgYmPqwvCwSRAF7BCbRyDE1gtkJPQC9AIJtNLqsS+BhLZn9x59utr9nvuQ9n57fsOsz/m0rLXsf8+959xz75fg9XotREi4nfbmS+87K08PTn189MwNSdYR+APCIAPwv4RxWov2Oau+BKPdVmS/tJtdJEKAVBgiTnuNoyIbHXArT7fU5qNDGIRUGCJNOb9Aq5vmogNoEQYhFYZC683cu7Yr6HTT3lDUWHISHcIIpMJQsOe8jVZvmosOuh12dAjdkAoNYys62OluQKc3na6G1rL/Q4fQDanQGG5nU1vxPnTkaC07RuHQKKRCYzgrftvV4UJHjq4Od1PBh+gQ+iAVGsBpr2m7+r/oKOOoPNN6uxQdQgekQgO0Fu5ES4um/D1oETogFeql9WaOp+4iOlp4Goqbrv8BHUILUqFeWgt/jZY+Gikc6oZUqAt7+bGO1uvo6KPTZavL+xgdQhVSoTZuZ1PrN8YCIaO19DhVbfRAKtTGde2IenVGia4Ot/3KYXQIZUiFGriaq13XPkXHOC2lJxz2WnQIBUiFGjhK9oYWCCUaLu5Ai1CAVKhG262v3TW/QydUPA1Xm2sK0CHkIBWq4Sj5CK3wuHPxV2gRcpAKFWmuOHqvsRCd8Oh02W4X/gYdIghSoTxuZ5OzNDKBkNFUeJiqNkqQCuVxX//kvvsOOpGgq8PdXEqd2PKQCmXwOJtcNyJf57N/84mj6SY6BAepUAbHlfe84VVnlLDl7UWL4BBGhR2Vmff/OKDzwsB7RT9oV2i4jwjOhiJP7WfoRBpXbZ695hI6UcDlaL7+xa/yd/4Q/tR8dQivxjzCqHBAE3YGJDSfGHDpsXabbzt6NHAUvYtWdLDlRiscttRXXD+a1VLxR+bai08xI/YRRoUJ91vRAu63JVz9p/ay19CNHK3Vv7/XeBmd6HC3ubrhauT1AZHv+tGNHc4m9OEf6Z4HrZhHGBV6k/4KLYn69z25T7bbI3kigvNKdAMhoyH3fyJYtXE03Sr97SbbpZ6DIhhDRoxBK+YRRoVdQ59Ai8dV3FX0nKdyO7rh0fTNr+97bqMTTXxVm5LITD1t5X+6fjTTdbsMfY6BKaPQinmEUaEl8UE0Arjf5q3MdF3+YbvLhldCwuNs9FT23XS+ueRkmFUblojUfPme0sg7ZOS30Yp5xBmRrd9HSw5v0+edudM8d86ibxxn8TZvhxOd6OPbMFoYRsNYfcWN7MyWigvoyzGIYmHE8Q7+C7SU6HR0fvO8q+y/0DWCq7mqvfYEOn1F6/U/2KtDqdrUfnXoRnYWn4jIQiNy5BlsHY+WKver32m7ONtjcI+Is3AzWn2L0XDoS0SO/oft8lH0VRk5Vm4mHZOIMy+UTZPl8DpL7ubNdVXvR18LR93Fjqb+6f9z3ym5c/X36Ghhq7h4PXuDW99++4EpI9ESAaFUOEhrUJbodHSUvNGW+6JHR8rSX4GQ0XT5U7ejGR0FIBG58cWO2i/f69JdAhRoUgiIpEKLvlgocb/xi/acBa7b59GXo6V0b5enHp3+oMPVaL+qVrXxJyIbWq6pJSLBCJQgAyaNhd1422+1F/yorSTw3FWGx9noLv9vdPqP5pLPINqh05u6S8cqj23ocDairxuBUhNAKBVqpskK3Luxo+ncXHfLDfS78VS87+3su+qMEl333A05gfvnQZdl2Rvv5Oid3QYwZATFwugweNTfo2WcLkeZ+0+LHJU9XYPulsr2qlg5ibr1+vmW+nJ0/InItU/X6kxEZKEROZokDkPDON5Oh6dog/2rVTAQg+sukT8VuL9oyPGdSQchsPr8BzdPb4MAya6HRrL1W2iJgGAq1FmsUaGj4Yzj4uLWsj0dYSy0RAP3nZKbXx+o+d2b9qvh7j1NfigDLUGIOxUCkBR7SmMrEDIaC39z116DThgMtIqUmgDCjcgKPQ0Eh1gJMiBaLBz2FFqEMskPTUBLEESLhYNESv36i8TBSWgJgmAqHDxMV09DnPNg2ji0BEG0WOhLUB5Hi5BDoEZ/CfFUaBlMg7IaiYMEG44BAVUYiWKNiUlKEyw1AUQckUmFaojV08UQMBYmDkeDkEO4YiEgngoHp/4dWoQcAjX6SwgYC4HB4qWBfUPioKFoCYWgKgyx0dD0iNVWKCGkCqlkqIRYbYUSgsZCKhnKI2JqAoipQirWKEAjct/hpViowCDROgsZQqpwyDDBVuv7DOvIh9ESCjFHZGDYDDSIboRr9JcQVoW0ghKEcI3+EsKqMJmKNYEImiADoqqQSobBDBUzQQaEjYUP0IgcCI3Ifc2Q1L9Fi+hGuEZ/CWFjIUA9DRwiNvpLCK1Cql33IGKjv4TIKkx+DA1CzEZ/CYqFJkHERn8JoWMhFWt6ELdYCIiswiQakXsQtLOQkeD1etEUEM9Zq9c7wOJN6PI9DvB64e0M8PrelO+iZLPrviuWbtt3nf3pseE72W3AMxMGjfwu/NuAMXD4uISBVrDgemLSnz2Q/BBY3f9s8GQJn42X/f/pdNk6nHi8+/17rrvN1fA7+A3fwVz+/xGQAE+G/wva+Mo9LsBdYfDXfUBq8tcvfYiOgMA/evdbERBPwT94W78KR4WJ1oyEgcMeGDEZ7EGjJsEjaG5on9ymobW+HBTZ4WrscNja7dVd99zuO77DW0NQYfJDEyb8YCM6AgKfhMgqLF7pbTisU4UJicMSrN9JtE5IGPLnicMyBgxNT3rwEXyhmMHRdLPD2ei6XQKPd+017f7jDDVVOHLiM2O//yI6AgIfj8gqvLbFW/u2kgotg8ckpPwl/En81vcGWL8zNNnw/P3CRbwbT5vTVVZeyWxGXV1DXb38zVTS01LT00ej4ydj/CPDUpLBsFqTnnjcWEnFXn3ZVV8KcgRpdt/vJFCFqd997ttPLkFHQMRWYbs9v6voOUunQ1KhZfj0hOF/k5AyccCDTw5NTsXnKWNrtJeVVzGRORzwWAUXS8srnc6wjpXWJC0t9eG00VZrcsb4sdaU5AnjH0lPT310rMb6R0t9hbu+xHW7jCmSfXRDRowZO/ffxDrIOgCxVQj4hFiZaRk2I2H4jKGjZ+FVBSC23aqHGNYAaoNgVlbh01xMkTFuLMRRkObUSY+p6xIU2VbtC9UwHAstQUB4FarA4lxuQRE8QnirVxhAY5mUlCQIk1MmTwRRgjRTR43AH5gLs6kQoh0ILq+gOFKyY0Mns4MnfJrw08fwB3qIlKDIKZMfmzppopkUaQYV3qiqPX0258y5HBAfXjICizdsigYuRB141DNLC5nCK6UOh5vNDZhMwTb6nQFFzp41beH82dH7PfsM4VUIEnx+2Wv6Y8yUSROZ4FjeOnP6JPxBDCBNW/Pyi3XqEr5Cn+z/hehCFF6FH+w9svWdj9AJQppXgeYeTks1WiXpX6R5LYhSZTRftXLx2jU/RkdMhFchxI+XVmeh44dNnkB2UydPNMFoJQHjeG5+Mcw6cvOLJEXC12zPrs1ifbuCMcO88OSp8/sPHIdBNkrTdql2DUBMcjhd6OiAzTIZERz94Vc6fe5rmFBuyVpjgjTFDCoMEzbwgQFjHzyC7XC4fBXsqFUTYW4KjyzjTk8bDTl4VJOh2CfuVChlAExtoaXVUYLPnCaMHxs/ujS5CiGDLi2vKiuvFLFwzadWJisQBmBCFUK0i+x6CV+4lsqKemDhltkhVAQDgF8DtOib+5or6wJMokKIednHz+T5U0i8ZASmMzZRY70FcBHUBppjT4gg/kq1TWrSgd85hDkoqwOsXrnEHAHSJCpc8M9rdH6QbJgDhUFaAAakBWDgz/oVpk6I4r42C5hF6Hg75ijTAGZQ4Ts7Pt61+zA6QUDY8GkufTRrCIhGeIsSECxz84t9jwXFSqM5JDT7P3oLHWExgwqXvbieH4ghQkyd7BOccLJTAUZt0GJeftHpczm8IkmFsQKvwmVL573x6gpmmxUQ4tp1qDxzqFDknaBymCPyqcM2D5gJs6mQEBFSoXi0GVnIFgIzqJAfhfcdOA7TJnTMCLy7zE3b0TELZlDh8qXz0bJYnE43zNzhc5IWLUwDvKNX1r0F745vNMzQvZATy5hBhTOnT2JdKhLHTpx9fvlrefkx1KkQJvBe4B2d6R3mM8aNXb1S4G3IEiZZOwE2/+fO/QdPoNPNqpWLTfA57dx9KLgsv2zpPFrBi0VOnjoPY3FAZzwEjC0b12T4l4aFo6y8MnPTjoDVvJSUpC0bX577zFPoi4+pVAjYGu0weQruaRAxKEKmBVEw4Es1++lp5uiv5jGbChkf7D0S/PnB3BGCYoz0LqjDEpGA7xKEQPgi/fQni9A3EeZUIXCjqvaV198KHsvgg1z+Qk9OHYOwWkzwvGLb2+vN2n1tWhUyZNttIChu27o+Btf6IARCCJfNsUTf66mOyVUIFF4pVZrgz3l6GvoxgGwikpaW+mbWyzG1dT8amF+FDNk6zoJ5s954dUUsBEVIRIL39rNfz8TbTSTiRYXAhYsFGzZvD2gX7fc6DozCP//lnmMnzqLvx3y1GHXiSIWArdEu+5G/u/Vfp0zutfrSN9TVNwSnUCyXj6vtyfGlQoZscXtz1pqF82ej0yfARHDFqqyAX8P0iYgs8ahCQLaO05dCDJYgC8mmT0RkiVMVMtb9+9sBo3PfCDFYguYuB2oS112uW3/2+rKl89DxA7NGkAg60SFYgrOfnvbhrs1xK0EgrmMh49CRz7M270DHPzJ+nr0rSuUbyIhfWpXFzwQWzJsFXwZ04hXq+LcsWfQsSAEdf5/sK9073CKOL9aSBIMgFfoAKcCwiI7FkldQvO/AcXQix+lzOfw0FOaCJEEGqRDZkrUmLa3nLj07dx+C0ROdSMCq0+j4x32YC6IT95AKkdRRI97Mehkd/7jMiyZ8QNb8ss2WjS/Hw9KcTkiFPcycPolPmWH0jNTOlbr6Bn4VG0b/+Fmd0wOpsBerVy6BsRIdfwBDKzwyN/XKwd94VeD7d0YDUmEvYJTkj7mBNCX8cAivwHdNL39hfjyXBmUhFQayZNGzfJqyYXO4W9D5gAqvHIfLxJqQCmXg0xRIKcI57CEgEAq3A6tvIBXKELDNfn8YtcOAQAiBFh2Cg1QoDx+0IJiFtrgMf4sCoR5IhfJAOORnh6EtpfB/iwKhCqRCRfjQdezE2RCWUvgJJX+kExEAqVCROU9P42uHRnOU7ONn+PatPm7kFgtSoSKpo0bwW0UDzsvShH/+gnmzaL1OBVKhGrNnfQ8tv6oMDcq8CvnXIYIhFaox95mnQhuU+WfCK9CqsTqkQg34QTkv33frWj3wz5w6uecWyYQspEINpnAayg06kE6JMv8NlxkB58wSwZAKNZjK7Zavr7fpnBryxWr+FQhZSIUaPDp2DF++5oOcEgELLSa4W2K0IRVqI90cGSjVsZRXSsOxQUiF2vBH2Dh03PGmrr4BLYtJ7gQRbUiF2li5+87paXqtq+tRYTzcly98SIXasFvH66eO2+Uk6L0F+hhSoTGM9jSY7/6d0YBUaIyAY76IiEAq1CY+T3PrS0iF2tyoqkWLiA6kQm3q6nqyDb6CTUQKUqEx+Aq2Hsx3R+1oQCrU5hZXhdZDeq8Vv+ieyWkOSIXaGF0LSU/viZd8BZtQglSoDb9eoudmjnylWk/3A0Eq1MZom9YELl6WVVTZGu3oEAqQCjU4eeo8Wv7efT0rchAv+VRaf29s3EIq1CC03v2pXEOX/n0CcQupUAN+Usiffa0Ov09ATxtOnEMqVONGVS2/cKy/d59/JrwCrb6oQypUI5cLYzDV05MgMwKnhhQOVSEVqtFrUmiwd5+mhvohFarBp7f8VE8P/HkMlCarQypUxNZo5+8NYXRDJx8L4XVoaqgCqVARPoAZmhQyrNbkjHE95WuaGqpAKlSEb0QwOilk8IvO1NagAqlQEb7OF9omJqoa6oRUqAi/Ad7oNjxGwIIyWkQQpEJ5IJngT2LlN8brJyCCFl4pRYvoDalQHr7Ln08yjMKfEMKfHELwkArlyS3oqTPzXatG4RMUvluW4CEVysP3SIdz1gxf36EERQlSoTyROuWDT2uM7l+JH0iF8vAJcjinfPBxlF+JIXhIhfKEnyAzAs7sonU8WUiFMkS2pMKnyXzqTUiQCmVwOLhAGNLanRI0NZSFVBh1qFijCalQBr5YGP5hrHScqyakQg3CKRYGQ0c1yEIqjDp84ZovQxISpEIZQrgVsgpGj/mKQ0iFMtDhMn0MqVCDqZOMbXoiQoBUSPQ/pEKi/yEVEv0PqZDof0iFGvDrKESUIBXKEE4rVzB0zL8mpMKow++HpzVlWUiFGkR2HSWyq9KmgVQoA7/yG/46SmR1bEpIhTJEduWX17HRI5fiBFKhDFZrElqWXreZCA0+FlJngyykQhmeeHwCWn7CHFL5E2rS0+lmjjKQCuXhT6WWnRrW1Tdkbto+Y86Pnpi2CB7Blu3mDzgw7tGxY9AiOEiF8vBDJ783mQHaen7Za8dOnGUbRuER7H9cuDr7+Bn2BIlbXFtrZDdSmQlSoTx84TognsEAvWJVFr9hWeLnv9wTEBH5v8vfK5TgIRXKw58KEnA2OgQ8WQkCcH3fgePo+An/KM54gFQoT8DZ6HyEO3MuBy05AiaRRu/kGJ+QCuVJHTUi/LPR+UCYkpIUkHoTEqRCRfipIR//9K8Fnz73NVq+QEg7BxQhFSrCn43Oq1D9nowL5s9Gy6fCnr9FCbIKpEJF5j7zFAyj6PiTEmYsnD9bSVIwiMNPmQ3ZMX9U3JxZeu8nGoeQCtWYw4U9Phxu27o+WIhw5cNdm9GxWPhkGdRJ9WoVErxeL5pEECdPnV+77i10LJbPsncGnBAsdWJnjH+El6zD4Xp24SqpoLNu7Ys//ckiZhPBkAo1mDxjsSSmVSsXr165hNnqwPCdtXkHOhbLhS8/hqQbHSIIGpE1WP7CfLT8g6zOzoaduw+hBfnKvFkkQXVIhRpI2QbgWxo52GtpRBYIhHxewuuYkIVUqAFkFRDM0NEXDvlACCkLFas1IRVqs/pfeuaCmuEQJMgHQp3zyDiHVKhNQDjctftwQJeNRF19A1+ggUA4c/okdAhlSIW6gHDIV7AzN/XkvzxwXUqogS0b16BFqEIq1AWEQz7JKKuo4id/DIiCfAfNsqXzqFKtE1KhXtau+THfZQPjMr9MDGP01nc+Qse/YYBmhPohFRoARtje4/J2trgMjytWZbGLjHe3rqcaoX5o7cQYh458zi+KyLJq5WIInOgQOqBYaIwli57l8+VgZj89jSRoFFKhYbb+7HUlIcLEcUsW5cWGoRE5RD7Ye2TfweNSgRrmi5BEUxQMBYvl/wEV2/F+BAZN5gAAAABJRU5ErkJggg==";
 function generateInvoicePDF(deal, contactName, contactAddr){
   const revenue     = parseFloat(deal.value)||0;
   const paid        = parseFloat(deal.invoicePaid)||0;

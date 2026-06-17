@@ -3850,15 +3850,24 @@ function MasterEstimate(){
   },[]);
 
   const saveTimerRef=useRef(null);
-  const doSave=useCallback(async(rid,rms,cli,ci,cc,rc)=>{
+  const buildTitle=useCallback(()=>{
+    const deal=deals.find(d=>d.id===selectedDealId);
+    const project=deal?.dealName||'';
+    const name=client.name||'';
+    if(project&&name) return `${project} - ${name}`;
+    return project||name||'Untitled Estimate';
+  },[deals,selectedDealId,client.name]);
+
+  const doSave=useCallback(async(rid,rms,cli,ci,cc,rc,sdid)=>{
     if(!_session?.user?.id)return;
     setSaving(true);setSaveMsg('');
     try{
       const payload={
         user_id:_session.user.id,
+        title:buildTitle(),
         client_name:cli.name,client_email:cli.email,client_phone:cli.phone,
         addr1:cli.addr1,addr2:cli.addr2,
-        state:JSON.stringify({rooms:rms,roomCounter:rc,changeItems:ci,changeCounter:cc,client:cli})
+        state:JSON.stringify({rooms:rms,roomCounter:rc,changeItems:ci,changeCounter:cc,client:cli,selectedDealId:sdid})
       };
       if(rid){
         await supaFetch(`/rest/v1/estimates?id=eq.${rid}`,{method:'PATCH',body:JSON.stringify(payload)});
@@ -3870,20 +3879,25 @@ function MasterEstimate(){
     }catch(e){setSaveMsg('Error');console.warn('Save error:',e);}
     finally{setSaving(false);}
     setTimeout(()=>setSaveMsg(''),3000);
-  },[]);
+  },[buildTitle]);
+
+  const handleSave=()=>{
+    if(saveTimerRef.current)clearTimeout(saveTimerRef.current);
+    doSave(currentEstimateId,rooms,client,changeItems,changeCounter,roomCounter,selectedDealId);
+  };
 
   useEffect(()=>{
     if(saveTimerRef.current)clearTimeout(saveTimerRef.current);
     saveTimerRef.current=setTimeout(()=>{
-      doSave(currentEstimateId,rooms,client,changeItems,changeCounter,roomCounter);
+      doSave(currentEstimateId,rooms,client,changeItems,changeCounter,roomCounter,selectedDealId);
     },1500);
     return ()=>{if(saveTimerRef.current)clearTimeout(saveTimerRef.current);};
-  },[rooms,client,changeItems,roomCounter,changeCounter,currentEstimateId,doSave]);
+  },[rooms,client,changeItems,roomCounter,changeCounter,currentEstimateId,selectedDealId,doSave]);
 
   const loadEstimates=async()=>{
     if(!_session?.user?.id)return;
     try{
-      const rows=await supaFetch(`/rest/v1/estimates?user_id=eq.${_session.user.id}&select=id,client_name,client_email,updated_at&order=updated_at.desc&limit=50`);
+      const rows=await supaFetch(`/rest/v1/estimates?user_id=eq.${_session.user.id}&select=id,title,client_name,client_email,updated_at&order=updated_at.desc&limit=50`);
       setSavedEstimates(rows||[]);
     }catch(e){console.warn('Load estimates error:',e);}
     setShowLoadPanel(true);
@@ -3900,6 +3914,7 @@ function MasterEstimate(){
         if(st.client)setClient(st.client);
         if(st.changeItems)setChangeItems(st.changeItems);
         if(st.changeCounter!=null)setChangeCounter(st.changeCounter);
+        if(st.selectedDealId)setSelectedDealId(st.selectedDealId);
         setCurrentEstimateId(eid);
       }
     }catch(e){console.warn('Load estimate error:',e);}
@@ -3971,8 +3986,9 @@ function MasterEstimate(){
         </div>
       </div>
       <div style={actionBarStyle}>
+        <button onClick={handleSave} disabled={saving} style={{...actionBtnStyle,background:'var(--primary)',color:'#fff',border:'none'}}>Save</button>
         <button onClick={loadEstimates} style={actionBtnStyle}>Load</button>
-        <button onClick={pushToProject} style={{...actionBtnStyle,background:'var(--primary)',color:'#fff',border:'none'}}>Push to Project</button>
+        <button onClick={pushToProject} style={actionBtnStyle}>Push to Project</button>
         <button onClick={newEstimate} style={actionBtnStyle}>New</button>
         <div style={{flex:1}}/>
         {saving&&<Loader2 size={14} style={{animation:'spin 1s linear infinite',color:'var(--muted-fg)'}}/>}
@@ -4025,8 +4041,8 @@ function MasterEstimate(){
               {savedEstimates.map(est=>(
                 <div key={est.id} onClick={()=>loadEstimate(est.id)}
                   style={{padding:'12px 14px',borderRadius:8,marginBottom:6,cursor:'pointer',border:'1px solid var(--border)',background:'var(--bg)'}}>
-                  <p style={{fontSize:13,fontWeight:600}}>{est.client_name||'Untitled'}</p>
-                  <p style={{fontSize:11,color:'var(--muted-fg)'}}>{est.client_email||''}</p>
+                  <p style={{fontSize:13,fontWeight:600}}>{est.title||est.client_name||'Untitled'}</p>
+                  <p style={{fontSize:11,color:'var(--muted-fg)'}}>{est.client_name&&est.title?est.client_name:est.client_email||''}</p>
                   {est.updated_at&&<p style={{fontSize:10,color:'var(--muted-fg)',marginTop:4}}>{new Date(est.updated_at).toLocaleDateString('en-CA')}</p>}
                 </div>
               ))}

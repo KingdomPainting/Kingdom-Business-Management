@@ -3043,16 +3043,12 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
   return (
     <div style={{padding:24,overflow:'auto',maxHeight:'100%',background:'#f5f5f0'}}>
       <div style={docStyle}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:24,paddingBottom:16,borderBottom:`2px solid ${gold}`}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:24,paddingBottom:16,borderBottom:`2px solid ${gold}`}}>
           <div style={{display:'flex',gap:12,alignItems:'center'}}>
-            <KPLogo height={40}/>
-            <div>
-              <p style={{fontSize:14,fontWeight:700,color:gold}}>KINGDOM PAINTING INC.</p>
-              <p style={{fontSize:10,color:'#999'}}>Professional Painting Services</p>
-            </div>
+            <img src="/kingdom-logo-dark.svg" alt="Kingdom Painting" style={{height:48}}/>
+            <p style={{fontSize:20,fontWeight:700,color:gold,letterSpacing:2}}>QUOTE</p>
           </div>
           <div style={{textAlign:'right'}}>
-            <p style={{fontSize:16,fontWeight:700,color:gold}}>Quote</p>
             <p style={{fontSize:11,color:'#666'}}>{todayStr}</p>
             <p style={{fontSize:10,color:'#999',marginTop:4}}>HST# 742813191RT0001</p>
           </div>
@@ -3205,10 +3201,14 @@ function ContractTab({rooms,settings,client,totals}){
   return (
     <div style={{padding:24,overflow:'auto',maxHeight:'100%',background:'#f5f5f0'}}>
       <div style={docStyle}>
-        <div style={{textAlign:'center',marginBottom:24,paddingBottom:16,borderBottom:`2px solid ${gold}`}}>
-          <KPLogo height={48}/>
-          <h2 style={{fontSize:18,fontWeight:700,color:gold,marginTop:8}}>Painting Service Agreement</h2>
-          <p style={{fontSize:11,color:'#999'}}>{todayStr}</p>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:24,paddingBottom:16,borderBottom:`2px solid ${gold}`}}>
+          <div style={{display:'flex',gap:12,alignItems:'center'}}>
+            <img src="/kingdom-logo-dark.svg" alt="Kingdom Painting" style={{height:48}}/>
+            <p style={{fontSize:20,fontWeight:700,color:gold,letterSpacing:2}}>CONTRACT</p>
+          </div>
+          <div style={{textAlign:'right'}}>
+            <p style={{fontSize:11,color:'#666'}}>{todayStr}</p>
+          </div>
         </div>
 
         <p style={sectionTitle}>1. Parties</p>
@@ -3354,16 +3354,12 @@ function ChangeOrderTab({client,items,setItems}){
   return (
     <div style={{padding:24,overflow:'auto',maxHeight:'100%',background:'#f5f5f0'}}>
       <div style={docStyle}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:24,paddingBottom:16,borderBottom:`2px solid ${gold}`}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:24,paddingBottom:16,borderBottom:`2px solid ${gold}`}}>
           <div style={{display:'flex',gap:12,alignItems:'center'}}>
-            <KPLogo height={40}/>
-            <div>
-              <p style={{fontSize:14,fontWeight:700,color:gold}}>KINGDOM PAINTING INC.</p>
-              <p style={{fontSize:10,color:'#999'}}>Professional Painting Services</p>
-            </div>
+            <img src="/kingdom-logo-dark.svg" alt="Kingdom Painting" style={{height:48}}/>
+            <p style={{fontSize:20,fontWeight:700,color:gold,letterSpacing:2}}>CHANGE ORDER</p>
           </div>
           <div style={{textAlign:'right'}}>
-            <p style={{fontSize:16,fontWeight:700,color:gold}}>Change Order</p>
             <p style={{fontSize:11,color:'#666'}}>{todayStr}</p>
             <p style={{fontSize:10,color:'#999',marginTop:4}}>HST# 742813191RT0001</p>
           </div>

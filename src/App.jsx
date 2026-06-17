@@ -3870,9 +3870,9 @@ function MasterEstimate(){
         state:JSON.stringify({rooms:rms,roomCounter:rc,changeItems:ci,changeCounter:cc,client:cli,selectedDealId:sdid})
       };
       if(rid){
-        await supaFetch(`/rest/v1/estimates?id=eq.${rid}`,{method:'PATCH',body:JSON.stringify(payload)});
+        await supaFetch(`/rest/v1/estimates?id=eq.${rid}`,'PATCH',payload);
       }else{
-        const rows=await supaFetch('/rest/v1/estimates',{method:'POST',body:JSON.stringify(payload),headers:{'Prefer':'return=representation'}});
+        const rows=await supaFetch('/rest/v1/estimates','POST',payload);
         if(rows&&rows[0])setCurrentEstimateId(rows[0].id);
       }
       setSaveMsg('Saved');

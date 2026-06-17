@@ -3955,17 +3955,20 @@ function MasterEstimate(){
     {k:'standards',l:'Standards'},
   ];
 
-  const tabBarStyle={background:'var(--fg)',borderBottom:'1px solid rgba(237,233,222,0.1)',padding:'0 20px',display:'flex',gap:2,flexShrink:0,overflowX:'auto'};
-  const tabBtnStyle=(active)=>({background:'none',border:'none',cursor:'pointer',padding:'9px 16px',fontSize:12,fontWeight:500,letterSpacing:'0.03em',color:active?'var(--bg)':'rgba(237,233,222,0.5)',borderBottom:active?'2px solid var(--primary)':'2px solid transparent',transition:'all 0.15s',whiteSpace:'nowrap',flexShrink:0});
+  const tabBarWrapStyle={background:'var(--fg)',borderBottom:'1px solid rgba(237,233,222,0.1)',flexShrink:0,overflowX:'auto',scrollbarWidth:'none'};
+  const tabBarInnerStyle={display:'flex',padding:'0 20px',minWidth:'max-content',gap:2};
+  const tabBtnStyle=(active)=>({background:'none',border:'none',cursor:'pointer',padding:'9px 16px',fontSize:12,fontWeight:500,letterSpacing:'0.03em',color:active?'var(--bg)':'rgba(237,233,222,0.5)',borderBottom:active?'2px solid var(--primary)':'2px solid transparent',transition:'all 0.15s',whiteSpace:'nowrap'});
   const actionBarStyle={background:'var(--card)',borderBottom:'1px solid var(--border)',padding:'8px 20px',display:'flex',gap:8,alignItems:'center',flexShrink:0};
   const actionBtnStyle={fontSize:11,fontWeight:600,padding:'6px 14px',borderRadius:6,cursor:'pointer',border:'1px solid var(--border)',background:'var(--card)',color:'var(--fg)'};
 
   return (
     <div style={{width:'100%',height:'100%',display:'flex',flexDirection:'column',overflow:'hidden'}}>
-      <div style={tabBarStyle}>
-        {TABS.map(t=>(
-          <button key={t.k} onClick={()=>setActiveTab(t.k)} style={tabBtnStyle(activeTab===t.k)}>{t.l}</button>
-        ))}
+      <div style={tabBarWrapStyle}>
+        <div style={tabBarInnerStyle}>
+          {TABS.map(t=>(
+            <button key={t.k} onClick={()=>setActiveTab(t.k)} style={tabBtnStyle(activeTab===t.k)}>{t.l}</button>
+          ))}
+        </div>
       </div>
       <div style={actionBarStyle}>
         <button onClick={loadEstimates} style={actionBtnStyle}>Load</button>
@@ -4000,15 +4003,15 @@ function MasterEstimate(){
         {activeTab==='changeorder'&&(
           <ChangeOrderTab client={client} items={changeItems} setItems={setChangeItems}/>
         )}
-        {activeTab==='labourrates'&&ps.loaded&&(
+        {activeTab==='labourrates'&&(
           <LabourRatesTab labour={ps.labour} setLabour={ps.setLabour} onSave={handlePaintSave}/>
         )}
-        {activeTab==='paintinputs'&&ps.loaded&&(
+        {activeTab==='paintinputs'&&(
           <PaintInputsTab paints={ps.paints} setPaints={ps.setPaints} ceilPaints={ps.ceilPaints} setCeilPaints={ps.setCeilPaints}
             primers={ps.primers} setPrimers={ps.setPrimers} colours={ps.colours} setColours={ps.setColours}
             supplies={ps.supplies} setSupplies={ps.setSupplies} onSave={handlePaintSave}/>
         )}
-        {activeTab==='standards'&&ps.loaded&&(
+        {activeTab==='standards'&&(
           <StandardsTab standards={ps.standards} setStandards={ps.setStandards} onSave={handlePaintSave}/>
         )}
         {showLoadPanel&&(

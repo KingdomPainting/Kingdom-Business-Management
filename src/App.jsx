@@ -3023,7 +3023,7 @@ function CoverTab({client,setClient,deals,contacts,onSelectDeal,selectedDealId})
           <p style={{fontSize:12,color:'#999',marginTop:32}}>{todayStr}</p>
         </div>
       </div>
-      <div style={{display:'flex',flexDirection:'column',gap:12}}>
+      <div style={{background:'var(--card)',border:'1px solid var(--border)',borderRadius:12,padding:20,boxShadow:'var(--shadow)',display:'flex',flexDirection:'column',gap:16}}>
         <div>
           <Label>Project</Label>
           <Select value={selectedDealId||''} onChange={e=>{if(e.target.value)onSelectDeal(e.target.value);}}>
@@ -3033,19 +3033,19 @@ function CoverTab({client,setClient,deals,contacts,onSelectDeal,selectedDealId})
         </div>
         <div>
           <Label>Client Name</Label>
-          <Input value={client.name} onChange={e=>setClient({...client,name:e.target.value})}/>
+          <Input value={client.name} onChange={e=>setClient({...client,name:e.target.value})} style={{padding:'10px 12px',fontSize:14}}/>
         </div>
         <div>
           <Label>Address</Label>
-          <Input value={client.address||''} onChange={e=>setClient({...client,address:e.target.value})} placeholder='Full address'/>
+          <Input value={client.address||''} onChange={e=>setClient({...client,address:e.target.value})} placeholder='Full address' style={{padding:'10px 12px',fontSize:14}}/>
         </div>
         <div>
           <Label>Phone</Label>
-          <Input value={client.phone} onChange={e=>setClient({...client,phone:e.target.value})}/>
+          <Input value={client.phone} onChange={e=>setClient({...client,phone:e.target.value})} style={{padding:'10px 12px',fontSize:14}}/>
         </div>
         <div>
           <Label>Email</Label>
-          <Input value={client.email} onChange={e=>setClient({...client,email:e.target.value})}/>
+          <Input value={client.email} onChange={e=>setClient({...client,email:e.target.value})} style={{padding:'10px 12px',fontSize:14}}/>
         </div>
       </div>
     </div>

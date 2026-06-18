@@ -2488,7 +2488,7 @@ const DEFAULT_SETTINGS = { hourlyRate:65, labourBuffer:1.25, taxRate:13, discoun
 // ─── ESTIMATE HELPER FUNCTIONS ───────────────────────────────────────────────
 function newRoom(id, number){
   return {
-    id, name:`Room ${number}`, length:0, width:0, height:9, irregular:false, irregularSqft:0, prepHrs:0,
+    id, name:`Room ${number}`, length:0, width:0, height:'', irregular:false, irregularSqft:0, prepHrs:0,
     wallSegs:[{l:0},{l:0},{l:0},{l:0},{l:0},{l:0}],
     ceilSegs:[{l:0,w:0},{l:0,w:0}],
     walls:{enabled:true,coats:2}, ceiling:{enabled:false,coats:2,type:'flat',removeStucco:false},
@@ -2503,10 +2503,10 @@ function newRoom(id, number){
 
 function roomWallSqft(room){
   if(room.irregular){
-    const h = room.height||9;
+    const h = room.height||0;
     return Math.max(0,(room.wallSegs||[]).reduce((s,seg)=>s+((+seg.l)||0)*h,0)) || (room.irregularSqft||0);
   }
-  return Math.max(0, 2*(room.length+room.width)*(room.height||9));
+  return Math.max(0, 2*(room.length+room.width)*(room.height||0));
 }
 function roomCeilSqft(room){
   if(room.irregular && room.ceilSegs?.length){
@@ -2764,7 +2764,7 @@ function RoomCard({room,settings,onChange,onRemove}){
         {label}
       </label>
       {room[field].enabled&&<select value={room[field].coats} onChange={e=>u({[field]:{...room[field],coats:+e.target.value}})} style={{fontSize:11,padding:'2px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}>
-        <option value={1}>1 coat</option><option value={2}>2 coats</option><option value={3}>3 coats</option>
+        <option value={1}>1 coat</option><option value={2}>2 coats</option><option value={3}>Primer & 2 coats</option>
       </select>}
     </div>
   );
@@ -2816,14 +2816,14 @@ function RoomCard({room,settings,onChange,onRemove}){
                 <label style={{fontSize:12}}>Doors</label>
                 <div style={{display:'flex',gap:6,marginTop:4,alignItems:'center'}}>
                   <Input type='number' value={room.doors.count||''} onChange={e=>u({doors:{...room.doors,count:+e.target.value}})} style={{width:50,padding:'4px 8px',fontSize:11}}/>
-                  <select value={room.doors.coats} onChange={e=>u({doors:{...room.doors,coats:+e.target.value}})} style={{fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value={1}>1 coat</option><option value={2}>2 coats</option><option value={3}>3 coats</option></select>
+                  <select value={room.doors.coats} onChange={e=>u({doors:{...room.doors,coats:+e.target.value}})} style={{fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value={1}>1 coat</option><option value={2}>2 coats</option><option value={3}>Primer & 2 coats</option></select>
                 </div>
               </div>
               <div>
                 <label style={{fontSize:12}}>Windows</label>
                 <div style={{display:'flex',gap:6,marginTop:4,alignItems:'center'}}>
                   <Input type='number' value={room.windows.count||''} onChange={e=>u({windows:{...room.windows,count:+e.target.value}})} style={{width:50,padding:'4px 8px',fontSize:11}}/>
-                  <select value={room.windows.coats} onChange={e=>u({windows:{...room.windows,coats:+e.target.value}})} style={{fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value={1}>1 coat</option><option value={2}>2 coats</option><option value={3}>3 coats</option></select>
+                  <select value={room.windows.coats} onChange={e=>u({windows:{...room.windows,coats:+e.target.value}})} style={{fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value={1}>1 coat</option><option value={2}>2 coats</option><option value={3}>Primer & 2 coats</option></select>
                 </div>
               </div>
             </div>

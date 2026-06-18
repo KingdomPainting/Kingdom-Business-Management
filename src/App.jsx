@@ -2482,6 +2482,9 @@ const DEFAULT_STANDARDS = {
   doorFrames:{1:170,2:102,3:65},
   windows:{1:100,2:60,3:40},
   doors:{1:84,2:42,3:21},
+  doorsFlat:{1:84,2:42,3:21},
+  doors6Panel:{1:70,2:35,3:18},
+  doorsCustom:{1:60,2:30,3:15},
 };
 const DEFAULT_SETTINGS = { hourlyRate:65, labourBuffer:1.25, taxRate:13, discount:0 };
 
@@ -2494,7 +2497,8 @@ function newRoom(id, number){
     walls:{enabled:true,coats:2}, ceiling:{enabled:false,coats:2,type:'flat',removeStucco:false},
     baseboards:{enabled:false,coats:2}, crown:{enabled:false,coats:2},
     doorFrames:{enabled:false,coats:2},
-    doors:{count:0,coats:2}, windows:{count:0,coats:2,dims:[{l:0,w:0}]},
+    doors:{enabled:false,flat:{count:0,coats:2},sixPanel:{count:0,coats:2},custom:{count:0,coats:2}},
+    windows:{enabled:false,coats:2,dims:[{l:0,w:0}]},
     prep:{furniture:false,plastic:false,outlets:false,drywall:false,caulking:false,cleanup:false,custom:''},
     paint:{wallProduct:'',wallColour:'',wallSheen:'',ceilProduct:'',ceilColour:'',ceilSheen:'',trimProduct:'',trimColour:'',trimSheen:'',wallsPrimer:'',ceilingPrimer:'',trimPrimer:''},
     notes:'', supplies:[],
@@ -2517,8 +2521,14 @@ function roomCeilSqft(room){
 }
 function roomPerimLF(room){ return 2*((room.length||0)+(room.width||0)); }
 function roomWindowLF(room){
+  if(!room.windows?.enabled) return 0;
   const dims = room.windows?.dims || [{l:0,w:0}];
   return dims.reduce((t,d)=>t+2*(((+d.l)||0)+((+d.w)||0)),0);
+}
+function roomDoorCount(room){
+  if(!room.doors?.enabled) return 0;
+  if(typeof room.doors.count==='number') return room.doors.count;
+  return (room.doors.flat?.count||0)+(room.doors.sixPanel?.count||0)+(room.doors.custom?.count||0);
 }
 function roomTrimLF(room){
   const p = roomPerimLF(room);
@@ -2526,7 +2536,7 @@ function roomTrimLF(room){
   if(room.baseboards?.enabled) lf += p;
   if(room.crown?.enabled) lf += p;
   if(room.doorFrames?.enabled) lf += p;
-  if(room.windows?.count>0) lf += roomWindowLF(room);
+  if(room.windows?.enabled) lf += roomWindowLF(room);
   return lf;
 }
 
@@ -2546,8 +2556,13 @@ function calcRoom(room, settings){
   if(room.baseboards?.enabled && perimLF) hrs += perimLF / (std.baseboards?.[room.baseboards.coats] || 60);
   if(room.crown?.enabled && perimLF) hrs += perimLF / (std.crown?.[room.crown.coats] || 55);
   if(room.doorFrames?.enabled && perimLF) hrs += perimLF / (std.doorFrames?.[room.doorFrames.coats] || 102);
-  if(room.doors?.count > 0) hrs += (room.doors.count * 21) / (std.doors?.[room.doors.coats] || 42);
-  if(room.windows?.count > 0 && winLF) hrs += winLF / (std.windows?.[room.windows.coats] || 60);
+  if(room.doors?.enabled){
+    const fl=room.doors.flat||{};const sp=room.doors.sixPanel||{};const cu=room.doors.custom||{};
+    if(fl.count>0) hrs+=(fl.count*21)/(std.doorsFlat?.[fl.coats]||std.doors?.[fl.coats]||42);
+    if(sp.count>0) hrs+=(sp.count*21)/(std.doors6Panel?.[sp.coats]||std.doors?.[sp.coats]||42);
+    if(cu.count>0) hrs+=(cu.count*21)/(std.doorsCustom?.[cu.coats]||std.doors?.[cu.coats]||42);
+  } else if(room.doors?.count > 0) hrs += (room.doors.count * 21) / (std.doors?.[room.doors.coats] || 42);
+  if(room.windows?.enabled && winLF) hrs += winLF / (std.windows?.[room.windows.coats] || 60);
   hrs += (room.prepHrs || 0);
   const cost = hrs * (settings.hourlyRate || 65) * (settings.labourBuffer || 1.25);
   return { wallSqft, ceilSqft, perimLF, winLF, totalHrs:hrs, cost };
@@ -2598,16 +2613,24 @@ function calcRoomLines(room, settings){
     const h = perimLF/r;
     lines.push({surface:'Door Frames',area:Math.round(perimLF),areaUnit:'lf',coats:room.doorFrames.coats,rate:r,rateLabel:'lf/hr',hours:h,cost:h*rate});
   }
-  if(room.doors?.count > 0){
+  if(room.doors?.enabled){
+    const types=[['Flat',room.doors.flat,'doorsFlat'],['6 Panel',room.doors.sixPanel,'doors6Panel'],['Custom',room.doors.custom,'doorsCustom']];
+    types.forEach(([label,dt,stdKey])=>{
+      if(dt?.count>0){
+        const r=std[stdKey]?.[dt.coats]||std.doors?.[dt.coats]||42;
+        const sqft=dt.count*21;const h=sqft/r;
+        lines.push({surface:`Doors - ${label} (${dt.count})`,area:sqft,areaUnit:'sqft',coats:dt.coats,rate:r,rateLabel:'sqft/hr',hours:h,cost:h*rate});
+      }
+    });
+  } else if(room.doors?.count > 0){
     const r = std.doors?.[room.doors.coats]||42;
-    const sqft = room.doors.count*21;
-    const h = sqft/r;
+    const sqft = room.doors.count*21;const h = sqft/r;
     lines.push({surface:`Doors (${room.doors.count})`,area:sqft,areaUnit:'sqft',coats:room.doors.coats,rate:r,rateLabel:'sqft/hr',hours:h,cost:h*rate});
   }
-  if(room.windows?.count > 0 && winLF){
+  if(room.windows?.enabled && winLF){
     const r = std.windows?.[room.windows.coats]||60;
     const h = winLF/r;
-    lines.push({surface:`Windows (${room.windows.count})`,area:Math.round(winLF),areaUnit:'lf',coats:room.windows.coats,rate:r,rateLabel:'lf/hr',hours:h,cost:h*rate});
+    lines.push({surface:`Windows (${room.windows.dims?.length||0})`,area:Math.round(winLF),areaUnit:'lf',coats:room.windows.coats,rate:r,rateLabel:'lf/hr',hours:h,cost:h*rate});
   }
   if(room.prepHrs > 0){
     const h = room.prepHrs;
@@ -2635,9 +2658,9 @@ function calcPaintCosts(rooms, allPaints, allCeilPaints, allPrimers, allColours,
       if(r.ceiling.coats===3 && r.paint?.ceilingPrimer){ addCol(r.paint.ceilingPrimer,'','','Ceiling (Primer)',cs); addCol(r.paint.ceilProduct,r.paint.ceilColour,r.paint.ceilSheen,'Ceiling (2 Coats)',cs*2); }
       else addCol(r.paint?.ceilProduct,r.paint?.ceilColour,r.paint?.ceilSheen,'Ceiling',cs);
     }
-    const hasTrim = r.baseboards?.enabled || r.crown?.enabled || r.doorFrames?.enabled || (r.windows?.count>0) || (r.doors?.count>0);
+    const hasTrim = r.baseboards?.enabled || r.crown?.enabled || r.doorFrames?.enabled || r.windows?.enabled || r.doors?.enabled || (r.windows?.count>0) || (r.doors?.count>0);
     if(hasTrim && trimLF){
-      const needsPrimer = (r.baseboards?.coats===3||r.crown?.coats===3||r.doorFrames?.coats===3||r.doors?.coats===3||r.windows?.coats===3) && r.paint?.trimPrimer;
+      const needsPrimer = (r.baseboards?.coats===3||r.crown?.coats===3||r.doorFrames?.coats===3||r.doors?.coats===3||r.windows?.coats===3||r.doors?.flat?.coats===3||r.doors?.sixPanel?.coats===3||r.doors?.custom?.coats===3) && r.paint?.trimPrimer;
       if(needsPrimer){ addCol(r.paint.trimPrimer,'','','Trim (Primer)',trimLF); addCol(r.paint.trimProduct,r.paint.trimColour,r.paint.trimSheen,'Trim (2 Coats)',trimLF*2); }
       else addCol(r.paint?.trimProduct,r.paint?.trimColour,r.paint?.trimSheen,'Trim',trimLF);
     }
@@ -2795,37 +2818,122 @@ function RoomCard({room,settings,onChange,onRemove}){
         <div style={{borderTop:'1px solid var(--border)'}}>
           <div style={{padding:'14px 16px',borderBottom:'1px solid rgba(0,0,0,0.05)'}}>
             <p style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--muted-fg)',marginBottom:10}}>Dimensions</p>
-            <div style={{display:'grid',gridTemplateColumns:'repeat(3,minmax(0,1fr))',gap:8}}>
-              {[['L (ft)','length'],['W (ft)','width'],['H (ft)','height']].map(([l,k])=>(
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(100px,1fr))',gap:8}}>
+              {[['Length (ft)','length'],['Width (ft)','width'],['Height (ft)','height']].map(([l,k])=>(
                 <div key={k}><Label>{l}</Label><Input type='number' value={room[k]||''} onChange={e=>u({[k]:+e.target.value})} style={{padding:'6px 8px',minWidth:0}}/></div>
               ))}
             </div>
             <div style={{marginTop:8,display:'flex',gap:8,alignItems:'center'}}>
               <input type='checkbox' id={`irr-${room.id}`} checked={room.irregular} onChange={e=>u({irregular:e.target.checked})}/>
               <label htmlFor={`irr-${room.id}`} style={{fontSize:12,cursor:'pointer'}}>Irregular shape</label>
-              {room.irregular&&<Input type='number' value={room.irregularSqft||''} onChange={e=>u({irregularSqft:+e.target.value})} placeholder='Wall sqft' style={{width:100,padding:'4px 8px',fontSize:11}}/>}
             </div>
+            {room.irregular&&(
+              <div style={{marginTop:8,padding:12,background:'rgba(0,0,0,0.02)',borderRadius:8,border:'1px solid var(--border)'}}>
+                <p style={{fontSize:11,fontWeight:600,color:'var(--muted-fg)',marginBottom:8}}>Wall Segments (length × height)</p>
+                <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(90px,1fr))',gap:6}}>
+                  {(room.wallSegs||[]).map((seg,i)=>(
+                    <div key={i}>
+                      <Label>Seg {i+1}</Label>
+                      <Input type='number' value={seg.l||''} onChange={e=>{const segs=[...(room.wallSegs||[])];segs[i]={...segs[i],l:+e.target.value};u({wallSegs:segs});}} placeholder='L' style={{padding:'4px 8px',fontSize:11,minWidth:0}}/>
+                      {seg.l>0&&room.height>0&&<p style={{fontSize:10,color:'var(--muted-fg)',marginTop:2}}>{Math.round(seg.l*(room.height||0))} sqft</p>}
+                    </div>
+                  ))}
+                </div>
+                {calc.wallSqft>0&&<p style={{fontSize:11,fontWeight:600,color:'var(--primary)',marginTop:6}}>Total: ~{Math.round(calc.wallSqft)} sqft</p>}
+              </div>
+            )}
+            {room.irregular&&room.ceiling?.enabled&&(
+              <div style={{marginTop:8,padding:12,background:'rgba(0,0,0,0.02)',borderRadius:8,border:'1px solid var(--border)'}}>
+                <p style={{fontSize:11,fontWeight:600,color:'var(--muted-fg)',marginBottom:8}}>Ceiling Segments (L × W)</p>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+                  {(room.ceilSegs||[]).map((seg,i)=>(
+                    <div key={i} style={{display:'flex',gap:6,alignItems:'flex-end'}}>
+                      <div style={{flex:1}}><Label>L</Label><Input type='number' value={seg.l||''} onChange={e=>{const segs=[...(room.ceilSegs||[])];segs[i]={...segs[i],l:+e.target.value};u({ceilSegs:segs});}} style={{padding:'4px 8px',fontSize:11,minWidth:0}}/></div>
+                      <div style={{flex:1}}><Label>W</Label><Input type='number' value={seg.w||''} onChange={e=>{const segs=[...(room.ceilSegs||[])];segs[i]={...segs[i],w:+e.target.value};u({ceilSegs:segs});}} style={{padding:'4px 8px',fontSize:11,minWidth:0}}/></div>
+                      <p style={{fontSize:10,color:'var(--muted-fg)',whiteSpace:'nowrap',paddingBottom:4}}>{Math.round((seg.l||0)*(seg.w||0))} sqft</p>
+                    </div>
+                  ))}
+                </div>
+                {calc.ceilSqft>0&&<p style={{fontSize:11,fontWeight:600,color:'var(--primary)',marginTop:6}}>Total ceiling: ~{Math.round(calc.ceilSqft)} sqft</p>}
+              </div>
+            )}
             {!room.irregular&&calc.wallSqft>0&&<p style={{fontSize:11,color:'var(--muted-fg)',marginTop:6}}>Walls: ~{Math.round(calc.wallSqft)} sqft · Ceiling: ~{Math.round(calc.ceilSqft)} sqft</p>}
           </div>
           <div style={{padding:'14px 16px',borderBottom:'1px solid rgba(0,0,0,0.05)'}}>
             <p style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--muted-fg)',marginBottom:8}}>Surfaces</p>
-            <S label='Walls' field='walls'/><S label='Ceiling' field='ceiling'/>
+            <S label='Walls' field='walls'/>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'4px 0'}}>
+              <label style={{fontSize:12,display:'flex',gap:6,alignItems:'center'}}>
+                <input type='checkbox' checked={room.ceiling.enabled} onChange={e=>u({ceiling:{...room.ceiling,enabled:e.target.checked}})}/>
+                Ceiling
+              </label>
+              {room.ceiling.enabled&&<select value={room.ceiling.coats} onChange={e=>u({ceiling:{...room.ceiling,coats:+e.target.value}})} style={{fontSize:11,padding:'2px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}>
+                <option value={1}>1 coat</option><option value={2}>2 coats</option><option value={3}>Primer & 2 coats</option>
+              </select>}
+            </div>
+            {room.ceiling.enabled&&(
+              <div style={{marginLeft:22,marginBottom:6,padding:10,background:'rgba(0,0,0,0.02)',borderRadius:6,border:'1px solid var(--border)'}}>
+                <div style={{display:'flex',gap:12,alignItems:'center',marginBottom:4}}>
+                  <label style={{fontSize:11,display:'flex',gap:4,alignItems:'center',cursor:'pointer'}}>
+                    <input type='radio' name={`ceil-${room.id}`} checked={room.ceiling.type==='flat'} onChange={()=>u({ceiling:{...room.ceiling,type:'flat',removeStucco:false}})}/> Flat
+                  </label>
+                  <label style={{fontSize:11,display:'flex',gap:4,alignItems:'center',cursor:'pointer'}}>
+                    <input type='radio' name={`ceil-${room.id}`} checked={room.ceiling.type==='stucco'} onChange={()=>u({ceiling:{...room.ceiling,type:'stucco'}})}/> Stucco
+                  </label>
+                </div>
+                {room.ceiling.type==='stucco'&&(
+                  <label style={{fontSize:11,display:'flex',gap:6,alignItems:'center',cursor:'pointer'}}>
+                    <input type='checkbox' checked={room.ceiling.removeStucco||false} onChange={e=>u({ceiling:{...room.ceiling,removeStucco:e.target.checked}})}/> Stucco removal
+                  </label>
+                )}
+              </div>
+            )}
             <S label='Baseboards' field='baseboards'/><S label='Crown Moulding' field='crown'/>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:6}}>
-              <div>
-                <label style={{fontSize:12}}>Doors</label>
-                <div style={{display:'flex',gap:6,marginTop:4,alignItems:'center'}}>
-                  <Input type='number' value={room.doors.count||''} onChange={e=>u({doors:{...room.doors,count:+e.target.value}})} style={{width:50,padding:'4px 8px',fontSize:11}}/>
-                  <select value={room.doors.coats} onChange={e=>u({doors:{...room.doors,coats:+e.target.value}})} style={{fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value={1}>1 coat</option><option value={2}>2 coats</option><option value={3}>Primer & 2 coats</option></select>
+            <div style={{padding:'4px 0'}}>
+              <label style={{fontSize:12,display:'flex',gap:6,alignItems:'center'}}>
+                <input type='checkbox' checked={room.doors?.enabled||false} onChange={e=>u({doors:{...room.doors,enabled:e.target.checked}})}/>
+                Doors
+              </label>
+              {room.doors?.enabled&&(
+                <div style={{marginLeft:22,marginTop:6,padding:10,background:'rgba(0,0,0,0.02)',borderRadius:6,border:'1px solid var(--border)'}}>
+                  {[['Flat','flat'],['6 Panel','sixPanel'],['Custom','custom']].map(([label,key])=>(
+                    <div key={key} style={{display:'flex',gap:8,alignItems:'center',marginBottom:6}}>
+                      <span style={{fontSize:11,fontWeight:500,width:60}}>{label}</span>
+                      <Input type='number' value={room.doors[key]?.count||''} onChange={e=>u({doors:{...room.doors,[key]:{...room.doors[key],count:+e.target.value}}})} placeholder='#' style={{width:45,padding:'4px 6px',fontSize:11,minWidth:0}}/>
+                      <select value={room.doors[key]?.coats||2} onChange={e=>u({doors:{...room.doors,[key]:{...room.doors[key],coats:+e.target.value}}})} style={{fontSize:11,padding:'2px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}>
+                        <option value={1}>1 coat</option><option value={2}>2 coats</option><option value={3}>Primer & 2 coats</option>
+                      </select>
+                    </div>
+                  ))}
                 </div>
+              )}
+            </div>
+            <div style={{padding:'4px 0'}}>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                <label style={{fontSize:12,display:'flex',gap:6,alignItems:'center'}}>
+                  <input type='checkbox' checked={room.windows?.enabled||false} onChange={e=>u({windows:{...room.windows,enabled:e.target.checked}})}/>
+                  Windows
+                </label>
+                {room.windows?.enabled&&<select value={room.windows.coats} onChange={e=>u({windows:{...room.windows,coats:+e.target.value}})} style={{fontSize:11,padding:'2px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}>
+                  <option value={1}>1 coat</option><option value={2}>2 coats</option><option value={3}>Primer & 2 coats</option>
+                </select>}
               </div>
-              <div>
-                <label style={{fontSize:12}}>Windows</label>
-                <div style={{display:'flex',gap:6,marginTop:4,alignItems:'center'}}>
-                  <Input type='number' value={room.windows.count||''} onChange={e=>u({windows:{...room.windows,count:+e.target.value}})} style={{width:50,padding:'4px 8px',fontSize:11}}/>
-                  <select value={room.windows.coats} onChange={e=>u({windows:{...room.windows,coats:+e.target.value}})} style={{fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value={1}>1 coat</option><option value={2}>2 coats</option><option value={3}>Primer & 2 coats</option></select>
+              {room.windows?.enabled&&(
+                <div style={{marginLeft:22,marginTop:6,padding:10,background:'rgba(0,0,0,0.02)',borderRadius:6,border:'1px solid var(--border)'}}>
+                  {(room.windows.dims||[]).map((dim,i)=>(
+                    <div key={i} style={{display:'flex',gap:6,alignItems:'center',marginBottom:6}}>
+                      <span style={{fontSize:11,fontWeight:500,color:'var(--muted-fg)',width:16}}>{i+1}.</span>
+                      <div style={{flex:1}}><Input type='number' value={dim.l||''} onChange={e=>{const dims=[...(room.windows.dims||[])];dims[i]={...dims[i],l:+e.target.value};u({windows:{...room.windows,dims}});}} placeholder='L' style={{padding:'4px 6px',fontSize:11,minWidth:0}}/></div>
+                      <span style={{fontSize:11,color:'var(--muted-fg)'}}>×</span>
+                      <div style={{flex:1}}><Input type='number' value={dim.w||''} onChange={e=>{const dims=[...(room.windows.dims||[])];dims[i]={...dims[i],w:+e.target.value};u({windows:{...room.windows,dims}});}} placeholder='W' style={{padding:'4px 6px',fontSize:11,minWidth:0}}/></div>
+                      <span style={{fontSize:10,color:'var(--muted-fg)',whiteSpace:'nowrap'}}>{2*((dim.l||0)+(dim.w||0))} lf</span>
+                      {(room.windows.dims||[]).length>1&&<button onClick={()=>{const dims=(room.windows.dims||[]).filter((_,j)=>j!==i);u({windows:{...room.windows,dims}});}} style={{background:'none',border:'none',cursor:'pointer',color:'var(--destructive)',padding:2,fontSize:12}}>×</button>}
+                    </div>
+                  ))}
+                  <button onClick={()=>u({windows:{...room.windows,dims:[...(room.windows.dims||[]),{l:0,w:0}]}})} style={{fontSize:11,padding:'4px 10px',borderRadius:4,border:'1px dashed var(--border)',background:'none',cursor:'pointer',color:'var(--primary)',fontWeight:500,marginTop:2}}>+ Add Window</button>
+                  {roomWindowLF(room)>0&&<p style={{fontSize:10,color:'var(--primary)',fontWeight:600,marginTop:4}}>Total: {Math.round(roomWindowLF(room))} lf</p>}
                 </div>
-              </div>
+              )}
             </div>
           </div>
           <div style={{padding:'14px 16px',borderBottom:'1px solid rgba(0,0,0,0.05)'}}>
@@ -2850,7 +2958,7 @@ function RoomCard({room,settings,onChange,onRemove}){
               <>
                 {room.walls.enabled&&<PaintRow label='Walls' prod={room.paint.wallProduct} colour={room.paint.wallColour} sheen={room.paint.wallSheen} products={WALL_PAINTS} colours={COLOURS} onProd={v=>up({wallProduct:v})} onColour={v=>up({wallColour:v})} onSheen={v=>up({wallSheen:v})}/>}
                 {room.ceiling.enabled&&<PaintRow label='Ceiling' prod={room.paint.ceilProduct} colour={room.paint.ceilColour} sheen={room.paint.ceilSheen} products={CEILING_PAINTS} colours={CEILING_COLOURS} onProd={v=>up({ceilProduct:v})} onColour={v=>up({ceilColour:v})} onSheen={v=>up({ceilSheen:v})}/>}
-                {(room.baseboards.enabled||room.doors.count>0||room.crown.enabled)&&<PaintRow label='Trim / Doors' prod={room.paint.trimProduct} colour={room.paint.trimColour} sheen={room.paint.trimSheen} products={TRIM_PAINTS} colours={COLOURS} onProd={v=>up({trimProduct:v})} onColour={v=>up({trimColour:v})} onSheen={v=>up({trimSheen:v})}/>}
+                {(room.baseboards.enabled||room.doors?.enabled||roomDoorCount(room)>0||room.crown.enabled)&&<PaintRow label='Trim / Doors' prod={room.paint.trimProduct} colour={room.paint.trimColour} sheen={room.paint.trimSheen} products={TRIM_PAINTS} colours={COLOURS} onProd={v=>up({trimProduct:v})} onColour={v=>up({trimColour:v})} onSheen={v=>up({trimSheen:v})}/>}
               </>
             )}
           </div>
@@ -2861,10 +2969,16 @@ function RoomCard({room,settings,onChange,onRemove}){
 }
 
 // ─── COVER TAB ────────────────────────────────────────────────────────────────
-function CoverTab({client,setClient,deals,onSelectDeal,selectedDealId}){
+function CoverTab({client,setClient,deals,contacts,onSelectDeal,selectedDealId}){
   const todayStr=new Date().toLocaleDateString('en-CA',{year:'numeric',month:'long',day:'numeric'});
   const docStyle={background:'#fff',color:'#1a1a1a',borderRadius:8,maxWidth:900,margin:'0 auto',padding:40,boxShadow:'0 2px 12px rgba(0,0,0,0.08)'};
   const gold='#C4922A';
+  const dealLabel=(d)=>{
+    const cid=Array.isArray(d.contact)?d.contact[0]:d.contact;
+    const c=(contacts||[]).find(x=>x.id===cid);
+    const name=c?.fullName||d.contactFreeText||'';
+    return name?`${d.dealName||'Unnamed project'} - ${name}`:(d.dealName||'Unnamed project');
+  };
   return (
     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:24,padding:24,overflow:'auto',maxHeight:'100%'}}>
       <div style={docStyle}>
@@ -2879,40 +2993,36 @@ function CoverTab({client,setClient,deals,onSelectDeal,selectedDealId}){
           <p style={{fontSize:12,color:'#999',marginTop:32}}>{todayStr}</p>
         </div>
       </div>
-      <Card>
-        <div style={{padding:20}}>
-          <p style={{fontSize:13,fontWeight:700,marginBottom:16}}>Client Information</p>
-          <div style={{display:'flex',flexDirection:'column',gap:12}}>
-            <div>
-              <Label>Project / Deal</Label>
-              <Select value={selectedDealId||''} onChange={e=>{if(e.target.value)onSelectDeal(e.target.value);}}>
-                <option value=''>Select a project...</option>
-                {deals.map(d=><option key={d.id} value={d.id}>{d.dealName||'Unnamed project'}</option>)}
-              </Select>
-            </div>
-            <div>
-              <Label>Client Name</Label>
-              <Input value={client.name} onChange={e=>setClient({...client,name:e.target.value})}/>
-            </div>
-            <div>
-              <Label>Phone</Label>
-              <Input value={client.phone} onChange={e=>setClient({...client,phone:e.target.value})}/>
-            </div>
-            <div>
-              <Label>Address Line 1</Label>
-              <Input value={client.addr1} onChange={e=>setClient({...client,addr1:e.target.value})}/>
-            </div>
-            <div>
-              <Label>Address Line 2</Label>
-              <Input value={client.addr2} onChange={e=>setClient({...client,addr2:e.target.value})}/>
-            </div>
-            <div>
-              <Label>Email</Label>
-              <Input value={client.email} onChange={e=>setClient({...client,email:e.target.value})}/>
-            </div>
+      <div style={{display:'flex',flexDirection:'column',gap:12}}>
+        <div>
+          <Label>Project</Label>
+          <Select value={selectedDealId||''} onChange={e=>{if(e.target.value)onSelectDeal(e.target.value);}}>
+            <option value=''>Select a project...</option>
+            {deals.map(d=><option key={d.id} value={d.id}>{dealLabel(d)}</option>)}
+          </Select>
+        </div>
+        <div>
+          <Label>Client Name</Label>
+          <Input value={client.name} onChange={e=>setClient({...client,name:e.target.value})}/>
+        </div>
+        <div>
+          <Label>Address</Label>
+          <Input value={client.street||''} onChange={e=>setClient({...client,street:e.target.value})} placeholder='Street address'/>
+          <div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr',gap:8,marginTop:6}}>
+            <Input value={client.city||''} onChange={e=>setClient({...client,city:e.target.value})} placeholder='City'/>
+            <Input value={client.province||''} onChange={e=>setClient({...client,province:e.target.value})} placeholder='ON'/>
+            <Input value={client.postal||''} onChange={e=>setClient({...client,postal:e.target.value})} placeholder='Postal'/>
           </div>
         </div>
-      </Card>
+        <div>
+          <Label>Phone</Label>
+          <Input value={client.phone} onChange={e=>setClient({...client,phone:e.target.value})}/>
+        </div>
+        <div>
+          <Label>Email</Label>
+          <Input value={client.email} onChange={e=>setClient({...client,email:e.target.value})}/>
+        </div>
+      </div>
     </div>
   );
 }
@@ -2944,11 +3054,11 @@ function RoomsTab({rooms,settings,onUpdate,onRemove,onAdd,paints,ceilPaints,colo
 // ─── BREAKDOWN TAB ────────────────────────────────────────────────────────────
 function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,supplies}){
   const fmtN=n=>Math.round(n).toLocaleString('en-CA');
-  const activeRooms=rooms.filter(r=>r.walls.enabled||r.ceiling.enabled||r.baseboards.enabled||r.doors.count>0);
+  const activeRooms=rooms.filter(r=>r.walls.enabled||r.ceiling.enabled||r.baseboards.enabled||r.doors?.enabled||roomDoorCount(r)>0);
   let tWalls=0,tCeil=0,tTrim=0,tDoors=0,tHrs=0,tCost=0;
   const roomCalcs=rooms.map(r=>{
     const c=calcRoom(r,settings);
-    tWalls+=c.wallSqft;tCeil+=c.ceilSqft;tTrim+=c.perimLF;tDoors+=(r.doors.count||0);tHrs+=c.totalHrs;tCost+=c.cost;
+    tWalls+=c.wallSqft;tCeil+=c.ceilSqft;tTrim+=c.perimLF;tDoors+=roomDoorCount(r);tHrs+=c.totalHrs;tCost+=c.cost;
     return {room:r,calc:c,lines:calcRoomLines(r,settings)};
   });
   const numWorkers=Math.max(1,settings._standards?.workers||1);
@@ -3057,8 +3167,8 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
           <div>
             <p style={{fontWeight:600,color:'#888',fontSize:10,textTransform:'uppercase',marginBottom:4}}>Prepared For</p>
             <p style={{fontWeight:600}}>{client.name||'—'}</p>
-            {client.addr1&&<p style={{color:'#666'}}>{client.addr1}</p>}
-            {client.addr2&&<p style={{color:'#666'}}>{client.addr2}</p>}
+            {(client.street||client.addr1)&&<p style={{color:'#666'}}>{client.street||client.addr1}</p>}
+            {(client.city||client.province||client.postal)&&<p style={{color:'#666'}}>{[client.city,client.province].filter(Boolean).join(', ')}{client.postal?` ${client.postal}`:''}</p>}
             {client.phone&&<p style={{color:'#666'}}>{client.phone}</p>}
             {client.email&&<p style={{color:'#666'}}>{client.email}</p>}
           </div>
@@ -3079,8 +3189,13 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
               if(r.baseboards.enabled) surfaces.push(`${r.baseboards.coats} coat${r.baseboards.coats>1?'s':''} on baseboards`);
               if(r.crown.enabled) surfaces.push(`${r.crown.coats} coat${r.crown.coats>1?'s':''} on crown moulding`);
               if(r.doorFrames?.enabled) surfaces.push(`${r.doorFrames.coats} coat${r.doorFrames.coats>1?'s':''} on door frames`);
-              if(r.doors.count>0) surfaces.push(`${r.doors.count} door${r.doors.count>1?'s':''} — ${r.doors.coats} coat${r.doors.coats>1?'s':''}`);
-              if(r.windows.count>0) surfaces.push(`${r.windows.count} window${r.windows.count>1?'s':''} — ${r.windows.coats} coat${r.windows.coats>1?'s':''}`);
+              if(r.doors?.enabled){
+                [['Flat','flat'],['6 Panel','sixPanel'],['Custom','custom']].forEach(([label,key])=>{
+                  const dt=r.doors[key];if(dt?.count>0) surfaces.push(`${dt.count} ${label} door${dt.count>1?'s':''} — ${dt.coats} coat${dt.coats>1?'s':''}`);
+                });
+              } else if(r.doors?.count>0) surfaces.push(`${r.doors.count} door${r.doors.count>1?'s':''} — ${r.doors.coats} coat${r.doors.coats>1?'s':''}`);
+              if(r.windows?.enabled&&roomWindowLF(r)>0) surfaces.push(`${r.windows.dims?.length||0} window${(r.windows.dims?.length||0)>1?'s':''} — ${r.windows.coats} coat${r.windows.coats>1?'s':''}`);
+              else if(r.windows?.count>0) surfaces.push(`${r.windows.count} window${r.windows.count>1?'s':''} — ${r.windows.coats} coat${r.windows.coats>1?'s':''}`);
               const materials=[];
               if(r.walls.enabled&&r.paint.wallProduct){
                 const hex=getHex(r.paint.wallColour);
@@ -3090,7 +3205,7 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
                 const hex=getHex(r.paint.ceilColour);
                 materials.push({label:`Ceiling: ${r.paint.ceilProduct}`,colour:r.paint.ceilColour,sheen:r.paint.ceilSheen,hex});
               }
-              if((r.baseboards.enabled||r.doors.count>0||r.crown.enabled)&&r.paint.trimProduct){
+              if((r.baseboards.enabled||r.doors?.enabled||roomDoorCount(r)>0||r.crown.enabled)&&r.paint.trimProduct){
                 const hex=getHex(r.paint.trimColour);
                 materials.push({label:`Trim: ${r.paint.trimProduct}`,colour:r.paint.trimColour,sheen:r.paint.trimSheen,hex});
               }
@@ -3168,7 +3283,7 @@ function ContractTab({rooms,settings,client,totals}){
   const sectionTitle={fontSize:13,fontWeight:700,color:gold,marginTop:28,marginBottom:10,paddingBottom:6,borderBottom:`1px solid ${gold}`};
   const bodyText={fontSize:11,lineHeight:'1.7',color:'#444',marginBottom:8};
   let tWalls=0,tCeil=0,tTrim=0,tDoors=0,tHrs=0;
-  rooms.forEach(r=>{const c=calcRoom(r,settings);tWalls+=c.wallSqft;tCeil+=c.ceilSqft;tTrim+=c.perimLF;tDoors+=(r.doors.count||0);tHrs+=c.totalHrs;});
+  rooms.forEach(r=>{const c=calcRoom(r,settings);tWalls+=c.wallSqft;tCeil+=c.ceilSqft;tTrim+=c.perimLF;tDoors+=roomDoorCount(r);tHrs+=c.totalHrs;});
   const numWorkers=Math.max(1,settings._standards?.workers||1);
   const estDays=tHrs>0?Math.ceil(tHrs/numWorkers/8):0;
 
@@ -3216,8 +3331,8 @@ function ContractTab({rooms,settings,client,totals}){
           <div style={{fontSize:11,color:'#444',lineHeight:'1.7'}}>
             <p style={{fontWeight:600,marginBottom:4}}>Client</p>
             <p>{client.name||'—'}</p>
-            {client.addr1&&<p>{client.addr1}</p>}
-            {client.addr2&&<p>{client.addr2}</p>}
+            {(client.street||client.addr1)&&<p>{client.street||client.addr1}</p>}
+            {(client.city||client.province||client.postal)&&<p>{[client.city,client.province].filter(Boolean).join(', ')}{client.postal?` ${client.postal}`:''}</p>}
             {client.phone&&<p>{client.phone}</p>}
             {client.email&&<p>{client.email}</p>}
           </div>
@@ -3243,8 +3358,9 @@ function ContractTab({rooms,settings,client,totals}){
             if(r.ceiling.enabled)parts.push('Ceiling');
             if(r.baseboards.enabled)parts.push('Baseboards');
             if(r.crown.enabled)parts.push('Crown');
-            if(r.doors.count>0)parts.push(`${r.doors.count} Door${r.doors.count>1?'s':''}`);
-            if(r.windows.count>0)parts.push(`${r.windows.count} Window${r.windows.count>1?'s':''}`);
+            {const dc=roomDoorCount(r);if(dc>0)parts.push(`${dc} Door${dc>1?'s':''}`);}
+            {const wc=r.windows?.dims?.length||0;if(r.windows?.enabled&&wc>0)parts.push(`${wc} Window${wc>1?'s':''}`);}
+            if(!r.windows?.enabled&&r.windows?.count>0)parts.push(`${r.windows.count} Window${r.windows.count>1?'s':''}`);
             return (
               <tr key={r.id}>
                 <td style={{padding:'6px 8px',borderBottom:'1px solid #eee',fontWeight:500}}>{r.name}</td>
@@ -3788,7 +3904,11 @@ function StandardsTab({standards,setStandards,onSave}){
 
         <Card className='p-5'>
           <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--primary)',marginBottom:12}}>Doors — sqft per hour</p>
-          <CoatTable surface='doors'/>
+          <CoatTable surface='doorsFlat' subtitle='Flat'/>
+          <div style={{borderTop:'1px solid var(--border)',margin:'12px 0 10px'}}/>
+          <CoatTable surface='doors6Panel' subtitle='6 Panel'/>
+          <div style={{borderTop:'1px solid var(--border)',margin:'12px 0 10px'}}/>
+          <CoatTable surface='doorsCustom' subtitle='Custom'/>
         </Card>
       </div>
 
@@ -3806,7 +3926,7 @@ function StandardsTab({standards,setStandards,onSave}){
 function MasterEstimate(){
   const [rooms,setRooms]=useState(()=>[newRoom('1',1)]);
   const [roomCounter,setRoomCounter]=useState(1);
-  const [client,setClient]=useState({name:'',email:'',phone:'',addr1:'',addr2:''});
+  const [client,setClient]=useState({name:'',email:'',phone:'',street:'',city:'',province:'',postal:''});
   const [changeItems,setChangeItems]=useState([]);
   const [changeCounter,setChangeCounter]=useState(0);
   const [currentEstimateId,setCurrentEstimateId]=useState(null);
@@ -3861,7 +3981,7 @@ function MasterEstimate(){
         user_id:_session.user.id,
         title:buildTitle(),
         client_name:cli.name,client_email:cli.email,client_phone:cli.phone,
-        addr1:cli.addr1,addr2:cli.addr2,
+        addr1:cli.street||cli.addr1||'',
         state:JSON.stringify({rooms:rms,roomCounter:rc,changeItems:ci,changeCounter:cc,client:cli,selectedDealId:sdid})
       };
       if(rid){
@@ -3904,9 +4024,24 @@ function MasterEstimate(){
       if(rows&&rows[0]){
         const est=rows[0];
         const st=JSON.parse(est.state||'{}');
-        if(st.rooms)setRooms(st.rooms);
+        if(st.rooms){
+          const migrated=st.rooms.map(r=>{
+            if(r.doors&&typeof r.doors.count==='number'&&!('enabled' in r.doors)){
+              r.doors={enabled:r.doors.count>0,flat:{count:r.doors.count,coats:r.doors.coats||2},sixPanel:{count:0,coats:2},custom:{count:0,coats:2}};
+            }
+            if(r.windows&&!('enabled' in r.windows)){
+              r.windows={...r.windows,enabled:(r.windows.count||0)>0};
+            }
+            return r;
+          });
+          setRooms(migrated);
+        }
         if(st.roomCounter)setRoomCounter(st.roomCounter);
-        if(st.client)setClient(st.client);
+        if(st.client){
+          const c=st.client;
+          if(c.addr1&&!c.street) c.street=c.addr1;
+          setClient({name:c.name||'',email:c.email||'',phone:c.phone||'',street:c.street||'',city:c.city||'',province:c.province||'',postal:c.postal||''});
+        }
         if(st.changeItems)setChangeItems(st.changeItems);
         if(st.changeCounter!=null)setChangeCounter(st.changeCounter);
         if(st.selectedDealId)setSelectedDealId(st.selectedDealId);
@@ -3919,7 +4054,7 @@ function MasterEstimate(){
   const newEstimate=()=>{
     if(!confirm('Start a new estimate? Unsaved changes will be lost.'))return;
     setRooms([newRoom('1',1)]);setRoomCounter(1);
-    setClient({name:'',email:'',phone:'',addr1:'',addr2:''});
+    setClient({name:'',email:'',phone:'',street:'',city:'',province:'',postal:''});
     setChangeItems([]);setChangeCounter(0);
     setCurrentEstimateId(null);setActiveTab('cover');
   };
@@ -3928,16 +4063,25 @@ function MasterEstimate(){
     setSelectedDealId(dealId);
     const deal=deals.find(d=>d.id===dealId);
     if(!deal)return;
-    const contact=contacts.find(c=>c.id===deal.contact_id);
-    if(contact){
-      setClient({
-        name:contact.fullName||contact.full_name||[contact.first_name,contact.last_name].filter(Boolean).join(' ')||'',
-        email:contact.email||'',
-        phone:contact.phone||'',
-        addr1:contact.address||deal.address||'',
-        addr2:'',
-      });
+    const cid=Array.isArray(deal.contact)?deal.contact[0]:deal.contact;
+    const contact=contacts.find(c=>c.id===cid);
+    const fullAddr=contact?.address||deal.address||'';
+    const addrParts=fullAddr.split(',').map(s=>s.trim());
+    const streetPart=addrParts[0]||'';
+    let cityPart='',provPart='',postalPart='';
+    if(addrParts.length>=2){
+      cityPart=addrParts[1]||'';
+      const last=addrParts.slice(2).join(', ').trim();
+      const pm=last.match(/^([A-Z]{2})\s+([A-Z]\d[A-Z]\s*\d[A-Z]\d)$/i);
+      if(pm){provPart=pm[1];postalPart=pm[2];}
+      else{provPart=last;}
     }
+    setClient({
+      name:contact?.fullName||contact?.full_name||[contact?.first_name,contact?.last_name].filter(Boolean).join(' ')||'',
+      email:contact?.email||'',
+      phone:contact?.phone||'',
+      street:streetPart,city:cityPart,province:provPart.toUpperCase(),postal:postalPart.toUpperCase(),
+    });
   };
 
   const pushToProject=async()=>{
@@ -3985,13 +4129,14 @@ function MasterEstimate(){
         <button onClick={loadEstimates} style={actionBtnStyle}>Load</button>
         <button onClick={pushToProject} style={actionBtnStyle}>Push to Project</button>
         <button onClick={newEstimate} style={actionBtnStyle}>New</button>
+        <button onClick={()=>exportBidPDF(client,rooms,settings,totals,ps.paints,ps.ceilPaints,ps.primers,ps.colours,ps.supplies)} style={actionBtnStyle}>Export Bid</button>
         <div style={{flex:1}}/>
         {saving&&<Loader2 size={14} style={{animation:'spin 1s linear infinite',color:'var(--muted-fg)'}}/>}
         {saveMsg&&<span style={{fontSize:11,fontWeight:600,color:saveMsg==='Saved'||saveMsg==='Pushed!'?'#22c55e':'#ef4444'}}>{saveMsg}</span>}
       </div>
       <div style={{flex:1,overflow:'hidden',position:'relative'}}>
         {activeTab==='cover'&&(
-          <CoverTab client={client} setClient={setClient} deals={deals} onSelectDeal={onSelectDeal} selectedDealId={selectedDealId}/>
+          <CoverTab client={client} setClient={setClient} deals={deals} contacts={contacts} onSelectDeal={onSelectDeal} selectedDealId={selectedDealId}/>
         )}
         {activeTab==='rooms'&&(
           <RoomsTab rooms={rooms} settings={settings}
@@ -4093,6 +4238,96 @@ function KPLogo({height=32}){
     </svg>
   );
 }
+function exportBidPDF(client,rooms,settings,totals,paints,ceilPaints,primers,colours,supplies){
+  const fmtN=n=>Math.round(n).toLocaleString('en-CA');
+  const fmtC=n=>'$'+n.toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const today=new Date().toLocaleDateString('en-CA',{year:'numeric',month:'long',day:'numeric'});
+  const gold='#C4922A';
+  const addr1=client.street||client.addr1||'';
+  const addr2=[client.city,client.province].filter(Boolean).join(', ')+(client.postal?` ${client.postal}`:'');
+  const roomCalcs=rooms.map(r=>({room:r,calc:calcRoom(r,settings),lines:calcRoomLines(r,settings)}));
+  const paintData=calcPaintCosts(rooms,paints||[],ceilPaints||[],primers||[],colours||[],settings._standards?.matBuffer||1.15);
+  const allColours=[...(colours||[])];
+  const getHex=name=>{const c=allColours.find(x=>x.n===name);return c?.hex||null;};
+  const prepLabels={furniture:'Move furniture',plastic:'Cover w/ plastic',outlets:'Remove outlets',drywall:'Drywall repairs',caulking:'Caulking',cleanup:'Clean up',custom:'Custom prep'};
+  let html='<!DOCTYPE html><html><head><meta charset="utf-8"><title>Bid Proposal</title>';
+  html+='<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,sans-serif;color:#1a1a1a;font-size:12px}';
+  html+='.page{page-break-after:always;padding:40px 48px;max-width:900px;margin:0 auto}';
+  html+=`.gold{color:${gold}}.border-gold{border-bottom:2px solid ${gold}}`;
+  html+='table{width:100%;border-collapse:collapse}th{text-align:left;padding:8px 10px;border-bottom:2px solid #e5e5e5;color:#888;font-size:11px;font-weight:600}td{padding:8px 10px;border-bottom:1px solid #eee;font-size:12px;vertical-align:top}';
+  html+='@media print{body{padding:0}.page{padding:32px 40px}}</style></head><body>';
+  html+='<div class="page" style="display:flex;align-items:center;justify-content:center;min-height:90vh">';
+  html+='<div style="text-align:center">';
+  html+=`<img src="/kingdom-logo-dark.svg" style="height:80px;margin:0 auto"><div style="width:60px;height:2px;background:${gold};margin:16px auto"></div>`;
+  html+='<p style="font-size:16px;font-weight:600;letter-spacing:0.08em;color:#555;margin-top:24px">BID PROPOSAL</p>';
+  html+='<div style="margin-top:48px"><p style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:#999">PREPARED FOR</p>';
+  html+=`<p style="font-size:18px;font-weight:600;margin-top:8px">${client.name||'Client Name'}</p></div>`;
+  html+=`<p style="font-size:12px;color:#999;margin-top:32px">${today}</p></div></div>`;
+  html+='<div class="page">';
+  html+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px" class="border-gold"><div style="display:flex;gap:12px;align-items:center"><img src="/kingdom-logo-dark.svg" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:2px">QUOTE</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p><p style="font-size:10px;color:#999;margin-top:4px">HST# 742813191RT0001</p></div></div>`;
+  html+='<div style="margin-bottom:24px;font-size:12px"><p style="font-weight:600;color:#888;font-size:10px;text-transform:uppercase;margin-bottom:4px">Prepared For</p>';
+  html+=`<p style="font-weight:600">${client.name||'—'}</p>`;
+  if(addr1) html+=`<p style="color:#666">${addr1}</p>`;
+  if(addr2) html+=`<p style="color:#666">${addr2}</p>`;
+  if(client.phone) html+=`<p style="color:#666">${client.phone}</p>`;
+  if(client.email) html+=`<p style="color:#666">${client.email}</p>`;
+  html+='</div>';
+  html+='<table><thead><tr><th>Room</th><th>Description</th></tr></thead><tbody>';
+  rooms.forEach(r=>{
+    const c=calcRoom(r,settings);
+    const surfaces=[],prepItems=[];
+    if(r.walls?.enabled) surfaces.push(`${r.walls.coats} coat${r.walls.coats>1?'s':''} on walls — ${fmtN(c.wallSqft)} sqft`);
+    if(r.ceiling?.enabled) surfaces.push(`${r.ceiling.coats} coat${r.ceiling.coats>1?'s':''} on ceiling — ${fmtN(c.ceilSqft)} sqft`);
+    if(r.baseboards?.enabled) surfaces.push(`Baseboards`);
+    if(r.crown?.enabled) surfaces.push(`Crown moulding`);
+    const dc=roomDoorCount(r);if(dc>0) surfaces.push(`${dc} door${dc>1?'s':''}`);
+    const wc=r.windows?.dims?.length||0;if(r.windows?.enabled&&wc>0) surfaces.push(`${wc} window${wc>1?'s':''}`);
+    Object.entries(prepLabels).forEach(([k,v])=>{if(r.prep?.[k])prepItems.push(v);});
+    html+=`<tr><td style="font-weight:600;white-space:nowrap">${r.name}</td><td>`;
+    if(prepItems.length) html+=`<p style="margin-bottom:4px"><strong>Prep:</strong> ${prepItems.join(', ')}</p>`;
+    html+=`<p>${surfaces.join('<br>')}</p></td></tr>`;
+  });
+  html+='</tbody></table>';
+  html+=`<div style="margin-top:24px;padding-top:16px" class="border-gold"><table style="width:auto;margin-left:auto"><tr><td style="text-align:right;padding:4px 16px;color:#888">Labour Subtotal</td><td style="text-align:right;padding:4px 0;font-weight:600">${fmtC(totals.labourSubtotal)}</td></tr>`;
+  html+=`<tr><td style="text-align:right;padding:4px 16px;color:#888">HST (13%)</td><td style="text-align:right;padding:4px 0">${fmtC(totals.taxAmt)}</td></tr>`;
+  html+=`<tr style="border-top:2px solid ${gold}"><td style="text-align:right;padding:8px 16px;font-weight:700;font-size:14px" class="gold">Total</td><td style="text-align:right;padding:8px 0;font-weight:700;font-size:14px" class="gold">${fmtC(totals.total)}</td></tr></table></div>`;
+  html+='</div>';
+  html+='<div class="page">';
+  html+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px" class="border-gold"><div style="display:flex;gap:12px;align-items:center"><img src="/kingdom-logo-dark.svg" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:2px">CONTRACT</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p></div></div>`;
+  html+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">1. Parties</p>`;
+  html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:8px;font-size:11px;color:#444;line-height:1.7">';
+  html+=`<div><p style="font-weight:600;margin-bottom:4px">Client</p><p>${client.name||'—'}</p>`;
+  if(addr1) html+=`<p>${addr1}</p>`;
+  if(addr2) html+=`<p>${addr2}</p>`;
+  if(client.phone) html+=`<p>${client.phone}</p>`;
+  if(client.email) html+=`<p>${client.email}</p>`;
+  html+='</div><div><p style="font-weight:600;margin-bottom:4px">Contractor</p><p>David Truong</p><p>25 Fieldview Crescent</p><p>Markham ON L3R 3H6</p><p>(647) 449-6611</p><p>info@kingdompainting.ca</p></div></div>';
+  html+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">2. Scope of Work</p>`;
+  html+='<table style="font-size:11px"><thead><tr><th>Room</th><th>Surfaces</th></tr></thead><tbody>';
+  rooms.forEach(r=>{
+    const parts=[];
+    if(r.walls?.enabled) parts.push('Walls');
+    if(r.ceiling?.enabled) parts.push('Ceiling');
+    if(r.baseboards?.enabled) parts.push('Baseboards');
+    if(r.crown?.enabled) parts.push('Crown');
+    const dc=roomDoorCount(r);if(dc>0) parts.push(`${dc} Door${dc>1?'s':''}`);
+    const wc=r.windows?.dims?.length||0;if(r.windows?.enabled&&wc>0) parts.push(`${wc} Window${wc>1?'s':''}`);
+    html+=`<tr><td style="padding:6px 8px;font-weight:500">${r.name}</td><td style="padding:6px 8px;color:#555">${parts.join(', ')||'—'}</td></tr>`;
+  });
+  html+='</tbody></table>';
+  html+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">3. Payment Terms</p>`;
+  html+=`<div style="font-size:11px;line-height:1.7;color:#444"><p style="margin-bottom:8px">Total contract value: <strong>${fmtC(totals.total)}</strong> (including HST)</p>`;
+  html+=`<p>10% Deposit: ${fmtC(totals.deposit)} · 45% Midway: ${fmtC(totals.midway)} · Balance: ${fmtC(totals.balance)}</p></div>`;
+  html+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">4. Signatures</p>`;
+  html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:24px;font-size:11px">';
+  html+='<div><div style="border-bottom:1px solid #ccc;height:60px;margin-bottom:8px"></div><p style="color:#888">Client Signature</p></div>';
+  html+='<div><div style="border-bottom:1px solid #ccc;height:60px;margin-bottom:8px"></div><p style="color:#888">Contractor Signature</p></div></div>';
+  html+='</div>';
+  html+='<script>window.onload=function(){window.print();}<\/script></body></html>';
+  const win=window.open('','_blank','width=860,height=900');
+  if(win){win.document.write(html);win.document.close();}
+}
+
 // ─── LAYOUT + APP ─────────────────────────────────────────────────────────────
 // ─── Financials Page ─────────────────────────────────────────────────────────
 const LOGO_PNG = "data:image/png;base64,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";

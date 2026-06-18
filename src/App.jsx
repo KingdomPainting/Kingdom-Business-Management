@@ -3111,6 +3111,60 @@ function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,supplies
         </div>
       </Card>
       {paintData.lines.length>0&&(
+        <Card style={{marginBottom:24}}>
+          <div style={{padding:16}}>
+            <p style={{fontSize:13,fontWeight:700,marginBottom:12}}>Paint Colour Summary</p>
+            {(()=>{
+              const agg={};
+              paintData.lines.forEach(ln=>{
+                const key=`${ln.product}·${ln.colour}·${ln.sheen}`;
+                if(!agg[key]) agg[key]={product:ln.product,colour:ln.colour,sheen:ln.sheen,hex:ln.hex,sqft:0,cost:0};
+                agg[key].sqft+=ln.sqft;
+                agg[key].cost+=ln.lineCost;
+              });
+              const rows=Object.values(agg);
+              const summaryTotal=rows.reduce((s,r)=>s+r.cost,0);
+              return (<>
+                <table style={{width:'100%',borderCollapse:'collapse'}}>
+                  <thead><tr>
+                    <th style={thStyle}>#</th><th style={thStyle}>Product</th><th style={thStyle}>Colour</th><th style={thStyle}>Sheen</th>
+                    <th style={thStyle}>Total Sqft</th><th style={thStyle}>Est. Qty</th><th style={{...thStyle,textAlign:'right'}}>Cost</th>
+                  </tr></thead>
+                  <tbody>{rows.map((r,i)=>{
+                    const gallons=r.sqft>0?Math.ceil(r.sqft/350):0;
+                    let qtyStr='—';
+                    if(r.sqft>0){
+                      if(r.sqft<=1900) qtyStr=gallons+' gal';
+                      else{const pails=Math.floor(r.sqft/1900);const rem=r.sqft-pails*1900;const eg=rem>0?Math.ceil(rem/350):0;const p2=[];if(pails>0)p2.push(pails+' pail'+(pails>1?'s':''));if(eg>0)p2.push(eg+' gal');qtyStr=p2.join(' + ');}
+                    }
+                    return (
+                      <tr key={i}>
+                        <td style={tdStyle}>{i+1}</td>
+                        <td style={tdStyle}>{r.product}</td>
+                        <td style={tdStyle}>
+                          <span style={{display:'inline-flex',gap:6,alignItems:'center'}}>
+                            {r.hex&&<span style={{width:10,height:10,borderRadius:2,background:r.hex,border:'1px solid #ccc',display:'inline-block'}}/>}
+                            {r.colour||'—'}
+                          </span>
+                        </td>
+                        <td style={tdStyle}>{r.sheen||'—'}</td>
+                        <td style={tdStyle}>{fmtN(r.sqft)}</td>
+                        <td style={tdStyle}>{qtyStr}</td>
+                        <td style={{...tdStyle,textAlign:'right'}}>{fmtCAD(r.cost)}</td>
+                      </tr>
+                    );
+                  })}</tbody>
+                  <tfoot><tr>
+                    <td colSpan={6} style={{...tdStyle,fontWeight:700,borderTop:'2px solid var(--border)'}}>Total</td>
+                    <td style={{...tdStyle,textAlign:'right',fontWeight:700,borderTop:'2px solid var(--border)'}}>{fmtCAD(summaryTotal)}</td>
+                  </tr></tfoot>
+                </table>
+              </>);
+            })()}
+          </div>
+        </Card>
+      )}
+      {paintData.lines.length>0&&(
         <Card>
           <div style={{padding:16}}>
             <p style={{fontSize:13,fontWeight:700,marginBottom:12}}>Paint & Materials <span style={{fontWeight:400,color:'var(--muted-fg)'}}>({fmtCAD(paintData.total)})</span></p>

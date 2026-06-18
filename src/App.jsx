@@ -2795,10 +2795,10 @@ function RoomCard({room,settings,onChange,onRemove,primers,paints,ceilPaints,col
   const PaintRow=({label,prod,colour,sheen,products,colours,onProd,onColour,onSheen})=>(
     <div style={{marginBottom:10}}>
       <p style={{fontSize:11,fontWeight:500,color:'var(--muted-fg)',marginBottom:4}}>{label}</p>
-      <div style={{display:'grid',gridTemplateColumns:'2fr 2fr 1fr',gap:6}}>
-        <select value={prod} onChange={e=>onProd(e.target.value)} style={{fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Product —</option>{products.map(p=><option key={p} value={p}>{p}</option>)}</select>
-        <select value={colour} onChange={e=>onColour(e.target.value)} style={{fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Colour —</option>{colours.map(c=><option key={c} value={c}>{c}</option>)}</select>
-        <select value={sheen} onChange={e=>onSheen(e.target.value)} style={{fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Sheen —</option>{SHEENS.map(s=><option key={s} value={s}>{s}</option>)}</select>
+      <div style={{display:'flex',flexDirection:'column',gap:6}}>
+        <select value={prod} onChange={e=>onProd(e.target.value)} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Product —</option>{products.map(p=><option key={p} value={p}>{p}</option>)}</select>
+        <select value={colour} onChange={e=>onColour(e.target.value)} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Colour —</option>{colours.map(c=><option key={c} value={c}>{c}</option>)}</select>
+        <select value={sheen} onChange={e=>onSheen(e.target.value)} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Sheen —</option>{SHEENS.map(s=><option key={s} value={s}>{s}</option>)}</select>
       </div>
     </div>
   );
@@ -2818,7 +2818,7 @@ function RoomCard({room,settings,onChange,onRemove,primers,paints,ceilPaints,col
         <div style={{borderTop:'1px solid var(--border)'}}>
           <div style={{padding:'14px 16px',borderBottom:'1px solid rgba(0,0,0,0.05)'}}>
             <p style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--muted-fg)',marginBottom:10}}>Dimensions</p>
-            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(100px,1fr))',gap:8}}>
+            <div style={{display:'flex',flexDirection:'column',gap:8}}>
               {[['Length (ft)','length'],['Width (ft)','width'],['Height (ft)','height']].map(([l,k])=>(
                 <div key={k}><Label>{l}</Label><Input type='number' value={room[k]||''} onChange={e=>u({[k]:+e.target.value})} style={{padding:'6px 8px',minWidth:0}}/></div>
               ))}
@@ -3001,7 +3001,7 @@ function CoverTab({client,setClient,deals,contacts,onSelectDeal,selectedDealId})
     return name?`${d.dealName||'Unnamed project'} - ${name}`:(d.dealName||'Unnamed project');
   };
   return (
-    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:24,padding:24,overflow:'auto',maxHeight:'100%'}}>
+    <div style={{display:'flex',flexDirection:'column',gap:24,padding:24,overflow:'auto',maxHeight:'100%',maxWidth:900,margin:'0 auto'}}>
       <div style={docStyle}>
         <div style={{textAlign:'center',padding:'48px 24px'}}>
           <img src="/kingdom-logo-dark.svg" alt="Kingdom Painting Inc." style={{height:80,margin:'0 auto'}}/>
@@ -3010,7 +3010,7 @@ function CoverTab({client,setClient,deals,contacts,onSelectDeal,selectedDealId})
           <div style={{marginTop:48}}>
             <p style={{fontSize:11,textTransform:'uppercase',letterSpacing:'0.1em',color:'#999'}}>PREPARED FOR</p>
             <p style={{fontSize:18,fontWeight:600,marginTop:8,color:'#1a1a1a'}}>{client.name||'Client Name'}</p>
-            {(client.street||client.city)&&<p style={{fontSize:12,color:'#666',marginTop:6}}>{[client.street,[client.city,client.province].filter(Boolean).join(', '),client.postal].filter(Boolean).join(', ')}</p>}
+            {client.address&&<p style={{fontSize:12,color:'#666',marginTop:6}}>{client.address}</p>}
             {client.phone&&<p style={{fontSize:12,color:'#666',marginTop:4}}>{client.phone}</p>}
             {client.email&&<p style={{fontSize:12,color:'#666',marginTop:4}}>{client.email}</p>}
           </div>
@@ -3031,12 +3031,7 @@ function CoverTab({client,setClient,deals,contacts,onSelectDeal,selectedDealId})
         </div>
         <div>
           <Label>Address</Label>
-          <Input value={client.street||''} onChange={e=>setClient({...client,street:e.target.value})} placeholder='Street address'/>
-          <div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr',gap:8,marginTop:6}}>
-            <Input value={client.city||''} onChange={e=>setClient({...client,city:e.target.value})} placeholder='City'/>
-            <Input value={client.province||''} onChange={e=>setClient({...client,province:e.target.value})} placeholder='ON'/>
-            <Input value={client.postal||''} onChange={e=>setClient({...client,postal:e.target.value})} placeholder='Postal'/>
-          </div>
+          <Input value={client.address||''} onChange={e=>setClient({...client,address:e.target.value})} placeholder='Full address'/>
         </div>
         <div>
           <Label>Phone</Label>
@@ -3255,8 +3250,7 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
           <div>
             <p style={{fontWeight:600,color:'#888',fontSize:10,textTransform:'uppercase',marginBottom:4}}>Prepared For</p>
             <p style={{fontWeight:600}}>{client.name||'—'}</p>
-            {(client.street||client.addr1)&&<p style={{color:'#666'}}>{client.street||client.addr1}</p>}
-            {(client.city||client.province||client.postal)&&<p style={{color:'#666'}}>{[client.city,client.province].filter(Boolean).join(', ')}{client.postal?` ${client.postal}`:''}</p>}
+            {client.address&&<p style={{color:'#666'}}>{client.address}</p>}
             {client.phone&&<p style={{color:'#666'}}>{client.phone}</p>}
             {client.email&&<p style={{color:'#666'}}>{client.email}</p>}
           </div>
@@ -3418,8 +3412,7 @@ function ContractTab({rooms,settings,client,totals}){
           <div style={{fontSize:11,color:'#444',lineHeight:'1.7'}}>
             <p style={{fontWeight:600,marginBottom:4}}>Client</p>
             <p>{client.name||'—'}</p>
-            {(client.street||client.addr1)&&<p>{client.street||client.addr1}</p>}
-            {(client.city||client.province||client.postal)&&<p>{[client.city,client.province].filter(Boolean).join(', ')}{client.postal?` ${client.postal}`:''}</p>}
+            {client.address&&<p>{client.address}</p>}
             {client.phone&&<p>{client.phone}</p>}
             {client.email&&<p>{client.email}</p>}
           </div>
@@ -4011,7 +4004,7 @@ function StandardsTab({standards,setStandards,onSave}){
 function MasterEstimate(){
   const [rooms,setRooms]=useState(()=>[newRoom('1',1)]);
   const [roomCounter,setRoomCounter]=useState(1);
-  const [client,setClient]=useState({name:'',email:'',phone:'',street:'',city:'',province:'',postal:''});
+  const [client,setClient]=useState({name:'',email:'',phone:'',address:''});
   const [changeItems,setChangeItems]=useState([]);
   const [changeCounter,setChangeCounter]=useState(0);
   const [currentEstimateId,setCurrentEstimateId]=useState(null);
@@ -4066,7 +4059,7 @@ function MasterEstimate(){
         user_id:_session.user.id,
         title:buildTitle(),
         client_name:cli.name,client_email:cli.email,client_phone:cli.phone,
-        addr1:cli.street||cli.addr1||'',
+        addr1:cli.address||'',
         state:JSON.stringify({rooms:rms,roomCounter:rc,changeItems:ci,changeCounter:cc,client:cli,selectedDealId:sdid})
       };
       if(rid){
@@ -4124,8 +4117,8 @@ function MasterEstimate(){
         if(st.roomCounter)setRoomCounter(st.roomCounter);
         if(st.client){
           const c=st.client;
-          if(c.addr1&&!c.street) c.street=c.addr1;
-          setClient({name:c.name||'',email:c.email||'',phone:c.phone||'',street:c.street||'',city:c.city||'',province:c.province||'',postal:c.postal||''});
+          const addr=c.address||[c.street||c.addr1,[c.city,c.province].filter(Boolean).join(', '),c.postal].filter(Boolean).join(', ');
+          setClient({name:c.name||'',email:c.email||'',phone:c.phone||'',address:addr});
         }
         if(st.changeItems)setChangeItems(st.changeItems);
         if(st.changeCounter!=null)setChangeCounter(st.changeCounter);
@@ -4139,7 +4132,7 @@ function MasterEstimate(){
   const newEstimate=()=>{
     if(!confirm('Start a new estimate? Unsaved changes will be lost.'))return;
     setRooms([newRoom('1',1)]);setRoomCounter(1);
-    setClient({name:'',email:'',phone:'',street:'',city:'',province:'',postal:''});
+    setClient({name:'',email:'',phone:'',address:''});
     setChangeItems([]);setChangeCounter(0);
     setCurrentEstimateId(null);setActiveTab('cover');
   };
@@ -4150,22 +4143,11 @@ function MasterEstimate(){
     if(!deal)return;
     const cid=Array.isArray(deal.contact)?deal.contact[0]:deal.contact;
     const contact=contacts.find(c=>c.id===cid);
-    const fullAddr=contact?.address||deal.address||'';
-    const addrParts=fullAddr.split(',').map(s=>s.trim());
-    const streetPart=addrParts[0]||'';
-    let cityPart='',provPart='',postalPart='';
-    if(addrParts.length>=2){
-      cityPart=addrParts[1]||'';
-      const last=addrParts.slice(2).join(', ').trim();
-      const pm=last.match(/^([A-Z]{2})\s+([A-Z]\d[A-Z]\s*\d[A-Z]\d)$/i);
-      if(pm){provPart=pm[1];postalPart=pm[2];}
-      else{provPart=last;}
-    }
     setClient({
       name:contact?.fullName||contact?.full_name||[contact?.first_name,contact?.last_name].filter(Boolean).join(' ')||'',
       email:contact?.email||'',
       phone:contact?.phone||'',
-      street:streetPart,city:cityPart,province:provPart.toUpperCase(),postal:postalPart.toUpperCase(),
+      address:contact?.address||deal.address||'',
     });
   };
 
@@ -4177,8 +4159,7 @@ function MasterEstimate(){
       const today=new Date().toLocaleDateString('en-CA',{year:'numeric',month:'long',day:'numeric'});
       const todayISO=new Date().toISOString().slice(0,10);
       const gold='#C4922A';
-      const addr1=client.street||'';
-      const addr2=[client.city,client.province].filter(Boolean).join(', ')+(client.postal?` ${client.postal}`:'');
+      const clientAddr=client.address||'';
       const allColours=[...(ps.colours||[])];
       const getHex=name=>{const c=allColours.find(x=>x.n===name);return c?.h||null;};
       const prepLabelsMap={furniture:'Move furniture',plastic:'Cover w/ plastic',outlets:'Remove outlets',drywall:'Drywall repairs',caulking:'Caulking',cleanup:'Clean up'};
@@ -4190,8 +4171,7 @@ function MasterEstimate(){
       qhtml+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid ${gold}"><div style="display:flex;gap:12px;align-items:center"><img src="/kingdom-logo-dark.svg" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:2px">QUOTE</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p><p style="font-size:10px;color:#999;margin-top:4px">HST# 71164 5556 RT0001</p></div></div>`;
       qhtml+='<div style="margin-bottom:24px;font-size:12px"><p style="font-weight:600;color:#888;font-size:10px;text-transform:uppercase;margin-bottom:4px">Prepared For</p>';
       qhtml+=`<p style="font-weight:600">${client.name||'—'}</p>`;
-      if(addr1) qhtml+=`<p style="color:#666">${addr1}</p>`;
-      if(addr2) qhtml+=`<p style="color:#666">${addr2}</p>`;
+      if(clientAddr) qhtml+=`<p style="color:#666">${clientAddr}</p>`;
       if(client.phone) qhtml+=`<p style="color:#666">${client.phone}</p>`;
       if(client.email) qhtml+=`<p style="color:#666">${client.email}</p>`;
       qhtml+='</div><table><thead><tr><th>Item</th><th>Description</th><th style="text-align:right">Amount</th></tr></thead><tbody>';
@@ -4238,7 +4218,7 @@ function MasterEstimate(){
       chtml+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">1. Parties</p>`;
       chtml+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:8px;font-size:11px;color:#444;line-height:1.7">';
       chtml+=`<div><p style="font-weight:600;margin-bottom:4px">Client</p><p>${client.name||'—'}</p>`;
-      if(addr1) chtml+=`<p>${addr1}</p>`;if(addr2) chtml+=`<p>${addr2}</p>`;
+      if(clientAddr) chtml+=`<p>${clientAddr}</p>`;
       if(client.phone) chtml+=`<p>${client.phone}</p>`;if(client.email) chtml+=`<p>${client.email}</p>`;
       chtml+='</div><div><p style="font-weight:600;margin-bottom:4px">Contractor</p><p>David Truong</p><p>25 Fieldview Crescent</p><p>Markham ON L3R 3H6</p><p>(647) 449-6611</p><p>info@kingdompainting.ca</p></div></div>';
       chtml+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">2. Scope of Work</p>`;
@@ -4431,8 +4411,7 @@ function exportBidPDF(client,rooms,settings,totals,paints,ceilPaints,primers,col
   const fmtC=n=>'$'+n.toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2});
   const today=new Date().toLocaleDateString('en-CA',{year:'numeric',month:'long',day:'numeric'});
   const gold='#C4922A';
-  const addr1=client.street||client.addr1||'';
-  const addr2=[client.city,client.province].filter(Boolean).join(', ')+(client.postal?` ${client.postal}`:'');
+  const clientAddr=client.address||'';
   const roomCalcs=rooms.map(r=>({room:r,calc:calcRoom(r,settings),lines:calcRoomLines(r,settings)}));
   const paintData=calcPaintCosts(rooms,paints||[],ceilPaints||[],primers||[],colours||[],settings._standards?.matBuffer||1.15);
   const allColours=[...(colours||[])];
@@ -4451,8 +4430,7 @@ function exportBidPDF(client,rooms,settings,totals,paints,ceilPaints,primers,col
   html+='<p style="font-size:16px;font-weight:600;letter-spacing:0.08em;color:#555;margin-top:24px">BID PROPOSAL</p>';
   html+='<div style="margin-top:48px"><p style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:#999">PREPARED FOR</p>';
   html+=`<p style="font-size:18px;font-weight:600;margin-top:8px">${client.name||'Client Name'}</p>`;
-  if(addr1) html+=`<p style="font-size:12px;color:#666;margin-top:6px">${addr1}</p>`;
-  if(addr2) html+=`<p style="font-size:12px;color:#666;margin-top:2px">${addr2}</p>`;
+  if(clientAddr) html+=`<p style="font-size:12px;color:#666;margin-top:6px">${clientAddr}</p>`;
   if(client.phone) html+=`<p style="font-size:12px;color:#666;margin-top:4px">${client.phone}</p>`;
   if(client.email) html+=`<p style="font-size:12px;color:#666;margin-top:2px">${client.email}</p>`;
   html+='</div>';
@@ -4461,8 +4439,7 @@ function exportBidPDF(client,rooms,settings,totals,paints,ceilPaints,primers,col
   html+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px" class="border-gold"><div style="display:flex;gap:12px;align-items:center"><img src="/kingdom-logo-dark.svg" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:2px">QUOTE</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p><p style="font-size:10px;color:#999;margin-top:4px">HST# 71164 5556 RT0001</p></div></div>`;
   html+='<div style="margin-bottom:24px;font-size:12px"><p style="font-weight:600;color:#888;font-size:10px;text-transform:uppercase;margin-bottom:4px">Prepared For</p>';
   html+=`<p style="font-weight:600">${client.name||'—'}</p>`;
-  if(addr1) html+=`<p style="color:#666">${addr1}</p>`;
-  if(addr2) html+=`<p style="color:#666">${addr2}</p>`;
+  if(clientAddr) html+=`<p style="color:#666">${clientAddr}</p>`;
   if(client.phone) html+=`<p style="color:#666">${client.phone}</p>`;
   if(client.email) html+=`<p style="color:#666">${client.email}</p>`;
   html+='</div>';
@@ -4492,8 +4469,7 @@ function exportBidPDF(client,rooms,settings,totals,paints,ceilPaints,primers,col
   html+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">1. Parties</p>`;
   html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:8px;font-size:11px;color:#444;line-height:1.7">';
   html+=`<div><p style="font-weight:600;margin-bottom:4px">Client</p><p>${client.name||'—'}</p>`;
-  if(addr1) html+=`<p>${addr1}</p>`;
-  if(addr2) html+=`<p>${addr2}</p>`;
+  if(clientAddr) html+=`<p>${clientAddr}</p>`;
   if(client.phone) html+=`<p>${client.phone}</p>`;
   if(client.email) html+=`<p>${client.email}</p>`;
   html+='</div><div><p style="font-weight:600;margin-bottom:4px">Contractor</p><p>David Truong</p><p>25 Fieldview Crescent</p><p>Markham ON L3R 3H6</p><p>(647) 449-6611</p><p>info@kingdompainting.ca</p></div></div>';

@@ -2573,8 +2573,8 @@ function calcTotals(rooms, settings){
   const discounted = Math.max(0, labourSubtotal - (settings.discount||0));
   const taxAmt = discounted * ((settings.taxRate||13)/100);
   const total = discounted + taxAmt;
-  const deposit = total * 0.10;
-  const midway = total * 0.45;
+  const deposit = total * 0.30;
+  const midway = total * 0.35;
   const balance = total - deposit - midway;
   return { labourSubtotal, discounted, taxAmt, total, deposit, midway, balance };
 }
@@ -3337,11 +3337,11 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
           <p style={{fontSize:12,fontWeight:700,marginBottom:12,color:gold}}>Payment Terms</p>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12}}>
             <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:14,textAlign:'center'}}>
-              <p style={{fontSize:10,color:'#888',textTransform:'uppercase',fontWeight:600}}>Deposit (10%)</p>
+              <p style={{fontSize:10,color:'#888',textTransform:'uppercase',fontWeight:600}}>Deposit (30%)</p>
               <p style={{fontSize:16,fontWeight:700,marginTop:4}}>{fmtCAD(totals.deposit)}</p>
             </div>
             <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:14,textAlign:'center'}}>
-              <p style={{fontSize:10,color:'#888',textTransform:'uppercase',fontWeight:600}}>Midway (45%)</p>
+              <p style={{fontSize:10,color:'#888',textTransform:'uppercase',fontWeight:600}}>Midway (35%)</p>
               <p style={{fontSize:16,fontWeight:700,marginTop:4}}>{fmtCAD(totals.midway)}</p>
             </div>
             <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:14,textAlign:'center'}}>
@@ -3475,11 +3475,11 @@ function ContractTab({rooms,settings,client,totals}){
         <p style={bodyText}>Total project cost: <strong>{fmtCAD(totals.total)}</strong> (incl. HST 13%)</p>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:12}}>
           <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:12,textAlign:'center'}}>
-            <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>Deposit (10%)</p>
+            <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>Deposit (30%)</p>
             <p style={{fontSize:14,fontWeight:700,marginTop:2}}>{fmtCAD(totals.deposit)}</p>
           </div>
           <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:12,textAlign:'center'}}>
-            <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>Midway (45%)</p>
+            <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>Midway (35%)</p>
             <p style={{fontSize:14,fontWeight:700,marginTop:2}}>{fmtCAD(totals.midway)}</p>
           </div>
           <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:12,textAlign:'center'}}>
@@ -4234,7 +4234,7 @@ function MasterEstimate(){
       chtml+='</tbody></table>';
       chtml+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">3. Payment Terms</p>`;
       chtml+=`<div style="font-size:11px;line-height:1.7;color:#444"><p style="margin-bottom:8px">Total contract value: <strong>${fmtC(totals.total)}</strong> (including HST)</p>`;
-      chtml+=`<p>10% Deposit: ${fmtC(totals.deposit)} · 45% Midway: ${fmtC(totals.midway)} · Balance: ${fmtC(totals.balance)}</p></div>`;
+      chtml+=`<p>30% Deposit: ${fmtC(totals.deposit)} · 35% Midway: ${fmtC(totals.midway)} · Balance: ${fmtC(totals.balance)}</p></div>`;
       chtml+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">4. Signatures</p>`;
       chtml+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:24px;font-size:11px">';
       chtml+='<div><div style="border-bottom:1px solid #ccc;height:60px;margin-bottom:8px"></div><p style="color:#888">Client Signature</p></div>';
@@ -4488,7 +4488,7 @@ function exportBidPDF(client,rooms,settings,totals,paints,ceilPaints,primers,col
   html+='</tbody></table>';
   html+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">3. Payment Terms</p>`;
   html+=`<div style="font-size:11px;line-height:1.7;color:#444"><p style="margin-bottom:8px">Total contract value: <strong>${fmtC(totals.total)}</strong> (including HST)</p>`;
-  html+=`<p>10% Deposit: ${fmtC(totals.deposit)} · 45% Midway: ${fmtC(totals.midway)} · Balance: ${fmtC(totals.balance)}</p></div>`;
+  html+=`<p>30% Deposit: ${fmtC(totals.deposit)} · 35% Midway: ${fmtC(totals.midway)} · Balance: ${fmtC(totals.balance)}</p></div>`;
   html+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">4. Signatures</p>`;
   html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:24px;font-size:11px">';
   html+='<div><div style="border-bottom:1px solid #ccc;height:60px;margin-bottom:8px"></div><p style="color:#888">Client Signature</p></div>';

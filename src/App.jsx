@@ -2568,15 +2568,15 @@ function calcRoom(room, settings){
   return { wallSqft, ceilSqft, perimLF, winLF, totalHrs:hrs, cost };
 }
 
-function calcTotals(rooms, settings){
+function calcTotals(rooms, settings, materialCost=0){
   const labourSubtotal = rooms.reduce((s,r) => s + calcRoom(r,settings).cost, 0);
   const discounted = Math.max(0, labourSubtotal - (settings.discount||0));
   const taxAmt = discounted * ((settings.taxRate||13)/100);
-  const total = discounted + taxAmt;
+  const total = discounted + taxAmt + materialCost;
   const deposit = total * 0.30;
   const midway = total * 0.35;
   const balance = total - deposit - midway;
-  return { labourSubtotal, discounted, taxAmt, total, deposit, midway, balance };
+  return { labourSubtotal, discounted, taxAmt, total, deposit, midway, balance, materialCost };
 }
 
 function calcRoomLines(room, settings){
@@ -3315,7 +3315,7 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
           </tbody>
         </table>
         <div style={{borderTop:'2px solid #e5e5e5',paddingTop:16,display:'flex',justifyContent:'flex-end'}}>
-          <div style={{width:260}}>
+          <div style={{width:280}}>
             {(settings.discount||0)>0&&(
               <div style={{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:6}}>
                 <span style={{color:'#888'}}>Discount</span>
@@ -3323,11 +3323,16 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
               </div>
             )}
             <div style={{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:6}}>
-              <span style={{color:'#888'}}>Subtotal</span><span>{fmtCAD(totals.discounted)}</span>
+              <span style={{color:'#888'}}>Labour</span><span>{fmtCAD(totals.discounted)}</span>
             </div>
             <div style={{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:6}}>
-              <span style={{color:'#888'}}>HST (13%)</span><span>{fmtCAD(totals.taxAmt)}</span>
+              <span style={{color:'#888'}}>HST on Labour (13%)</span><span>{fmtCAD(totals.taxAmt)}</span>
             </div>
+            {totals.materialCost>0&&(
+              <div style={{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:6}}>
+                <span style={{color:'#888'}}>Materials</span><span>{fmtCAD(totals.materialCost)}</span>
+              </div>
+            )}
             <div style={{display:'flex',justifyContent:'space-between',fontSize:14,fontWeight:700,paddingTop:8,borderTop:'2px solid #1a1a1a'}}>
               <span>Total</span><span style={{color:gold}}>{fmtCAD(totals.total)}</span>
             </div>
@@ -3472,7 +3477,7 @@ function ContractTab({rooms,settings,client,totals}){
         <p style={bodyText}>Estimated project duration: <strong>{estDays} working day{estDays!==1?'s':''}</strong>.</p>
 
         <p style={sectionTitle}>4. Payment Terms</p>
-        <p style={bodyText}>Total project cost: <strong>{fmtCAD(totals.total)}</strong> (incl. HST 13%)</p>
+        <p style={bodyText}>Total project cost: <strong>{fmtCAD(totals.total)}</strong> (HST 13% applied to labour only)</p>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:12}}>
           <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:12,textAlign:'center'}}>
             <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>Deposit (30%)</p>
@@ -4034,7 +4039,9 @@ function MasterEstimate(){
     _standards:ps.standards
   };
 
-  const totals=calcTotals(rooms,settings);
+  const paintTotal=calcPaintCosts(rooms,ps.paints||[],ps.ceilPaints||[],ps.primers||[],ps.colours||[],settings._standards?.matBuffer||1.15).total;
+  const supplyTotal=rooms.reduce((s,r)=>s+calcRoomSupplyCost(r,ps.supplies||[]),0);
+  const totals=calcTotals(rooms,settings,paintTotal+supplyTotal);
   const totalHrs=rooms.reduce((s,r)=>s+calcRoom(r,settings).totalHrs,0);
 
   useEffect(()=>{
@@ -4208,8 +4215,9 @@ function MasterEstimate(){
       qhtml+='</tbody></table>';
       qhtml+=`<div style="margin-top:24px;padding-top:16px;border-bottom:2px solid ${gold}"><table style="width:auto;margin-left:auto">`;
       if((settings.discount||0)>0) qhtml+=`<tr><td style="text-align:right;padding:4px 16px;color:#888">Discount</td><td style="text-align:right;padding:4px 0;color:#c00">-${fmtC(totals.labourSubtotal-totals.discounted)}</td></tr>`;
-      qhtml+=`<tr><td style="text-align:right;padding:4px 16px;color:#888">Subtotal</td><td style="text-align:right;padding:4px 0">${fmtC(totals.discounted)}</td></tr>`;
-      qhtml+=`<tr><td style="text-align:right;padding:4px 16px;color:#888">HST (13%)</td><td style="text-align:right;padding:4px 0">${fmtC(totals.taxAmt)}</td></tr>`;
+      qhtml+=`<tr><td style="text-align:right;padding:4px 16px;color:#888">Labour</td><td style="text-align:right;padding:4px 0">${fmtC(totals.discounted)}</td></tr>`;
+      qhtml+=`<tr><td style="text-align:right;padding:4px 16px;color:#888">HST on Labour (13%)</td><td style="text-align:right;padding:4px 0">${fmtC(totals.taxAmt)}</td></tr>`;
+      if(totals.materialCost>0) qhtml+=`<tr><td style="text-align:right;padding:4px 16px;color:#888">Materials</td><td style="text-align:right;padding:4px 0">${fmtC(totals.materialCost)}</td></tr>`;
       qhtml+=`<tr style="border-top:2px solid ${gold}"><td style="text-align:right;padding:8px 16px;font-weight:700;font-size:14px;color:${gold}">Total</td><td style="text-align:right;padding:8px 0;font-weight:700;font-size:14px;color:${gold}">${fmtC(totals.total)}</td></tr></table></div>`;
       qhtml+='</body></html>';
 
@@ -4233,7 +4241,7 @@ function MasterEstimate(){
       });
       chtml+='</tbody></table>';
       chtml+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">3. Payment Terms</p>`;
-      chtml+=`<div style="font-size:11px;line-height:1.7;color:#444"><p style="margin-bottom:8px">Total contract value: <strong>${fmtC(totals.total)}</strong> (including HST)</p>`;
+      chtml+=`<div style="font-size:11px;line-height:1.7;color:#444"><p style="margin-bottom:8px">Total contract value: <strong>${fmtC(totals.total)}</strong> (HST 13% applied to labour only)</p>`;
       chtml+=`<p>30% Deposit: ${fmtC(totals.deposit)} · 35% Midway: ${fmtC(totals.midway)} · Balance: ${fmtC(totals.balance)}</p></div>`;
       chtml+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">4. Signatures</p>`;
       chtml+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:24px;font-size:11px">';
@@ -4460,8 +4468,9 @@ function exportBidPDF(client,rooms,settings,totals,paints,ceilPaints,primers,col
     html+=`<p>${surfaces.join('<br>')}</p></td></tr>`;
   });
   html+='</tbody></table>';
-  html+=`<div style="margin-top:24px;padding-top:16px" class="border-gold"><table style="width:auto;margin-left:auto"><tr><td style="text-align:right;padding:4px 16px;color:#888">Labour Subtotal</td><td style="text-align:right;padding:4px 0;font-weight:600">${fmtC(totals.labourSubtotal)}</td></tr>`;
-  html+=`<tr><td style="text-align:right;padding:4px 16px;color:#888">HST (13%)</td><td style="text-align:right;padding:4px 0">${fmtC(totals.taxAmt)}</td></tr>`;
+  html+=`<div style="margin-top:24px;padding-top:16px" class="border-gold"><table style="width:auto;margin-left:auto"><tr><td style="text-align:right;padding:4px 16px;color:#888">Labour</td><td style="text-align:right;padding:4px 0;font-weight:600">${fmtC(totals.discounted)}</td></tr>`;
+  html+=`<tr><td style="text-align:right;padding:4px 16px;color:#888">HST on Labour (13%)</td><td style="text-align:right;padding:4px 0">${fmtC(totals.taxAmt)}</td></tr>`;
+  if(totals.materialCost>0) html+=`<tr><td style="text-align:right;padding:4px 16px;color:#888">Materials</td><td style="text-align:right;padding:4px 0">${fmtC(totals.materialCost)}</td></tr>`;
   html+=`<tr style="border-top:2px solid ${gold}"><td style="text-align:right;padding:8px 16px;font-weight:700;font-size:14px" class="gold">Total</td><td style="text-align:right;padding:8px 0;font-weight:700;font-size:14px" class="gold">${fmtC(totals.total)}</td></tr></table></div>`;
   html+='</div>';
   html+='<div class="page">';
@@ -4487,7 +4496,7 @@ function exportBidPDF(client,rooms,settings,totals,paints,ceilPaints,primers,col
   });
   html+='</tbody></table>';
   html+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">3. Payment Terms</p>`;
-  html+=`<div style="font-size:11px;line-height:1.7;color:#444"><p style="margin-bottom:8px">Total contract value: <strong>${fmtC(totals.total)}</strong> (including HST)</p>`;
+  html+=`<div style="font-size:11px;line-height:1.7;color:#444"><p style="margin-bottom:8px">Total contract value: <strong>${fmtC(totals.total)}</strong> (HST 13% applied to labour only)</p>`;
   html+=`<p>30% Deposit: ${fmtC(totals.deposit)} · 35% Midway: ${fmtC(totals.midway)} · Balance: ${fmtC(totals.balance)}</p></div>`;
   html+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">4. Signatures</p>`;
   html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:24px;font-size:11px">';

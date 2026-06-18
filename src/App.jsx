@@ -4172,7 +4172,110 @@ function MasterEstimate(){
   const pushToProject=async()=>{
     if(!selectedDealId){alert('Select a deal on the Cover tab first.');return;}
     try{
-      await api.saveDeal({value:totals.total,estimateHrs:totalHrs},selectedDealId);
+      const fmtC=n=>'$'+n.toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2});
+      const fmtN=n=>Math.round(n).toLocaleString('en-CA');
+      const today=new Date().toLocaleDateString('en-CA',{year:'numeric',month:'long',day:'numeric'});
+      const todayISO=new Date().toISOString().slice(0,10);
+      const gold='#C4922A';
+      const addr1=client.street||'';
+      const addr2=[client.city,client.province].filter(Boolean).join(', ')+(client.postal?` ${client.postal}`:'');
+      const allColours=[...(ps.colours||[])];
+      const getHex=name=>{const c=allColours.find(x=>x.n===name);return c?.h||null;};
+      const prepLabelsMap={furniture:'Move furniture',plastic:'Cover w/ plastic',outlets:'Remove outlets',drywall:'Drywall repairs',caulking:'Caulking',cleanup:'Clean up'};
+      const css='*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,sans-serif;color:#1a1a1a;font-size:12px}table{width:100%;border-collapse:collapse}th{text-align:left;padding:8px 10px;border-bottom:2px solid #e5e5e5;color:#888;font-size:11px;font-weight:600}td{padding:8px 10px;border-bottom:1px solid #eee;font-size:12px;vertical-align:top}';
+
+      const dealRooms=rooms.map(r=>({name:r.name,done:false}));
+
+      let qhtml='<!DOCTYPE html><html><head><meta charset="utf-8"><title>Quote</title><style>'+css+'</style></head><body style="padding:40px 48px;max-width:900px;margin:0 auto">';
+      qhtml+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid ${gold}"><div style="display:flex;gap:12px;align-items:center"><img src="/kingdom-logo-dark.svg" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:2px">QUOTE</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p><p style="font-size:10px;color:#999;margin-top:4px">HST# 71164 5556 RT0001</p></div></div>`;
+      qhtml+='<div style="margin-bottom:24px;font-size:12px"><p style="font-weight:600;color:#888;font-size:10px;text-transform:uppercase;margin-bottom:4px">Prepared For</p>';
+      qhtml+=`<p style="font-weight:600">${client.name||'—'}</p>`;
+      if(addr1) qhtml+=`<p style="color:#666">${addr1}</p>`;
+      if(addr2) qhtml+=`<p style="color:#666">${addr2}</p>`;
+      if(client.phone) qhtml+=`<p style="color:#666">${client.phone}</p>`;
+      if(client.email) qhtml+=`<p style="color:#666">${client.email}</p>`;
+      qhtml+='</div><table><thead><tr><th>Item</th><th>Description</th><th style="text-align:right">Amount</th></tr></thead><tbody>';
+      rooms.forEach(r=>{
+        const c=calcRoom(r,settings);
+        const surfaces=[],prepItems=[];
+        if(r.walls?.enabled) surfaces.push(`${r.walls.coats} coat${r.walls.coats>1?'s':''} on walls — ${fmtN(c.wallSqft)} sqft`);
+        if(r.ceiling?.enabled) surfaces.push(`${r.ceiling.coats} coat${r.ceiling.coats>1?'s':''} on ceiling — ${fmtN(c.ceilSqft)} sqft`);
+        if(r.baseboards?.enabled) surfaces.push('Baseboards');
+        if(r.crown?.enabled) surfaces.push('Crown moulding');
+        const dc=roomDoorCount(r);if(dc>0) surfaces.push(`${dc} door${dc>1?'s':''}`);
+        const wc=r.windows?.dims?.length||0;if(r.windows?.enabled&&wc>0) surfaces.push(`${wc} window${wc>1?'s':''}`);
+        Object.entries(prepLabelsMap).forEach(([k,v])=>{if(r.prep?.[k])prepItems.push(v);});
+        if(r.prep?.custom) prepItems.push(r.prep.custom);
+        const materials=[];
+        if(r.walls?.enabled&&r.paint?.wallProduct){
+          const hex=getHex(r.paint.wallColour);
+          materials.push({label:`Walls: ${r.paint.wallProduct}`,colour:r.paint.wallColour,sheen:r.paint.wallSheen,hex});
+        }
+        if(r.ceiling?.enabled&&r.paint?.ceilProduct){
+          const hex=getHex(r.paint.ceilColour);
+          materials.push({label:`Ceiling: ${r.paint.ceilProduct}`,colour:r.paint.ceilColour,sheen:r.paint.ceilSheen,hex});
+        }
+        if((r.baseboards?.enabled||r.doors?.enabled||roomDoorCount(r)>0||r.crown?.enabled)&&r.paint?.trimProduct){
+          const hex=getHex(r.paint.trimColour);
+          materials.push({label:`Trim: ${r.paint.trimProduct}`,colour:r.paint.trimColour,sheen:r.paint.trimSheen,hex});
+        }
+        qhtml+=`<tr><td style="font-weight:600;white-space:nowrap">${r.name}</td><td>`;
+        if(prepItems.length) qhtml+=`<p style="margin-bottom:4px"><strong>Prep:</strong> ${prepItems.join(', ')}</p>`;
+        qhtml+=`<p>${surfaces.join('<br>')}</p>`;
+        if(materials.length) materials.forEach(m=>{qhtml+=`<p style="font-size:10px;color:#666;margin-top:4px">${m.label} — ${m.colour}${m.hex?`<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${m.hex};border:1px solid #ccc;margin:0 3px;vertical-align:middle"></span>`:''} (${m.sheen})</p>`;});
+        qhtml+=`</td><td style="text-align:right;font-weight:600;white-space:nowrap">${fmtC(c.cost)}</td></tr>`;
+      });
+      qhtml+='</tbody></table>';
+      qhtml+=`<div style="margin-top:24px;padding-top:16px;border-bottom:2px solid ${gold}"><table style="width:auto;margin-left:auto">`;
+      if((settings.discount||0)>0) qhtml+=`<tr><td style="text-align:right;padding:4px 16px;color:#888">Discount</td><td style="text-align:right;padding:4px 0;color:#c00">-${fmtC(totals.labourSubtotal-totals.discounted)}</td></tr>`;
+      qhtml+=`<tr><td style="text-align:right;padding:4px 16px;color:#888">Subtotal</td><td style="text-align:right;padding:4px 0">${fmtC(totals.discounted)}</td></tr>`;
+      qhtml+=`<tr><td style="text-align:right;padding:4px 16px;color:#888">HST (13%)</td><td style="text-align:right;padding:4px 0">${fmtC(totals.taxAmt)}</td></tr>`;
+      qhtml+=`<tr style="border-top:2px solid ${gold}"><td style="text-align:right;padding:8px 16px;font-weight:700;font-size:14px;color:${gold}">Total</td><td style="text-align:right;padding:8px 0;font-weight:700;font-size:14px;color:${gold}">${fmtC(totals.total)}</td></tr></table></div>`;
+      qhtml+='</body></html>';
+
+      let chtml='<!DOCTYPE html><html><head><meta charset="utf-8"><title>Contract</title><style>'+css+'</style></head><body style="padding:40px 48px;max-width:900px;margin:0 auto">';
+      chtml+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid ${gold}"><div style="display:flex;gap:12px;align-items:center"><img src="/kingdom-logo-dark.svg" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:2px">CONTRACT</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p></div></div>`;
+      chtml+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">1. Parties</p>`;
+      chtml+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:8px;font-size:11px;color:#444;line-height:1.7">';
+      chtml+=`<div><p style="font-weight:600;margin-bottom:4px">Client</p><p>${client.name||'—'}</p>`;
+      if(addr1) chtml+=`<p>${addr1}</p>`;if(addr2) chtml+=`<p>${addr2}</p>`;
+      if(client.phone) chtml+=`<p>${client.phone}</p>`;if(client.email) chtml+=`<p>${client.email}</p>`;
+      chtml+='</div><div><p style="font-weight:600;margin-bottom:4px">Contractor</p><p>David Truong</p><p>25 Fieldview Crescent</p><p>Markham ON L3R 3H6</p><p>(647) 449-6611</p><p>info@kingdompainting.ca</p></div></div>';
+      chtml+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">2. Scope of Work</p>`;
+      chtml+='<table style="font-size:11px"><thead><tr><th>Room</th><th>Surfaces</th></tr></thead><tbody>';
+      rooms.forEach(r=>{
+        const parts=[];
+        if(r.walls?.enabled) parts.push('Walls');if(r.ceiling?.enabled) parts.push('Ceiling');
+        if(r.baseboards?.enabled) parts.push('Baseboards');if(r.crown?.enabled) parts.push('Crown');
+        const dc=roomDoorCount(r);if(dc>0) parts.push(`${dc} Door${dc>1?'s':''}`);
+        const wc=r.windows?.dims?.length||0;if(r.windows?.enabled&&wc>0) parts.push(`${wc} Window${wc>1?'s':''}`);
+        chtml+=`<tr><td style="padding:6px 8px;font-weight:500">${r.name}</td><td style="padding:6px 8px;color:#555">${parts.join(', ')||'—'}</td></tr>`;
+      });
+      chtml+='</tbody></table>';
+      chtml+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">3. Payment Terms</p>`;
+      chtml+=`<div style="font-size:11px;line-height:1.7;color:#444"><p style="margin-bottom:8px">Total contract value: <strong>${fmtC(totals.total)}</strong> (including HST)</p>`;
+      chtml+=`<p>10% Deposit: ${fmtC(totals.deposit)} · 45% Midway: ${fmtC(totals.midway)} · Balance: ${fmtC(totals.balance)}</p></div>`;
+      chtml+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">4. Signatures</p>`;
+      chtml+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:24px;font-size:11px">';
+      chtml+='<div><div style="border-bottom:1px solid #ccc;height:60px;margin-bottom:8px"></div><p style="color:#888">Client Signature</p></div>';
+      chtml+='<div><div style="border-bottom:1px solid #ccc;height:60px;margin-bottom:8px"></div><p style="color:#888">Contractor Signature</p></div></div>';
+      chtml+='</body></html>';
+
+      const pushData={value:totals.total,estimateHrs:totalHrs,rooms:dealRooms,quote_html:qhtml,quote_date:todayISO,contract_html:chtml};
+
+      if(changeItems.length>0){
+        const coSub=changeItems.reduce((s,it)=>s+(parseFloat(it.amount)||0),0);
+        const coTax=coSub*0.13;const coTotal=coSub+coTax;
+        let cohtml='<!DOCTYPE html><html><head><meta charset="utf-8"><title>Change Order</title><style>'+css+'</style></head><body style="padding:40px 48px;max-width:900px;margin:0 auto">';
+        cohtml+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid ${gold}"><div style="display:flex;gap:12px;align-items:center"><img src="/kingdom-logo-dark.svg" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:2px">CHANGE ORDER</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p><p style="font-size:10px;color:#999;margin-top:4px">HST# 71164 5556 RT0001</p></div></div>`;
+        cohtml+=`<p style="font-size:12px;margin-bottom:20px"><strong>Client:</strong> ${client.name||'—'}</p>`;
+        cohtml+='<table><thead><tr><th style="width:60px">Item #</th><th>Description</th><th style="text-align:right;width:120px">Amount</th></tr></thead><tbody>';
+        changeItems.forEach(it=>{cohtml+=`<tr><td>${it.num||''}</td><td>${it.desc||''}</td><td style="text-align:right">${fmtC(parseFloat(it.amount)||0)}</td></tr>`;});
+        cohtml+=`</tbody></table><div style="margin-top:16px;padding-top:12px;border-top:2px solid #e5e5e5;text-align:right"><p style="font-size:12px;margin-bottom:4px">Subtotal: ${fmtC(coSub)}</p><p style="font-size:12px;margin-bottom:4px">HST (13%): ${fmtC(coTax)}</p><p style="font-size:14px;font-weight:700;color:${gold}">Total: ${fmtC(coTotal)}</p></div></body></html>`;
+        pushData.change_order_html=cohtml;
+      }
+
+      await api.saveDeal(pushData,selectedDealId);
       setSaveMsg('Pushed!');setTimeout(()=>setSaveMsg(''),3000);
     }catch(e){console.warn('Push error:',e);setSaveMsg('Push failed');}
   };
@@ -4212,7 +4315,7 @@ function MasterEstimate(){
       <div style={actionBarStyle}>
         <button onClick={handleSave} disabled={saving} style={{...actionBtnStyle,background:'var(--primary)',color:'#fff',border:'none'}}>Save</button>
         <button onClick={loadEstimates} style={actionBtnStyle}>Load</button>
-        <button onClick={pushToProject} style={actionBtnStyle}>Push to Project</button>
+        <button onClick={pushToProject} style={actionBtnStyle}>Push</button>
         <button onClick={newEstimate} style={actionBtnStyle}>New</button>
         <button onClick={()=>{const deal=deals.find(d=>d.id===selectedDealId);exportBidPDF(client,rooms,settings,totals,ps.paints,ps.ceilPaints,ps.primers,ps.colours,ps.supplies,deal?.dealName||'');}} style={actionBtnStyle}>Export Bid</button>
         <div style={{flex:1}}/>

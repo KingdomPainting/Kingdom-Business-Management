@@ -2773,7 +2773,7 @@ function usePaintSettings(){
 }
 
 // ─── ROOM CARD ────────────────────────────────────────────────────────────────
-function RoomCard({room,settings,onChange,onRemove,primers,paints,ceilPaints,colours}){
+function RoomCard({room,settings,onChange,onRemove,primers,paints,ceilPaints,colours,supplies}){
   const [open,setOpen]=useState(true);
   const calc=calcRoom(room,settings);
   const u=patch=>onChange({...room,...patch});
@@ -2969,6 +2969,20 @@ function RoomCard({room,settings,onChange,onRemove,primers,paints,ceilPaints,col
               {(room.baseboards?.coats===3||room.crown?.coats===3||room.doorFrames?.coats===3||room.windows?.coats===3||(room.doors?.flat?.coats===3)||(room.doors?.sixPanel?.coats===3)||(room.doors?.custom?.coats===3))&&<div style={{marginTop:-6,marginBottom:10}}><p style={{fontSize:11,fontWeight:500,color:'var(--muted-fg)',marginBottom:4}}>Trim Primer</p><select value={room.paint.trimPrimer||''} onChange={e=>up({trimPrimer:e.target.value})} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Select Primer —</option>{(primers||[]).map(p=><option key={p.n} value={p.n}>{p.n}</option>)}</select></div>}
             </>}
           </div>
+          <div style={{padding:'14px 16px',borderTop:'1px solid rgba(0,0,0,0.05)'}}>
+            <p style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--muted-fg)',marginBottom:8}}>Supplies</p>
+            {(room.supplies||[]).map((s,i)=>(
+              <div key={i} style={{display:'flex',gap:6,alignItems:'center',marginBottom:6}}>
+                <select value={s.name||''} onChange={e=>{const next=[...(room.supplies||[])];next[i]={...next[i],name:e.target.value};u({supplies:next});}} style={{flex:1,fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}>
+                  <option value=''>— Select —</option>
+                  {(supplies||[]).map(sp=><option key={sp.n} value={sp.n}>{sp.n} ({fmtCAD(sp.p)})</option>)}
+                </select>
+                <Input type='number' value={s.qty||''} onChange={e=>{const next=[...(room.supplies||[])];next[i]={...next[i],qty:+e.target.value};u({supplies:next});}} placeholder='Qty' style={{width:50,padding:'4px 6px',fontSize:11,minWidth:0}}/>
+                <button onClick={()=>u({supplies:(room.supplies||[]).filter((_,j)=>j!==i)})} style={{background:'none',border:'none',cursor:'pointer',color:'var(--destructive)',fontSize:12}}>×</button>
+              </div>
+            ))}
+            <button onClick={()=>u({supplies:[...(room.supplies||[]),{name:'',qty:1}]})} style={{fontSize:11,padding:'4px 10px',borderRadius:4,border:'1px dashed var(--border)',background:'none',cursor:'pointer',color:'var(--primary)',fontWeight:500}}>+ Add Supply</button>
+          </div>
         </div>
       )}
     </div>
@@ -3038,7 +3052,7 @@ function CoverTab({client,setClient,deals,contacts,onSelectDeal,selectedDealId})
 }
 
 // ─── ROOMS TAB ────────────────────────────────────────────────────────────────
-function RoomsTab({rooms,settings,onUpdate,onRemove,onAdd,paints,ceilPaints,colours,primers}){
+function RoomsTab({rooms,settings,onUpdate,onRemove,onAdd,paints,ceilPaints,colours,primers,supplies}){
   const totalCost=rooms.reduce((s,r)=>s+calcRoom(r,settings).cost,0);
   return (
     <div style={{padding:'16px 12px',overflow:'auto',maxHeight:'100%'}}>
@@ -3050,7 +3064,7 @@ function RoomsTab({rooms,settings,onUpdate,onRemove,onAdd,paints,ceilPaints,colo
         <span style={{fontSize:13,fontWeight:600,color:'var(--primary)'}}>{fmtCAD(totalCost)}</span>
       </div>
       {rooms.map((r,i)=>(
-        <RoomCard key={r.id} room={r} settings={settings} primers={primers} paints={paints} ceilPaints={ceilPaints} colours={colours}
+        <RoomCard key={r.id} room={r} settings={settings} primers={primers} paints={paints} ceilPaints={ceilPaints} colours={colours} supplies={supplies}
           onChange={updated=>onUpdate(i,updated)}
           onRemove={()=>onRemove(i)}/>
       ))}
@@ -3120,7 +3134,7 @@ function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,supplies
       {paintData.lines.length>0&&(
         <Card style={{marginBottom:24}}>
           <div style={{padding:16}}>
-            <p style={{fontSize:13,fontWeight:700,marginBottom:12}}>Paint Colour Summary</p>
+            <p style={{fontSize:13,fontWeight:700,marginBottom:12}}>Paint Summary <span style={{fontWeight:400,color:'var(--muted-fg)'}}>({fmtCAD(paintData.total)})</span></p>
             {(()=>{
               const agg={};
               paintData.lines.forEach(ln=>{
@@ -3131,11 +3145,11 @@ function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,supplies
               });
               const rows=Object.values(agg);
               const summaryTotal=rows.reduce((s,r)=>s+r.cost,0);
-              return (<>
+              return (
                 <table style={{width:'100%',borderCollapse:'collapse'}}>
                   <thead><tr>
-                    <th style={thStyle}>#</th><th style={thStyle}>Product</th><th style={thStyle}>Colour</th><th style={thStyle}>Sheen</th>
-                    <th style={thStyle}>Total Sqft</th><th style={thStyle}>Est. Qty</th><th style={{...thStyle,textAlign:'right'}}>Cost</th>
+                    <th style={thStyle}>Product</th><th style={thStyle}>Colour</th><th style={thStyle}>Sheen</th>
+                    <th style={thStyle}>Sqft</th><th style={thStyle}>Est. Qty</th><th style={{...thStyle,textAlign:'right'}}>Cost</th>
                   </tr></thead>
                   <tbody>{rows.map((r,i)=>{
                     const gallons=r.sqft>0?Math.ceil(r.sqft/350):0;
@@ -3146,7 +3160,6 @@ function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,supplies
                     }
                     return (
                       <tr key={i}>
-                        <td style={tdStyle}>{i+1}</td>
                         <td style={tdStyle}>{r.product}</td>
                         <td style={tdStyle}>
                           <span style={{display:'inline-flex',gap:6,alignItems:'center'}}>
@@ -3162,43 +3175,54 @@ function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,supplies
                     );
                   })}</tbody>
                   <tfoot><tr>
-                    <td colSpan={6} style={{...tdStyle,fontWeight:700,borderTop:'2px solid var(--border)'}}>Total</td>
+                    <td colSpan={5} style={{...tdStyle,fontWeight:700,borderTop:'2px solid var(--border)'}}>Total</td>
                     <td style={{...tdStyle,textAlign:'right',fontWeight:700,borderTop:'2px solid var(--border)'}}>{fmtCAD(summaryTotal)}</td>
                   </tr></tfoot>
                 </table>
-              </>);
+              );
             })()}
           </div>
         </Card>
       )}
-      {paintData.lines.length>0&&(
-        <Card>
-          <div style={{padding:16}}>
-            <p style={{fontSize:13,fontWeight:700,marginBottom:12}}>Paint & Materials <span style={{fontWeight:400,color:'var(--muted-fg)'}}>({fmtCAD(paintData.total)})</span></p>
-            <table style={{width:'100%',borderCollapse:'collapse'}}>
-              <thead><tr>
-                <th style={thStyle}>Product</th><th style={thStyle}>Colour</th><th style={thStyle}>Sheen</th>
-                <th style={thStyle}>Surface</th><th style={thStyle}>Qty</th><th style={{...thStyle,textAlign:'right'}}>Cost</th>
-              </tr></thead>
-              <tbody>{paintData.lines.map((ln,i)=>(
-                <tr key={i}>
-                  <td style={tdStyle}>{ln.product}</td>
-                  <td style={tdStyle}>
-                    <span style={{display:'inline-flex',gap:6,alignItems:'center'}}>
-                      {ln.hex&&<span style={{width:10,height:10,borderRadius:2,background:ln.hex,border:'1px solid #ccc',display:'inline-block'}}/>}
-                      {ln.colour}
-                    </span>
-                  </td>
-                  <td style={tdStyle}>{ln.sheen}</td>
-                  <td style={tdStyle}>{ln.surface}</td>
-                  <td style={tdStyle}>{ln.qtyStr}</td>
-                  <td style={{...tdStyle,textAlign:'right'}}>{fmtCAD(ln.lineCost)}</td>
-                </tr>
-              ))}</tbody>
-            </table>
-          </div>
-        </Card>
-      )}
+      {(()=>{
+        const supAgg={};
+        rooms.forEach(r=>{
+          (r.supplies||[]).forEach(s=>{
+            if(!s.name) return;
+            const qty=(+s.qty)||1;
+            if(!supAgg[s.name]) supAgg[s.name]={name:s.name,qty:0,cost:0};
+            supAgg[s.name].qty+=qty;
+            const sup=(supplies||[]).find(x=>x.n===s.name);
+            supAgg[s.name].cost+=(sup?sup.p:0)*qty;
+          });
+        });
+        const supRows=Object.values(supAgg);
+        if(!supRows.length) return null;
+        const supTotal=supRows.reduce((s,r)=>s+r.cost,0);
+        return (
+          <Card style={{marginBottom:24}}>
+            <div style={{padding:16}}>
+              <p style={{fontSize:13,fontWeight:700,marginBottom:12}}>Materials <span style={{fontWeight:400,color:'var(--muted-fg)'}}>({fmtCAD(supTotal)})</span></p>
+              <table style={{width:'100%',borderCollapse:'collapse'}}>
+                <thead><tr>
+                  <th style={thStyle}>Product</th><th style={thStyle}>Qty</th><th style={{...thStyle,textAlign:'right'}}>Cost</th>
+                </tr></thead>
+                <tbody>{supRows.map((r,i)=>(
+                  <tr key={i}>
+                    <td style={tdStyle}>{r.name}</td>
+                    <td style={tdStyle}>{r.qty}</td>
+                    <td style={{...tdStyle,textAlign:'right'}}>{fmtCAD(r.cost)}</td>
+                  </tr>
+                ))}</tbody>
+                <tfoot><tr>
+                  <td colSpan={2} style={{...tdStyle,fontWeight:700,borderTop:'2px solid var(--border)'}}>Total</td>
+                  <td style={{...tdStyle,textAlign:'right',fontWeight:700,borderTop:'2px solid var(--border)'}}>{fmtCAD(supTotal)}</td>
+                </tr></tfoot>
+              </table>
+            </div>
+          </Card>
+        );
+      })()}
     </div>
   );
 }
@@ -4204,7 +4228,7 @@ function MasterEstimate(){
             onUpdate={(i,updated)=>setRooms(rooms.map((r,j)=>j===i?updated:r))}
             onRemove={(i)=>{if(rooms.length>1)setRooms(rooms.filter((_,j)=>j!==i));}}
             onAdd={()=>{const next=roomCounter+1;setRoomCounter(next);setRooms([...rooms,newRoom(String(next),next)]);}}
-            paints={ps.paints} ceilPaints={ps.ceilPaints} colours={ps.colours} primers={ps.primers}/>
+            paints={ps.paints} ceilPaints={ps.ceilPaints} colours={ps.colours} primers={ps.primers} supplies={ps.supplies}/>
         )}
         {activeTab==='breakdown'&&(
           <BreakdownTab rooms={rooms} settings={settings}

@@ -2773,7 +2773,7 @@ function usePaintSettings(){
 }
 
 // ─── ROOM CARD ────────────────────────────────────────────────────────────────
-function RoomCard({room,settings,onChange,onRemove,primers}){
+function RoomCard({room,settings,onChange,onRemove,primers,paints,ceilPaints,colours}){
   const [open,setOpen]=useState(true);
   const calc=calcRoom(room,settings);
   const u=patch=>onChange({...room,...patch});
@@ -2949,19 +2949,23 @@ function RoomCard({room,settings,onChange,onRemove,primers}){
                 </label>
               ))}
             </div>
+            <div style={{marginTop:8}}>
+              <Label>Additional prep</Label>
+              <textarea value={room.prep.custom||''} onChange={e=>uprep({custom:e.target.value})} placeholder='Additional prep details...' rows={2} style={{width:'100%',fontSize:12,padding:'6px 8px',border:'1px solid var(--border)',borderRadius:6,background:'var(--card)',color:'var(--fg)',resize:'vertical',fontFamily:'inherit'}}/>
+            </div>
           </div>
           <div style={{padding:'14px 16px'}}>
             <p style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--muted-fg)',marginBottom:8}}>Paint Selections</p>
             {room.walls.enabled&&<>
-              <PaintRow label='Walls' prod={room.paint.wallProduct} colour={room.paint.wallColour} sheen={room.paint.wallSheen} products={WALL_PAINTS} colours={COLOURS} onProd={v=>up({wallProduct:v})} onColour={v=>up({wallColour:v})} onSheen={v=>up({wallSheen:v})}/>
+              <PaintRow label='Walls' prod={room.paint.wallProduct} colour={room.paint.wallColour} sheen={room.paint.wallSheen} products={(paints||[]).map(p=>p.n)} colours={(colours||[]).map(c=>c.n)} onProd={v=>up({wallProduct:v})} onColour={v=>up({wallColour:v})} onSheen={v=>up({wallSheen:v})}/>
               {room.walls.coats===3&&<div style={{marginTop:-6,marginBottom:10}}><p style={{fontSize:11,fontWeight:500,color:'var(--muted-fg)',marginBottom:4}}>Walls Primer</p><select value={room.paint.wallsPrimer||''} onChange={e=>up({wallsPrimer:e.target.value})} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Select Primer —</option>{(primers||[]).map(p=><option key={p.n} value={p.n}>{p.n}</option>)}</select></div>}
             </>}
             {room.ceiling.enabled&&<>
-              <PaintRow label='Ceiling' prod={room.paint.ceilProduct} colour={room.paint.ceilColour} sheen={room.paint.ceilSheen} products={CEILING_PAINTS} colours={CEILING_COLOURS} onProd={v=>up({ceilProduct:v})} onColour={v=>up({ceilColour:v})} onSheen={v=>up({ceilSheen:v})}/>
+              <PaintRow label='Ceiling' prod={room.paint.ceilProduct} colour={room.paint.ceilColour} sheen={room.paint.ceilSheen} products={(ceilPaints||[]).map(p=>p.n)} colours={(colours||[]).map(c=>c.n)} onProd={v=>up({ceilProduct:v})} onColour={v=>up({ceilColour:v})} onSheen={v=>up({ceilSheen:v})}/>
               {room.ceiling.coats===3&&<div style={{marginTop:-6,marginBottom:10}}><p style={{fontSize:11,fontWeight:500,color:'var(--muted-fg)',marginBottom:4}}>Ceiling Primer</p><select value={room.paint.ceilingPrimer||''} onChange={e=>up({ceilingPrimer:e.target.value})} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Select Primer —</option>{(primers||[]).map(p=><option key={p.n} value={p.n}>{p.n}</option>)}</select></div>}
             </>}
             {(room.baseboards.enabled||room.doors?.enabled||roomDoorCount(room)>0||room.crown.enabled)&&<>
-              <PaintRow label='Trim / Doors' prod={room.paint.trimProduct} colour={room.paint.trimColour} sheen={room.paint.trimSheen} products={TRIM_PAINTS} colours={COLOURS} onProd={v=>up({trimProduct:v})} onColour={v=>up({trimColour:v})} onSheen={v=>up({trimSheen:v})}/>
+              <PaintRow label='Trim / Doors' prod={room.paint.trimProduct} colour={room.paint.trimColour} sheen={room.paint.trimSheen} products={(paints||[]).map(p=>p.n)} colours={(colours||[]).map(c=>c.n)} onProd={v=>up({trimProduct:v})} onColour={v=>up({trimColour:v})} onSheen={v=>up({trimSheen:v})}/>
               {(room.baseboards?.coats===3||room.crown?.coats===3||room.doorFrames?.coats===3||room.windows?.coats===3||(room.doors?.flat?.coats===3)||(room.doors?.sixPanel?.coats===3)||(room.doors?.custom?.coats===3))&&<div style={{marginTop:-6,marginBottom:10}}><p style={{fontSize:11,fontWeight:500,color:'var(--muted-fg)',marginBottom:4}}>Trim Primer</p><select value={room.paint.trimPrimer||''} onChange={e=>up({trimPrimer:e.target.value})} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Select Primer —</option>{(primers||[]).map(p=><option key={p.n} value={p.n}>{p.n}</option>)}</select></div>}
             </>}
           </div>
@@ -2992,6 +2996,9 @@ function CoverTab({client,setClient,deals,contacts,onSelectDeal,selectedDealId})
           <div style={{marginTop:48}}>
             <p style={{fontSize:11,textTransform:'uppercase',letterSpacing:'0.1em',color:'#999'}}>PREPARED FOR</p>
             <p style={{fontSize:18,fontWeight:600,marginTop:8,color:'#1a1a1a'}}>{client.name||'Client Name'}</p>
+            {(client.street||client.city)&&<p style={{fontSize:12,color:'#666',marginTop:6}}>{[client.street,[client.city,client.province].filter(Boolean).join(', '),client.postal].filter(Boolean).join(', ')}</p>}
+            {client.phone&&<p style={{fontSize:12,color:'#666',marginTop:4}}>{client.phone}</p>}
+            {client.email&&<p style={{fontSize:12,color:'#666',marginTop:4}}>{client.email}</p>}
           </div>
           <p style={{fontSize:12,color:'#999',marginTop:32}}>{todayStr}</p>
         </div>
@@ -3043,7 +3050,7 @@ function RoomsTab({rooms,settings,onUpdate,onRemove,onAdd,paints,ceilPaints,colo
         <span style={{fontSize:13,fontWeight:600,color:'var(--primary)'}}>{fmtCAD(totalCost)}</span>
       </div>
       {rooms.map((r,i)=>(
-        <RoomCard key={r.id} room={r} settings={settings} primers={primers}
+        <RoomCard key={r.id} room={r} settings={settings} primers={primers} paints={paints} ceilPaints={ceilPaints} colours={colours}
           onChange={updated=>onUpdate(i,updated)}
           onRemove={()=>onRemove(i)}/>
       ))}
@@ -3204,7 +3211,7 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
   const docStyle={background:'#fff',color:'#1a1a1a',borderRadius:8,maxWidth:900,margin:'0 auto',padding:'32px 40px',boxShadow:'0 2px 12px rgba(0,0,0,0.08)'};
   const thStyle={fontSize:11,fontWeight:600,textAlign:'left',padding:'8px 10px',borderBottom:'2px solid #e5e5e5',color:'#888'};
   const tdStyle={fontSize:12,padding:'8px 10px',borderBottom:'1px solid #eee',verticalAlign:'top'};
-  const prepLabels={furniture:'Move furniture',plastic:'Cover w/ plastic',outlets:'Remove outlets',drywall:'Drywall repairs',caulking:'Caulking',cleanup:'Clean up',custom:'Custom prep'};
+  const prepLabelsMap={furniture:'Move furniture',plastic:'Cover w/ plastic',outlets:'Remove outlets',drywall:'Drywall repairs',caulking:'Caulking',cleanup:'Clean up'};
   const allColours=[...(colours||[])];
   const getHex=(name)=>{const c=allColours.find(x=>x.n===name);return c?.hex||null;};
   return (
@@ -3239,7 +3246,8 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
           <tbody>
             {rooms.map(r=>{
               const c=calcRoom(r,settings);
-              const prepItems=Object.entries(r.prep).filter(([,v])=>v).map(([k])=>prepLabels[k]||k).filter(Boolean);
+              const prepItems=Object.entries(r.prep).filter(([k,v])=>v&&k!=='custom').map(([k])=>prepLabelsMap[k]||k).filter(Boolean);
+              if(r.prep?.custom) prepItems.push(r.prep.custom);
               const surfaces=[];
               if(r.walls.enabled) surfaces.push(`${r.walls.coats} coat${r.walls.coats>1?'s':''} on walls — ${fmtN(c.wallSqft)} sqft`);
               if(r.ceiling.enabled) surfaces.push(`${r.ceiling.coats} coat${r.ceiling.coats>1?'s':''} on ceiling — ${fmtN(c.ceilSqft)} sqft`);
@@ -3276,8 +3284,7 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
                       <div style={{marginTop:6}}>
                         {materials.map((m,i)=>(
                           <p key={i} style={{fontSize:10,color:'#666',display:'flex',gap:4,alignItems:'center'}}>
-                            {m.hex&&<span style={{width:8,height:8,borderRadius:2,background:m.hex,border:'1px solid #ccc',display:'inline-block'}}/>}
-                            {m.label} — {m.colour} ({m.sheen})
+                            {m.label} — {m.colour}{m.hex&&<span style={{width:8,height:8,borderRadius:2,background:m.hex,border:'1px solid #ccc',display:'inline-block'}}/>} ({m.sheen})
                           </p>
                         ))}
                       </div>
@@ -3633,7 +3640,7 @@ function LabourRatesTab({labour,setLabour,onSave}){
   const numS = {...fieldS,textAlign:'right'};
 
   return (
-    <div style={{maxWidth:960,margin:'0 auto',padding:24,overflowY:'auto',height:'100%'}}>
+    <div style={{padding:24,overflowY:'auto',height:'100%'}}>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:16}}>
         <Card className='p-5'>
           <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--primary)',marginBottom:12}}>Rate Calculation</p>
@@ -3641,11 +3648,6 @@ function LabourRatesTab({labour,setLabour,onSave}){
             <div><Label>Billable hours/year</Label><input type='number' value={L.billable||1700} onChange={e=>upd({billable:+e.target.value})} style={numS}/></div>
             <div><Label>Labour buffer</Label><input type='number' step='0.05' value={L.buffer||1.25} onChange={e=>upd({buffer:+e.target.value})} style={numS}/></div>
             <div><Label>Materials buffer</Label><input type='number' step='0.05' value={L.matBuffer||1.25} onChange={e=>upd({matBuffer:+e.target.value})} style={numS}/></div>
-          </div>
-          <div style={{borderTop:'1px solid var(--border)',paddingTop:12,marginBottom:12}}>
-            <label style={{display:'flex',gap:8,alignItems:'center',fontSize:12,cursor:'pointer'}}>
-              <input type='checkbox' checked={L.taxes!==false} onChange={e=>upd({taxes:e.target.checked})}/> Apply payroll taxes
-            </label>
           </div>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:12}}>
             <div style={{background:'rgba(0,0,0,0.03)',borderRadius:8,padding:'10px 12px'}}>
@@ -3708,6 +3710,11 @@ function LabourRatesTab({labour,setLabour,onSave}){
           <span style={{fontSize:13}}>Active workers: <strong>{numWorkers}</strong></span>
           <span style={{fontSize:15,fontWeight:500,color:'var(--primary)'}}>${fieldWage.toFixed(2)}<span style={{fontSize:11,color:'var(--muted-fg)',marginLeft:4}}>/hr field wage</span></span>
         </div>
+        <div style={{marginTop:10,paddingTop:10,borderTop:'1px solid var(--border)'}}>
+          <label style={{display:'flex',gap:8,alignItems:'center',fontSize:12,cursor:'pointer'}}>
+            <input type='checkbox' checked={L.taxes!==false} onChange={e=>upd({taxes:e.target.checked})}/> Apply payroll taxes
+          </label>
+        </div>
       </Card>
 
       <Card className='p-5' style={{marginBottom:16}}>
@@ -3722,7 +3729,6 @@ function LabourRatesTab({labour,setLabour,onSave}){
             <span style={{fontSize:15,fontWeight:600,color:'var(--primary)'}}>${profitPerHr.toFixed(2)}/hr</span>
           </div>
         </div>
-        <p style={{fontSize:11,color:'var(--muted-fg)',marginTop:8}}>Target profit ÷ (billable hours × active workers) = profit / hr added to rate</p>
       </Card>
 
       <div style={{display:'flex',alignItems:'center',gap:12}}>
@@ -3806,7 +3812,7 @@ function PaintInputsTab({paints,setPaints,ceilPaints,setCeilPaints,primers,setPr
   const paintCols = [{label:'Product'},{label:'Gallon $',align:'right',width:80},{label:'Pail $',align:'right',width:80}];
 
   return (
-    <div style={{maxWidth:960,margin:'0 auto',padding:24,overflowY:'auto',height:'100%'}}>
+    <div style={{padding:24,overflowY:'auto',height:'100%'}}>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:16}}>
         <Card className='p-5'>
           <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--primary)',marginBottom:12}}>Paints (Walls & Trim)</p>
@@ -3916,7 +3922,7 @@ function StandardsTab({standards,setStandards,onSave}){
   );
 
   return (
-    <div style={{maxWidth:960,margin:'0 auto',padding:24,overflowY:'auto',height:'100%'}}>
+    <div style={{padding:24,overflowY:'auto',height:'100%'}}>
       <div style={{fontSize:12,color:'var(--muted-fg)',marginBottom:14,padding:'10px 14px',background:'rgba(0,0,0,0.03)',borderRadius:6,borderLeft:'3px solid var(--primary)'}}>
         All values are editable and update labour calculations in real time.
       </div>
@@ -4184,7 +4190,7 @@ function MasterEstimate(){
         <button onClick={loadEstimates} style={actionBtnStyle}>Load</button>
         <button onClick={pushToProject} style={actionBtnStyle}>Push to Project</button>
         <button onClick={newEstimate} style={actionBtnStyle}>New</button>
-        <button onClick={()=>exportBidPDF(client,rooms,settings,totals,ps.paints,ps.ceilPaints,ps.primers,ps.colours,ps.supplies)} style={actionBtnStyle}>Export Bid</button>
+        <button onClick={()=>{const deal=deals.find(d=>d.id===selectedDealId);exportBidPDF(client,rooms,settings,totals,ps.paints,ps.ceilPaints,ps.primers,ps.colours,ps.supplies,deal?.dealName||'');}} style={actionBtnStyle}>Export Bid</button>
         <div style={{flex:1}}/>
         {saving&&<Loader2 size={14} style={{animation:'spin 1s linear infinite',color:'var(--muted-fg)'}}/>}
         {saveMsg&&<span style={{fontSize:11,fontWeight:600,color:saveMsg==='Saved'||saveMsg==='Pushed!'?'#22c55e':'#ef4444'}}>{saveMsg}</span>}
@@ -4293,7 +4299,7 @@ function KPLogo({height=32}){
     </svg>
   );
 }
-function exportBidPDF(client,rooms,settings,totals,paints,ceilPaints,primers,colours,supplies){
+function exportBidPDF(client,rooms,settings,totals,paints,ceilPaints,primers,colours,supplies,projectName){
   const fmtN=n=>Math.round(n).toLocaleString('en-CA');
   const fmtC=n=>'$'+n.toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2});
   const today=new Date().toLocaleDateString('en-CA',{year:'numeric',month:'long',day:'numeric'});
@@ -4304,10 +4310,11 @@ function exportBidPDF(client,rooms,settings,totals,paints,ceilPaints,primers,col
   const paintData=calcPaintCosts(rooms,paints||[],ceilPaints||[],primers||[],colours||[],settings._standards?.matBuffer||1.15);
   const allColours=[...(colours||[])];
   const getHex=name=>{const c=allColours.find(x=>x.n===name);return c?.hex||null;};
-  const prepLabels={furniture:'Move furniture',plastic:'Cover w/ plastic',outlets:'Remove outlets',drywall:'Drywall repairs',caulking:'Caulking',cleanup:'Clean up',custom:'Custom prep'};
-  let html='<!DOCTYPE html><html><head><meta charset="utf-8"><title>Bid Proposal</title>';
+  const prepLabelsMap={furniture:'Move furniture',plastic:'Cover w/ plastic',outlets:'Remove outlets',drywall:'Drywall repairs',caulking:'Caulking',cleanup:'Clean up'};
+  const docTitle=projectName?`Bid Proposal - ${projectName}`:'Bid Proposal';
+  let html='<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+docTitle+'</title>';
   html+='<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,sans-serif;color:#1a1a1a;font-size:12px}';
-  html+='.page{page-break-after:always;padding:40px 48px;max-width:900px;margin:0 auto}';
+  html+='.page{page-break-after:always;padding:40px 48px;max-width:900px;margin:0 auto}.page:last-child{page-break-after:auto}';
   html+=`.gold{color:${gold}}.border-gold{border-bottom:2px solid ${gold}}`;
   html+='table{width:100%;border-collapse:collapse}th{text-align:left;padding:8px 10px;border-bottom:2px solid #e5e5e5;color:#888;font-size:11px;font-weight:600}td{padding:8px 10px;border-bottom:1px solid #eee;font-size:12px;vertical-align:top}';
   html+='@media print{body{padding:0}.page{padding:32px 40px}}</style></head><body>';
@@ -4316,7 +4323,12 @@ function exportBidPDF(client,rooms,settings,totals,paints,ceilPaints,primers,col
   html+=`<img src="/kingdom-logo-dark.svg" style="height:80px;margin:0 auto"><div style="width:60px;height:2px;background:${gold};margin:16px auto"></div>`;
   html+='<p style="font-size:16px;font-weight:600;letter-spacing:0.08em;color:#555;margin-top:24px">BID PROPOSAL</p>';
   html+='<div style="margin-top:48px"><p style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:#999">PREPARED FOR</p>';
-  html+=`<p style="font-size:18px;font-weight:600;margin-top:8px">${client.name||'Client Name'}</p></div>`;
+  html+=`<p style="font-size:18px;font-weight:600;margin-top:8px">${client.name||'Client Name'}</p>`;
+  if(addr1) html+=`<p style="font-size:12px;color:#666;margin-top:6px">${addr1}</p>`;
+  if(addr2) html+=`<p style="font-size:12px;color:#666;margin-top:2px">${addr2}</p>`;
+  if(client.phone) html+=`<p style="font-size:12px;color:#666;margin-top:4px">${client.phone}</p>`;
+  if(client.email) html+=`<p style="font-size:12px;color:#666;margin-top:2px">${client.email}</p>`;
+  html+='</div>';
   html+=`<p style="font-size:12px;color:#999;margin-top:32px">${today}</p></div></div>`;
   html+='<div class="page">';
   html+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px" class="border-gold"><div style="display:flex;gap:12px;align-items:center"><img src="/kingdom-logo-dark.svg" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:2px">QUOTE</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p><p style="font-size:10px;color:#999;margin-top:4px">HST# 71164 5556 RT0001</p></div></div>`;
@@ -4337,7 +4349,8 @@ function exportBidPDF(client,rooms,settings,totals,paints,ceilPaints,primers,col
     if(r.crown?.enabled) surfaces.push(`Crown moulding`);
     const dc=roomDoorCount(r);if(dc>0) surfaces.push(`${dc} door${dc>1?'s':''}`);
     const wc=r.windows?.dims?.length||0;if(r.windows?.enabled&&wc>0) surfaces.push(`${wc} window${wc>1?'s':''}`);
-    Object.entries(prepLabels).forEach(([k,v])=>{if(r.prep?.[k])prepItems.push(v);});
+    Object.entries(prepLabelsMap).forEach(([k,v])=>{if(r.prep?.[k])prepItems.push(v);});
+    if(r.prep?.custom) prepItems.push(r.prep.custom);
     html+=`<tr><td style="font-weight:600;white-space:nowrap">${r.name}</td><td>`;
     if(prepItems.length) html+=`<p style="margin-bottom:4px"><strong>Prep:</strong> ${prepItems.join(', ')}</p>`;
     html+=`<p>${surfaces.join('<br>')}</p></td></tr>`;
@@ -4380,7 +4393,7 @@ function exportBidPDF(client,rooms,settings,totals,paints,ceilPaints,primers,col
   html+='</div>';
   html+='<script>window.onload=function(){window.print();}<\/script></body></html>';
   const win=window.open('','_blank','width=860,height=900');
-  if(win){win.document.write(html);win.document.close();}
+  if(win){win.document.write(html);win.document.close();win.document.title=docTitle;}
 }
 
 // ─── LAYOUT + APP ─────────────────────────────────────────────────────────────
@@ -4557,12 +4570,10 @@ function InvoicePage({showToast}){
         <div style={{background:'var(--card)',border:'1px solid var(--border)',borderRadius:10,padding:'16px 20px',boxShadow:'var(--shadow-sm)'}}>
           <p style={{fontSize:11,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',marginBottom:6}}>Outstanding Invoices</p>
           <p style={{fontSize:32,fontWeight:700,color:'var(--primary)'}}>{totalOutstandingCount}</p>
-          <p style={{fontSize:11,color:'var(--muted-fg)',marginTop:4}}>project{totalOutstandingCount!==1?'s':''} with balance owing</p>
         </div>
         <div style={{background:'var(--card)',border:'1px solid var(--border)',borderRadius:10,padding:'16px 20px',boxShadow:'var(--shadow-sm)'}}>
           <p style={{fontSize:11,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',marginBottom:6}}>Outstanding Amount</p>
           <p style={{fontSize:32,fontWeight:700,color:'#ef4444'}}>{fmtUSD(totalOutstandingAmt)}</p>
-          <p style={{fontSize:11,color:'var(--muted-fg)',marginTop:4}}>total balance owing</p>
         </div>
       </div>
 
@@ -4764,7 +4775,6 @@ function Financials({showToast}){
     <div style={{padding:'20px 24px',overflowY:'auto',height:'100%',display:'flex',flexDirection:'column',gap:20}}>
       <div>
         <h1 style={{fontSize:22,fontWeight:700}}>Financials</h1>
-        <p style={{fontSize:13,color:'var(--muted-fg)',marginTop:2}}>{totalProjects} projects · Enter Materials & Wages to calculate profit</p>
       </div>
 
       {/* ── Stat cards (Row 1) ── */}

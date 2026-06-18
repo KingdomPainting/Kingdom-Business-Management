@@ -3000,6 +3000,12 @@ function CoverTab({client,setClient,deals,contacts,onSelectDeal,selectedDealId})
     const name=c?.fullName||d.contactFreeText||'';
     return name?`${d.dealName||'Unnamed project'} - ${name}`:(d.dealName||'Unnamed project');
   };
+  const addrLines=(addr)=>{
+    if(!addr)return[];
+    const i=addr.indexOf(',');
+    if(i<0)return[addr];
+    return[addr.slice(0,i).trim(),addr.slice(i+1).trim()];
+  };
   return (
     <div style={{display:'flex',flexDirection:'column',gap:24,padding:24,overflow:'auto',maxHeight:'100%',maxWidth:900,margin:'0 auto'}}>
       <div style={docStyle}>
@@ -3010,7 +3016,7 @@ function CoverTab({client,setClient,deals,contacts,onSelectDeal,selectedDealId})
           <div style={{marginTop:48}}>
             <p style={{fontSize:11,textTransform:'uppercase',letterSpacing:'0.1em',color:'#999'}}>PREPARED FOR</p>
             <p style={{fontSize:18,fontWeight:600,marginTop:8,color:'#1a1a1a'}}>{client.name||'Client Name'}</p>
-            {client.address&&<p style={{fontSize:12,color:'#666',marginTop:6}}>{client.address}</p>}
+            {addrLines(client.address).map((line,i)=><p key={i} style={{fontSize:12,color:'#666',marginTop:i===0?6:2}}>{line}</p>)}
             {client.phone&&<p style={{fontSize:12,color:'#666',marginTop:4}}>{client.phone}</p>}
             {client.email&&<p style={{fontSize:12,color:'#666',marginTop:4}}>{client.email}</p>}
           </div>

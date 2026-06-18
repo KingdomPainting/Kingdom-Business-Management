@@ -2573,8 +2573,8 @@ function calcTotals(rooms, settings){
   const discounted = Math.max(0, labourSubtotal - (settings.discount||0));
   const taxAmt = discounted * ((settings.taxRate||13)/100);
   const total = discounted + taxAmt;
-  const deposit = total * 0.10;
-  const midway = total * 0.45;
+  const deposit = total * 0.30;
+  const midway = total * 0.35;
   const balance = total - deposit - midway;
   return { labourSubtotal, discounted, taxAmt, total, deposit, midway, balance };
 }
@@ -2795,10 +2795,10 @@ function RoomCard({room,settings,onChange,onRemove,primers,paints,ceilPaints,col
   const PaintRow=({label,prod,colour,sheen,products,colours,onProd,onColour,onSheen})=>(
     <div style={{marginBottom:10}}>
       <p style={{fontSize:11,fontWeight:500,color:'var(--muted-fg)',marginBottom:4}}>{label}</p>
-      <div style={{display:'grid',gridTemplateColumns:'2fr 2fr 1fr',gap:6}}>
-        <select value={prod} onChange={e=>onProd(e.target.value)} style={{fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Product —</option>{products.map(p=><option key={p} value={p}>{p}</option>)}</select>
-        <select value={colour} onChange={e=>onColour(e.target.value)} style={{fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Colour —</option>{colours.map(c=><option key={c} value={c}>{c}</option>)}</select>
-        <select value={sheen} onChange={e=>onSheen(e.target.value)} style={{fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Sheen —</option>{SHEENS.map(s=><option key={s} value={s}>{s}</option>)}</select>
+      <div style={{display:'flex',flexDirection:'column',gap:6}}>
+        <select value={prod} onChange={e=>onProd(e.target.value)} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Product —</option>{products.map(p=><option key={p} value={p}>{p}</option>)}</select>
+        <select value={colour} onChange={e=>onColour(e.target.value)} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Colour —</option>{colours.map(c=><option key={c} value={c}>{c}</option>)}</select>
+        <select value={sheen} onChange={e=>onSheen(e.target.value)} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Sheen —</option>{SHEENS.map(s=><option key={s} value={s}>{s}</option>)}</select>
       </div>
     </div>
   );
@@ -2818,7 +2818,7 @@ function RoomCard({room,settings,onChange,onRemove,primers,paints,ceilPaints,col
         <div style={{borderTop:'1px solid var(--border)'}}>
           <div style={{padding:'14px 16px',borderBottom:'1px solid rgba(0,0,0,0.05)'}}>
             <p style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--muted-fg)',marginBottom:10}}>Dimensions</p>
-            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(100px,1fr))',gap:8}}>
+            <div style={{display:'flex',flexDirection:'column',gap:8}}>
               {[['Length (ft)','length'],['Width (ft)','width'],['Height (ft)','height']].map(([l,k])=>(
                 <div key={k}><Label>{l}</Label><Input type='number' value={room[k]||''} onChange={e=>u({[k]:+e.target.value})} style={{padding:'6px 8px',minWidth:0}}/></div>
               ))}
@@ -3001,7 +3001,7 @@ function CoverTab({client,setClient,deals,contacts,onSelectDeal,selectedDealId})
     return name?`${d.dealName||'Unnamed project'} - ${name}`:(d.dealName||'Unnamed project');
   };
   return (
-    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:24,padding:24,overflow:'auto',maxHeight:'100%'}}>
+    <div style={{display:'flex',flexDirection:'column',gap:24,padding:24,overflow:'auto',maxHeight:'100%',maxWidth:900,margin:'0 auto'}}>
       <div style={docStyle}>
         <div style={{textAlign:'center',padding:'48px 24px'}}>
           <img src="/kingdom-logo-dark.svg" alt="Kingdom Painting Inc." style={{height:80,margin:'0 auto'}}/>
@@ -3010,7 +3010,7 @@ function CoverTab({client,setClient,deals,contacts,onSelectDeal,selectedDealId})
           <div style={{marginTop:48}}>
             <p style={{fontSize:11,textTransform:'uppercase',letterSpacing:'0.1em',color:'#999'}}>PREPARED FOR</p>
             <p style={{fontSize:18,fontWeight:600,marginTop:8,color:'#1a1a1a'}}>{client.name||'Client Name'}</p>
-            {(client.street||client.city)&&<p style={{fontSize:12,color:'#666',marginTop:6}}>{[client.street,[client.city,client.province].filter(Boolean).join(', '),client.postal].filter(Boolean).join(', ')}</p>}
+            {client.address&&<p style={{fontSize:12,color:'#666',marginTop:6}}>{client.address}</p>}
             {client.phone&&<p style={{fontSize:12,color:'#666',marginTop:4}}>{client.phone}</p>}
             {client.email&&<p style={{fontSize:12,color:'#666',marginTop:4}}>{client.email}</p>}
           </div>
@@ -3031,12 +3031,7 @@ function CoverTab({client,setClient,deals,contacts,onSelectDeal,selectedDealId})
         </div>
         <div>
           <Label>Address</Label>
-          <Input value={client.street||''} onChange={e=>setClient({...client,street:e.target.value})} placeholder='Street address'/>
-          <div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr',gap:8,marginTop:6}}>
-            <Input value={client.city||''} onChange={e=>setClient({...client,city:e.target.value})} placeholder='City'/>
-            <Input value={client.province||''} onChange={e=>setClient({...client,province:e.target.value})} placeholder='ON'/>
-            <Input value={client.postal||''} onChange={e=>setClient({...client,postal:e.target.value})} placeholder='Postal'/>
-          </div>
+          <Input value={client.address||''} onChange={e=>setClient({...client,address:e.target.value})} placeholder='Full address'/>
         </div>
         <div>
           <Label>Phone</Label>
@@ -3255,15 +3250,14 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
           <div>
             <p style={{fontWeight:600,color:'#888',fontSize:10,textTransform:'uppercase',marginBottom:4}}>Prepared For</p>
             <p style={{fontWeight:600}}>{client.name||'—'}</p>
-            {(client.street||client.addr1)&&<p style={{color:'#666'}}>{client.street||client.addr1}</p>}
-            {(client.city||client.province||client.postal)&&<p style={{color:'#666'}}>{[client.city,client.province].filter(Boolean).join(', ')}{client.postal?` ${client.postal}`:''}</p>}
+            {client.address&&<p style={{color:'#666'}}>{client.address}</p>}
             {client.phone&&<p style={{color:'#666'}}>{client.phone}</p>}
             {client.email&&<p style={{color:'#666'}}>{client.email}</p>}
           </div>
         </div>
         <table style={{width:'100%',borderCollapse:'collapse',marginBottom:24}}>
           <thead><tr>
-            <th style={thStyle}>Room</th>
+            <th style={thStyle}>Item</th>
             <th style={thStyle}>Description</th>
             <th style={{...thStyle,textAlign:'right'}}>Amount</th>
           </tr></thead>
@@ -3343,11 +3337,11 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
           <p style={{fontSize:12,fontWeight:700,marginBottom:12,color:gold}}>Payment Terms</p>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12}}>
             <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:14,textAlign:'center'}}>
-              <p style={{fontSize:10,color:'#888',textTransform:'uppercase',fontWeight:600}}>Deposit (10%)</p>
+              <p style={{fontSize:10,color:'#888',textTransform:'uppercase',fontWeight:600}}>Deposit (30%)</p>
               <p style={{fontSize:16,fontWeight:700,marginTop:4}}>{fmtCAD(totals.deposit)}</p>
             </div>
             <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:14,textAlign:'center'}}>
-              <p style={{fontSize:10,color:'#888',textTransform:'uppercase',fontWeight:600}}>Midway (45%)</p>
+              <p style={{fontSize:10,color:'#888',textTransform:'uppercase',fontWeight:600}}>Midway (35%)</p>
               <p style={{fontSize:16,fontWeight:700,marginTop:4}}>{fmtCAD(totals.midway)}</p>
             </div>
             <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:14,textAlign:'center'}}>
@@ -3418,8 +3412,7 @@ function ContractTab({rooms,settings,client,totals}){
           <div style={{fontSize:11,color:'#444',lineHeight:'1.7'}}>
             <p style={{fontWeight:600,marginBottom:4}}>Client</p>
             <p>{client.name||'—'}</p>
-            {(client.street||client.addr1)&&<p>{client.street||client.addr1}</p>}
-            {(client.city||client.province||client.postal)&&<p>{[client.city,client.province].filter(Boolean).join(', ')}{client.postal?` ${client.postal}`:''}</p>}
+            {client.address&&<p>{client.address}</p>}
             {client.phone&&<p>{client.phone}</p>}
             {client.email&&<p>{client.email}</p>}
           </div>
@@ -3482,11 +3475,11 @@ function ContractTab({rooms,settings,client,totals}){
         <p style={bodyText}>Total project cost: <strong>{fmtCAD(totals.total)}</strong> (incl. HST 13%)</p>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:12}}>
           <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:12,textAlign:'center'}}>
-            <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>Deposit (10%)</p>
+            <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>Deposit (30%)</p>
             <p style={{fontSize:14,fontWeight:700,marginTop:2}}>{fmtCAD(totals.deposit)}</p>
           </div>
           <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:12,textAlign:'center'}}>
-            <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>Midway (45%)</p>
+            <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>Midway (35%)</p>
             <p style={{fontSize:14,fontWeight:700,marginTop:2}}>{fmtCAD(totals.midway)}</p>
           </div>
           <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:12,textAlign:'center'}}>
@@ -4011,7 +4004,7 @@ function StandardsTab({standards,setStandards,onSave}){
 function MasterEstimate(){
   const [rooms,setRooms]=useState(()=>[newRoom('1',1)]);
   const [roomCounter,setRoomCounter]=useState(1);
-  const [client,setClient]=useState({name:'',email:'',phone:'',street:'',city:'',province:'',postal:''});
+  const [client,setClient]=useState({name:'',email:'',phone:'',address:''});
   const [changeItems,setChangeItems]=useState([]);
   const [changeCounter,setChangeCounter]=useState(0);
   const [currentEstimateId,setCurrentEstimateId]=useState(null);
@@ -4066,7 +4059,7 @@ function MasterEstimate(){
         user_id:_session.user.id,
         title:buildTitle(),
         client_name:cli.name,client_email:cli.email,client_phone:cli.phone,
-        addr1:cli.street||cli.addr1||'',
+        addr1:cli.address||'',
         state:JSON.stringify({rooms:rms,roomCounter:rc,changeItems:ci,changeCounter:cc,client:cli,selectedDealId:sdid})
       };
       if(rid){
@@ -4124,8 +4117,8 @@ function MasterEstimate(){
         if(st.roomCounter)setRoomCounter(st.roomCounter);
         if(st.client){
           const c=st.client;
-          if(c.addr1&&!c.street) c.street=c.addr1;
-          setClient({name:c.name||'',email:c.email||'',phone:c.phone||'',street:c.street||'',city:c.city||'',province:c.province||'',postal:c.postal||''});
+          const addr=c.address||[c.street||c.addr1,[c.city,c.province].filter(Boolean).join(', '),c.postal].filter(Boolean).join(', ');
+          setClient({name:c.name||'',email:c.email||'',phone:c.phone||'',address:addr});
         }
         if(st.changeItems)setChangeItems(st.changeItems);
         if(st.changeCounter!=null)setChangeCounter(st.changeCounter);
@@ -4139,7 +4132,7 @@ function MasterEstimate(){
   const newEstimate=()=>{
     if(!confirm('Start a new estimate? Unsaved changes will be lost.'))return;
     setRooms([newRoom('1',1)]);setRoomCounter(1);
-    setClient({name:'',email:'',phone:'',street:'',city:'',province:'',postal:''});
+    setClient({name:'',email:'',phone:'',address:''});
     setChangeItems([]);setChangeCounter(0);
     setCurrentEstimateId(null);setActiveTab('cover');
   };
@@ -4150,29 +4143,119 @@ function MasterEstimate(){
     if(!deal)return;
     const cid=Array.isArray(deal.contact)?deal.contact[0]:deal.contact;
     const contact=contacts.find(c=>c.id===cid);
-    const fullAddr=contact?.address||deal.address||'';
-    const addrParts=fullAddr.split(',').map(s=>s.trim());
-    const streetPart=addrParts[0]||'';
-    let cityPart='',provPart='',postalPart='';
-    if(addrParts.length>=2){
-      cityPart=addrParts[1]||'';
-      const last=addrParts.slice(2).join(', ').trim();
-      const pm=last.match(/^([A-Z]{2})\s+([A-Z]\d[A-Z]\s*\d[A-Z]\d)$/i);
-      if(pm){provPart=pm[1];postalPart=pm[2];}
-      else{provPart=last;}
-    }
     setClient({
       name:contact?.fullName||contact?.full_name||[contact?.first_name,contact?.last_name].filter(Boolean).join(' ')||'',
       email:contact?.email||'',
       phone:contact?.phone||'',
-      street:streetPart,city:cityPart,province:provPart.toUpperCase(),postal:postalPart.toUpperCase(),
+      address:contact?.address||deal.address||'',
     });
   };
 
   const pushToProject=async()=>{
     if(!selectedDealId){alert('Select a deal on the Cover tab first.');return;}
     try{
-      await api.saveDeal({value:totals.total,estimateHrs:totalHrs},selectedDealId);
+      const fmtC=n=>'$'+n.toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2});
+      const fmtN=n=>Math.round(n).toLocaleString('en-CA');
+      const today=new Date().toLocaleDateString('en-CA',{year:'numeric',month:'long',day:'numeric'});
+      const todayISO=new Date().toISOString().slice(0,10);
+      const gold='#C4922A';
+      const clientAddr=client.address||'';
+      const allColours=[...(ps.colours||[])];
+      const getHex=name=>{const c=allColours.find(x=>x.n===name);return c?.h||null;};
+      const prepLabelsMap={furniture:'Move furniture',plastic:'Cover w/ plastic',outlets:'Remove outlets',drywall:'Drywall repairs',caulking:'Caulking',cleanup:'Clean up'};
+      const css='*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,sans-serif;color:#1a1a1a;font-size:12px}table{width:100%;border-collapse:collapse}th{text-align:left;padding:8px 10px;border-bottom:2px solid #e5e5e5;color:#888;font-size:11px;font-weight:600}td{padding:8px 10px;border-bottom:1px solid #eee;font-size:12px;vertical-align:top}';
+
+      const dealRooms=rooms.map(r=>({name:r.name,done:false}));
+
+      let qhtml='<!DOCTYPE html><html><head><meta charset="utf-8"><title>Quote</title><style>'+css+'</style></head><body style="padding:40px 48px;max-width:900px;margin:0 auto">';
+      qhtml+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid ${gold}"><div style="display:flex;gap:12px;align-items:center"><img src="/kingdom-logo-dark.svg" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:2px">QUOTE</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p><p style="font-size:10px;color:#999;margin-top:4px">HST# 71164 5556 RT0001</p></div></div>`;
+      qhtml+='<div style="margin-bottom:24px;font-size:12px"><p style="font-weight:600;color:#888;font-size:10px;text-transform:uppercase;margin-bottom:4px">Prepared For</p>';
+      qhtml+=`<p style="font-weight:600">${client.name||'—'}</p>`;
+      if(clientAddr) qhtml+=`<p style="color:#666">${clientAddr}</p>`;
+      if(client.phone) qhtml+=`<p style="color:#666">${client.phone}</p>`;
+      if(client.email) qhtml+=`<p style="color:#666">${client.email}</p>`;
+      qhtml+='</div><table><thead><tr><th>Item</th><th>Description</th><th style="text-align:right">Amount</th></tr></thead><tbody>';
+      rooms.forEach(r=>{
+        const c=calcRoom(r,settings);
+        const surfaces=[],prepItems=[];
+        if(r.walls?.enabled) surfaces.push(`${r.walls.coats} coat${r.walls.coats>1?'s':''} on walls — ${fmtN(c.wallSqft)} sqft`);
+        if(r.ceiling?.enabled) surfaces.push(`${r.ceiling.coats} coat${r.ceiling.coats>1?'s':''} on ceiling — ${fmtN(c.ceilSqft)} sqft`);
+        if(r.baseboards?.enabled) surfaces.push('Baseboards');
+        if(r.crown?.enabled) surfaces.push('Crown moulding');
+        const dc=roomDoorCount(r);if(dc>0) surfaces.push(`${dc} door${dc>1?'s':''}`);
+        const wc=r.windows?.dims?.length||0;if(r.windows?.enabled&&wc>0) surfaces.push(`${wc} window${wc>1?'s':''}`);
+        Object.entries(prepLabelsMap).forEach(([k,v])=>{if(r.prep?.[k])prepItems.push(v);});
+        if(r.prep?.custom) prepItems.push(r.prep.custom);
+        const materials=[];
+        if(r.walls?.enabled&&r.paint?.wallProduct){
+          const hex=getHex(r.paint.wallColour);
+          materials.push({label:`Walls: ${r.paint.wallProduct}`,colour:r.paint.wallColour,sheen:r.paint.wallSheen,hex});
+        }
+        if(r.ceiling?.enabled&&r.paint?.ceilProduct){
+          const hex=getHex(r.paint.ceilColour);
+          materials.push({label:`Ceiling: ${r.paint.ceilProduct}`,colour:r.paint.ceilColour,sheen:r.paint.ceilSheen,hex});
+        }
+        if((r.baseboards?.enabled||r.doors?.enabled||roomDoorCount(r)>0||r.crown?.enabled)&&r.paint?.trimProduct){
+          const hex=getHex(r.paint.trimColour);
+          materials.push({label:`Trim: ${r.paint.trimProduct}`,colour:r.paint.trimColour,sheen:r.paint.trimSheen,hex});
+        }
+        qhtml+=`<tr><td style="font-weight:600;white-space:nowrap">${r.name}</td><td>`;
+        if(prepItems.length) qhtml+=`<p style="margin-bottom:4px"><strong>Prep:</strong> ${prepItems.join(', ')}</p>`;
+        qhtml+=`<p>${surfaces.join('<br>')}</p>`;
+        if(materials.length) materials.forEach(m=>{qhtml+=`<p style="font-size:10px;color:#666;margin-top:4px">${m.label} — ${m.colour}${m.hex?`<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${m.hex};border:1px solid #ccc;margin:0 3px;vertical-align:middle"></span>`:''} (${m.sheen})</p>`;});
+        qhtml+=`</td><td style="text-align:right;font-weight:600;white-space:nowrap">${fmtC(c.cost)}</td></tr>`;
+      });
+      qhtml+='</tbody></table>';
+      qhtml+=`<div style="margin-top:24px;padding-top:16px;border-bottom:2px solid ${gold}"><table style="width:auto;margin-left:auto">`;
+      if((settings.discount||0)>0) qhtml+=`<tr><td style="text-align:right;padding:4px 16px;color:#888">Discount</td><td style="text-align:right;padding:4px 0;color:#c00">-${fmtC(totals.labourSubtotal-totals.discounted)}</td></tr>`;
+      qhtml+=`<tr><td style="text-align:right;padding:4px 16px;color:#888">Subtotal</td><td style="text-align:right;padding:4px 0">${fmtC(totals.discounted)}</td></tr>`;
+      qhtml+=`<tr><td style="text-align:right;padding:4px 16px;color:#888">HST (13%)</td><td style="text-align:right;padding:4px 0">${fmtC(totals.taxAmt)}</td></tr>`;
+      qhtml+=`<tr style="border-top:2px solid ${gold}"><td style="text-align:right;padding:8px 16px;font-weight:700;font-size:14px;color:${gold}">Total</td><td style="text-align:right;padding:8px 0;font-weight:700;font-size:14px;color:${gold}">${fmtC(totals.total)}</td></tr></table></div>`;
+      qhtml+='</body></html>';
+
+      let chtml='<!DOCTYPE html><html><head><meta charset="utf-8"><title>Contract</title><style>'+css+'</style></head><body style="padding:40px 48px;max-width:900px;margin:0 auto">';
+      chtml+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid ${gold}"><div style="display:flex;gap:12px;align-items:center"><img src="/kingdom-logo-dark.svg" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:2px">CONTRACT</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p></div></div>`;
+      chtml+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">1. Parties</p>`;
+      chtml+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:8px;font-size:11px;color:#444;line-height:1.7">';
+      chtml+=`<div><p style="font-weight:600;margin-bottom:4px">Client</p><p>${client.name||'—'}</p>`;
+      if(clientAddr) chtml+=`<p>${clientAddr}</p>`;
+      if(client.phone) chtml+=`<p>${client.phone}</p>`;if(client.email) chtml+=`<p>${client.email}</p>`;
+      chtml+='</div><div><p style="font-weight:600;margin-bottom:4px">Contractor</p><p>David Truong</p><p>25 Fieldview Crescent</p><p>Markham ON L3R 3H6</p><p>(647) 449-6611</p><p>info@kingdompainting.ca</p></div></div>';
+      chtml+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">2. Scope of Work</p>`;
+      chtml+='<table style="font-size:11px"><thead><tr><th>Room</th><th>Surfaces</th></tr></thead><tbody>';
+      rooms.forEach(r=>{
+        const parts=[];
+        if(r.walls?.enabled) parts.push('Walls');if(r.ceiling?.enabled) parts.push('Ceiling');
+        if(r.baseboards?.enabled) parts.push('Baseboards');if(r.crown?.enabled) parts.push('Crown');
+        const dc=roomDoorCount(r);if(dc>0) parts.push(`${dc} Door${dc>1?'s':''}`);
+        const wc=r.windows?.dims?.length||0;if(r.windows?.enabled&&wc>0) parts.push(`${wc} Window${wc>1?'s':''}`);
+        chtml+=`<tr><td style="padding:6px 8px;font-weight:500">${r.name}</td><td style="padding:6px 8px;color:#555">${parts.join(', ')||'—'}</td></tr>`;
+      });
+      chtml+='</tbody></table>';
+      chtml+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">3. Payment Terms</p>`;
+      chtml+=`<div style="font-size:11px;line-height:1.7;color:#444"><p style="margin-bottom:8px">Total contract value: <strong>${fmtC(totals.total)}</strong> (including HST)</p>`;
+      chtml+=`<p>30% Deposit: ${fmtC(totals.deposit)} · 35% Midway: ${fmtC(totals.midway)} · Balance: ${fmtC(totals.balance)}</p></div>`;
+      chtml+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">4. Signatures</p>`;
+      chtml+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:24px;font-size:11px">';
+      chtml+='<div><div style="border-bottom:1px solid #ccc;height:60px;margin-bottom:8px"></div><p style="color:#888">Client Signature</p></div>';
+      chtml+='<div><div style="border-bottom:1px solid #ccc;height:60px;margin-bottom:8px"></div><p style="color:#888">Contractor Signature</p></div></div>';
+      chtml+='</body></html>';
+
+      const pushData={value:totals.total,estimateHrs:totalHrs,rooms:dealRooms,quote_html:qhtml,quote_date:todayISO,contract_html:chtml};
+
+      if(changeItems.length>0){
+        const coSub=changeItems.reduce((s,it)=>s+(parseFloat(it.amount)||0),0);
+        const coTax=coSub*0.13;const coTotal=coSub+coTax;
+        let cohtml='<!DOCTYPE html><html><head><meta charset="utf-8"><title>Change Order</title><style>'+css+'</style></head><body style="padding:40px 48px;max-width:900px;margin:0 auto">';
+        cohtml+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid ${gold}"><div style="display:flex;gap:12px;align-items:center"><img src="/kingdom-logo-dark.svg" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:2px">CHANGE ORDER</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p><p style="font-size:10px;color:#999;margin-top:4px">HST# 71164 5556 RT0001</p></div></div>`;
+        cohtml+=`<p style="font-size:12px;margin-bottom:20px"><strong>Client:</strong> ${client.name||'—'}</p>`;
+        cohtml+='<table><thead><tr><th style="width:60px">Item #</th><th>Description</th><th style="text-align:right;width:120px">Amount</th></tr></thead><tbody>';
+        changeItems.forEach(it=>{cohtml+=`<tr><td>${it.num||''}</td><td>${it.desc||''}</td><td style="text-align:right">${fmtC(parseFloat(it.amount)||0)}</td></tr>`;});
+        cohtml+=`</tbody></table><div style="margin-top:16px;padding-top:12px;border-top:2px solid #e5e5e5;text-align:right"><p style="font-size:12px;margin-bottom:4px">Subtotal: ${fmtC(coSub)}</p><p style="font-size:12px;margin-bottom:4px">HST (13%): ${fmtC(coTax)}</p><p style="font-size:14px;font-weight:700;color:${gold}">Total: ${fmtC(coTotal)}</p></div></body></html>`;
+        pushData.change_order_html=cohtml;
+      }
+
+      await api.saveDeal(pushData,selectedDealId);
       setSaveMsg('Pushed!');setTimeout(()=>setSaveMsg(''),3000);
     }catch(e){console.warn('Push error:',e);setSaveMsg('Push failed');}
   };
@@ -4212,7 +4295,7 @@ function MasterEstimate(){
       <div style={actionBarStyle}>
         <button onClick={handleSave} disabled={saving} style={{...actionBtnStyle,background:'var(--primary)',color:'#fff',border:'none'}}>Save</button>
         <button onClick={loadEstimates} style={actionBtnStyle}>Load</button>
-        <button onClick={pushToProject} style={actionBtnStyle}>Push to Project</button>
+        <button onClick={pushToProject} style={actionBtnStyle}>Push</button>
         <button onClick={newEstimate} style={actionBtnStyle}>New</button>
         <button onClick={()=>{const deal=deals.find(d=>d.id===selectedDealId);exportBidPDF(client,rooms,settings,totals,ps.paints,ps.ceilPaints,ps.primers,ps.colours,ps.supplies,deal?.dealName||'');}} style={actionBtnStyle}>Export Bid</button>
         <div style={{flex:1}}/>
@@ -4328,8 +4411,7 @@ function exportBidPDF(client,rooms,settings,totals,paints,ceilPaints,primers,col
   const fmtC=n=>'$'+n.toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2});
   const today=new Date().toLocaleDateString('en-CA',{year:'numeric',month:'long',day:'numeric'});
   const gold='#C4922A';
-  const addr1=client.street||client.addr1||'';
-  const addr2=[client.city,client.province].filter(Boolean).join(', ')+(client.postal?` ${client.postal}`:'');
+  const clientAddr=client.address||'';
   const roomCalcs=rooms.map(r=>({room:r,calc:calcRoom(r,settings),lines:calcRoomLines(r,settings)}));
   const paintData=calcPaintCosts(rooms,paints||[],ceilPaints||[],primers||[],colours||[],settings._standards?.matBuffer||1.15);
   const allColours=[...(colours||[])];
@@ -4348,8 +4430,7 @@ function exportBidPDF(client,rooms,settings,totals,paints,ceilPaints,primers,col
   html+='<p style="font-size:16px;font-weight:600;letter-spacing:0.08em;color:#555;margin-top:24px">BID PROPOSAL</p>';
   html+='<div style="margin-top:48px"><p style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:#999">PREPARED FOR</p>';
   html+=`<p style="font-size:18px;font-weight:600;margin-top:8px">${client.name||'Client Name'}</p>`;
-  if(addr1) html+=`<p style="font-size:12px;color:#666;margin-top:6px">${addr1}</p>`;
-  if(addr2) html+=`<p style="font-size:12px;color:#666;margin-top:2px">${addr2}</p>`;
+  if(clientAddr) html+=`<p style="font-size:12px;color:#666;margin-top:6px">${clientAddr}</p>`;
   if(client.phone) html+=`<p style="font-size:12px;color:#666;margin-top:4px">${client.phone}</p>`;
   if(client.email) html+=`<p style="font-size:12px;color:#666;margin-top:2px">${client.email}</p>`;
   html+='</div>';
@@ -4358,8 +4439,7 @@ function exportBidPDF(client,rooms,settings,totals,paints,ceilPaints,primers,col
   html+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px" class="border-gold"><div style="display:flex;gap:12px;align-items:center"><img src="/kingdom-logo-dark.svg" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:2px">QUOTE</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p><p style="font-size:10px;color:#999;margin-top:4px">HST# 71164 5556 RT0001</p></div></div>`;
   html+='<div style="margin-bottom:24px;font-size:12px"><p style="font-weight:600;color:#888;font-size:10px;text-transform:uppercase;margin-bottom:4px">Prepared For</p>';
   html+=`<p style="font-weight:600">${client.name||'—'}</p>`;
-  if(addr1) html+=`<p style="color:#666">${addr1}</p>`;
-  if(addr2) html+=`<p style="color:#666">${addr2}</p>`;
+  if(clientAddr) html+=`<p style="color:#666">${clientAddr}</p>`;
   if(client.phone) html+=`<p style="color:#666">${client.phone}</p>`;
   if(client.email) html+=`<p style="color:#666">${client.email}</p>`;
   html+='</div>';
@@ -4389,8 +4469,7 @@ function exportBidPDF(client,rooms,settings,totals,paints,ceilPaints,primers,col
   html+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">1. Parties</p>`;
   html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:8px;font-size:11px;color:#444;line-height:1.7">';
   html+=`<div><p style="font-weight:600;margin-bottom:4px">Client</p><p>${client.name||'—'}</p>`;
-  if(addr1) html+=`<p>${addr1}</p>`;
-  if(addr2) html+=`<p>${addr2}</p>`;
+  if(clientAddr) html+=`<p>${clientAddr}</p>`;
   if(client.phone) html+=`<p>${client.phone}</p>`;
   if(client.email) html+=`<p>${client.email}</p>`;
   html+='</div><div><p style="font-weight:600;margin-bottom:4px">Contractor</p><p>David Truong</p><p>25 Fieldview Crescent</p><p>Markham ON L3R 3H6</p><p>(647) 449-6611</p><p>info@kingdompainting.ca</p></div></div>';
@@ -4409,7 +4488,7 @@ function exportBidPDF(client,rooms,settings,totals,paints,ceilPaints,primers,col
   html+='</tbody></table>';
   html+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">3. Payment Terms</p>`;
   html+=`<div style="font-size:11px;line-height:1.7;color:#444"><p style="margin-bottom:8px">Total contract value: <strong>${fmtC(totals.total)}</strong> (including HST)</p>`;
-  html+=`<p>10% Deposit: ${fmtC(totals.deposit)} · 45% Midway: ${fmtC(totals.midway)} · Balance: ${fmtC(totals.balance)}</p></div>`;
+  html+=`<p>30% Deposit: ${fmtC(totals.deposit)} · 35% Midway: ${fmtC(totals.midway)} · Balance: ${fmtC(totals.balance)}</p></div>`;
   html+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">4. Signatures</p>`;
   html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:24px;font-size:11px">';
   html+='<div><div style="border-bottom:1px solid #ccc;height:60px;margin-bottom:8px"></div><p style="color:#888">Client Signature</p></div>';

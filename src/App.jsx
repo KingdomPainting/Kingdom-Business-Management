@@ -2782,12 +2782,12 @@ function RoomCard({room,settings,onChange,onRemove}){
   return (
     <div style={{border:'1px solid var(--border)',borderRadius:12,marginBottom:12,overflow:'hidden',background:'var(--card)',boxShadow:'var(--shadow)'}}>
       <div onClick={()=>setOpen(!open)} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'12px 16px',cursor:'pointer',userSelect:'none'}}>
-        <div style={{display:'flex',gap:8,alignItems:'center'}}>
-          <ChevronRight size={14} style={{color:'var(--muted-fg)',transform:open?'rotate(90deg)':'none',transition:'transform 0.2s'}}/>
-          <input type='text' value={room.name} onClick={e=>e.stopPropagation()} onChange={e=>u({name:e.target.value})} placeholder='Room name' style={{fontWeight:600,fontSize:13,background:'transparent',border:'none',outline:'none',color:'var(--fg)',width:160}}/>
+        <div style={{display:'flex',gap:8,alignItems:'center',flex:'1 1 0',minWidth:0}}>
+          <ChevronRight size={14} style={{color:'var(--muted-fg)',transform:open?'rotate(90deg)':'none',transition:'transform 0.2s',flexShrink:0}}/>
+          <input type='text' value={room.name} onClick={e=>e.stopPropagation()} onChange={e=>u({name:e.target.value})} placeholder='Room name' style={{fontWeight:600,fontSize:13,background:'transparent',border:'none',outline:'none',color:'var(--fg)',width:'100%',minWidth:0}}/>
         </div>
-        <div style={{display:'flex',gap:10,alignItems:'center'}}>
-          <span style={{fontSize:11,background:'rgba(212,169,106,0.15)',color:'var(--primary)',padding:'3px 10px',borderRadius:999,fontWeight:500}}>{fmtCAD(calc.cost)}</span>
+        <div style={{display:'flex',gap:8,alignItems:'center',flexShrink:0}}>
+          <span style={{fontSize:11,background:'rgba(212,169,106,0.15)',color:'var(--primary)',padding:'3px 8px',borderRadius:999,fontWeight:500,whiteSpace:'nowrap'}}>{fmtCAD(calc.cost)}</span>
           <button onClick={e=>{e.stopPropagation();onRemove();}} style={{background:'none',border:'none',cursor:'pointer',color:'var(--destructive)',padding:3}}><Trash2 size={13}/></button>
         </div>
       </div>
@@ -2795,9 +2795,9 @@ function RoomCard({room,settings,onChange,onRemove}){
         <div style={{borderTop:'1px solid var(--border)'}}>
           <div style={{padding:'14px 16px',borderBottom:'1px solid rgba(0,0,0,0.05)'}}>
             <p style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--muted-fg)',marginBottom:10}}>Dimensions</p>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
-              {[['Length (ft)','length'],['Width (ft)','width'],['Height (ft)','height']].map(([l,k])=>(
-                <div key={k}><Label>{l}</Label><Input type='number' value={room[k]||''} onChange={e=>u({[k]:+e.target.value})} style={{padding:'6px 10px'}}/></div>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(3,minmax(0,1fr))',gap:8}}>
+              {[['L (ft)','length'],['W (ft)','width'],['H (ft)','height']].map(([l,k])=>(
+                <div key={k}><Label>{l}</Label><Input type='number' value={room[k]||''} onChange={e=>u({[k]:+e.target.value})} style={{padding:'6px 8px',minWidth:0}}/></div>
               ))}
             </div>
             <div style={{marginTop:8,display:'flex',gap:8,alignItems:'center'}}>
@@ -2861,7 +2861,7 @@ function RoomCard({room,settings,onChange,onRemove}){
 }
 
 // ─── COVER TAB ────────────────────────────────────────────────────────────────
-function CoverTab({client,setClient,deals,onSelectDeal}){
+function CoverTab({client,setClient,deals,onSelectDeal,selectedDealId}){
   const todayStr=new Date().toLocaleDateString('en-CA',{year:'numeric',month:'long',day:'numeric'});
   const docStyle={background:'#fff',color:'#1a1a1a',borderRadius:8,maxWidth:900,margin:'0 auto',padding:40,boxShadow:'0 2px 12px rgba(0,0,0,0.08)'};
   const gold='#C4922A';
@@ -2869,8 +2869,7 @@ function CoverTab({client,setClient,deals,onSelectDeal}){
     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:24,padding:24,overflow:'auto',maxHeight:'100%'}}>
       <div style={docStyle}>
         <div style={{textAlign:'center',padding:'48px 24px'}}>
-          <KPLogo height={64}/>
-          <h2 style={{fontSize:22,fontWeight:700,marginTop:16,color:gold,letterSpacing:'0.05em'}}>KINGDOM PAINTING INC.</h2>
+          <img src="/kingdom-logo-dark.svg" alt="Kingdom Painting Inc." style={{height:80,margin:'0 auto'}}/>
           <div style={{width:60,height:2,background:gold,margin:'16px auto'}}/>
           <p style={{fontSize:16,fontWeight:600,letterSpacing:'0.08em',color:'#555',marginTop:24}}>BID PROPOSAL</p>
           <div style={{marginTop:48}}>
@@ -2886,9 +2885,9 @@ function CoverTab({client,setClient,deals,onSelectDeal}){
           <div style={{display:'flex',flexDirection:'column',gap:12}}>
             <div>
               <Label>Project / Deal</Label>
-              <Select value='' onChange={e=>{if(e.target.value)onSelectDeal(e.target.value);}}>
-                <option value=''>Select a deal...</option>
-                {deals.map(d=><option key={d.id} value={d.id}>{d.title||d.name||d.id}</option>)}
+              <Select value={selectedDealId||''} onChange={e=>{if(e.target.value)onSelectDeal(e.target.value);}}>
+                <option value=''>Select a project...</option>
+                {deals.map(d=><option key={d.id} value={d.id}>{d.dealName||'Unnamed project'}</option>)}
               </Select>
             </div>
             <div>
@@ -2922,7 +2921,7 @@ function CoverTab({client,setClient,deals,onSelectDeal}){
 function RoomsTab({rooms,settings,onUpdate,onRemove,onAdd,paints,ceilPaints,colours}){
   const totalCost=rooms.reduce((s,r)=>s+calcRoom(r,settings).cost,0);
   return (
-    <div style={{padding:24,overflow:'auto',maxHeight:'100%'}}>
+    <div style={{padding:'16px 12px',overflow:'auto',maxHeight:'100%'}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
         <div style={{display:'flex',gap:12,alignItems:'center'}}>
           <h3 style={{fontSize:15,fontWeight:700}}>Rooms</h3>
@@ -3044,16 +3043,12 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
   return (
     <div style={{padding:24,overflow:'auto',maxHeight:'100%',background:'#f5f5f0'}}>
       <div style={docStyle}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:24,paddingBottom:16,borderBottom:`2px solid ${gold}`}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:24,paddingBottom:16,borderBottom:`2px solid ${gold}`}}>
           <div style={{display:'flex',gap:12,alignItems:'center'}}>
-            <KPLogo height={40}/>
-            <div>
-              <p style={{fontSize:14,fontWeight:700,color:gold}}>KINGDOM PAINTING INC.</p>
-              <p style={{fontSize:10,color:'#999'}}>Professional Painting Services</p>
-            </div>
+            <img src="/kingdom-logo-dark.svg" alt="Kingdom Painting" style={{height:48}}/>
+            <p style={{fontSize:20,fontWeight:700,color:gold,letterSpacing:2}}>QUOTE</p>
           </div>
           <div style={{textAlign:'right'}}>
-            <p style={{fontSize:16,fontWeight:700,color:gold}}>Quote</p>
             <p style={{fontSize:11,color:'#666'}}>{todayStr}</p>
             <p style={{fontSize:10,color:'#999',marginTop:4}}>HST# 742813191RT0001</p>
           </div>
@@ -3206,10 +3201,14 @@ function ContractTab({rooms,settings,client,totals}){
   return (
     <div style={{padding:24,overflow:'auto',maxHeight:'100%',background:'#f5f5f0'}}>
       <div style={docStyle}>
-        <div style={{textAlign:'center',marginBottom:24,paddingBottom:16,borderBottom:`2px solid ${gold}`}}>
-          <KPLogo height={48}/>
-          <h2 style={{fontSize:18,fontWeight:700,color:gold,marginTop:8}}>Painting Service Agreement</h2>
-          <p style={{fontSize:11,color:'#999'}}>{todayStr}</p>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:24,paddingBottom:16,borderBottom:`2px solid ${gold}`}}>
+          <div style={{display:'flex',gap:12,alignItems:'center'}}>
+            <img src="/kingdom-logo-dark.svg" alt="Kingdom Painting" style={{height:48}}/>
+            <p style={{fontSize:20,fontWeight:700,color:gold,letterSpacing:2}}>CONTRACT</p>
+          </div>
+          <div style={{textAlign:'right'}}>
+            <p style={{fontSize:11,color:'#666'}}>{todayStr}</p>
+          </div>
         </div>
 
         <p style={sectionTitle}>1. Parties</p>
@@ -3355,16 +3354,12 @@ function ChangeOrderTab({client,items,setItems}){
   return (
     <div style={{padding:24,overflow:'auto',maxHeight:'100%',background:'#f5f5f0'}}>
       <div style={docStyle}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:24,paddingBottom:16,borderBottom:`2px solid ${gold}`}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:24,paddingBottom:16,borderBottom:`2px solid ${gold}`}}>
           <div style={{display:'flex',gap:12,alignItems:'center'}}>
-            <KPLogo height={40}/>
-            <div>
-              <p style={{fontSize:14,fontWeight:700,color:gold}}>KINGDOM PAINTING INC.</p>
-              <p style={{fontSize:10,color:'#999'}}>Professional Painting Services</p>
-            </div>
+            <img src="/kingdom-logo-dark.svg" alt="Kingdom Painting" style={{height:48}}/>
+            <p style={{fontSize:20,fontWeight:700,color:gold,letterSpacing:2}}>CHANGE ORDER</p>
           </div>
           <div style={{textAlign:'right'}}>
-            <p style={{fontSize:16,fontWeight:700,color:gold}}>Change Order</p>
             <p style={{fontSize:11,color:'#666'}}>{todayStr}</p>
             <p style={{fontSize:10,color:'#999',marginTop:4}}>HST# 742813191RT0001</p>
           </div>
@@ -3845,45 +3840,59 @@ function MasterEstimate(){
   const totalHrs=rooms.reduce((s,r)=>s+calcRoom(r,settings).totalHrs,0);
 
   useEffect(()=>{
-    setDeals(api.getDeals());
-    setContacts(api.getContacts());
+    api.loadDeals().then(d=>{setDeals(d);setContacts(api.getContacts());});
+    api.loadContacts().then(()=>setContacts(api.getContacts()));
   },[]);
 
   const saveTimerRef=useRef(null);
-  const doSave=useCallback(async(rid,rms,cli,ci,cc,rc)=>{
+  const buildTitle=useCallback(()=>{
+    const deal=deals.find(d=>d.id===selectedDealId);
+    const project=deal?.dealName||'';
+    const name=client.name||'';
+    if(project&&name) return `${project} - ${name}`;
+    return project||name||'Untitled Estimate';
+  },[deals,selectedDealId,client.name]);
+
+  const doSave=useCallback(async(rid,rms,cli,ci,cc,rc,sdid)=>{
     if(!_session?.user?.id)return;
     setSaving(true);setSaveMsg('');
     try{
       const payload={
         user_id:_session.user.id,
+        title:buildTitle(),
         client_name:cli.name,client_email:cli.email,client_phone:cli.phone,
         addr1:cli.addr1,addr2:cli.addr2,
-        state:JSON.stringify({rooms:rms,roomCounter:rc,changeItems:ci,changeCounter:cc,client:cli})
+        state:JSON.stringify({rooms:rms,roomCounter:rc,changeItems:ci,changeCounter:cc,client:cli,selectedDealId:sdid})
       };
       if(rid){
-        await supaFetch(`/rest/v1/estimates?id=eq.${rid}`,{method:'PATCH',body:JSON.stringify(payload)});
+        await supaFetch(`/rest/v1/estimates?id=eq.${rid}`,'PATCH',payload);
       }else{
-        const rows=await supaFetch('/rest/v1/estimates',{method:'POST',body:JSON.stringify(payload),headers:{'Prefer':'return=representation'}});
+        const rows=await supaFetch('/rest/v1/estimates','POST',payload);
         if(rows&&rows[0])setCurrentEstimateId(rows[0].id);
       }
       setSaveMsg('Saved');
     }catch(e){setSaveMsg('Error');console.warn('Save error:',e);}
     finally{setSaving(false);}
     setTimeout(()=>setSaveMsg(''),3000);
-  },[]);
+  },[buildTitle]);
+
+  const handleSave=()=>{
+    if(saveTimerRef.current)clearTimeout(saveTimerRef.current);
+    doSave(currentEstimateId,rooms,client,changeItems,changeCounter,roomCounter,selectedDealId);
+  };
 
   useEffect(()=>{
     if(saveTimerRef.current)clearTimeout(saveTimerRef.current);
     saveTimerRef.current=setTimeout(()=>{
-      doSave(currentEstimateId,rooms,client,changeItems,changeCounter,roomCounter);
+      doSave(currentEstimateId,rooms,client,changeItems,changeCounter,roomCounter,selectedDealId);
     },1500);
     return ()=>{if(saveTimerRef.current)clearTimeout(saveTimerRef.current);};
-  },[rooms,client,changeItems,roomCounter,changeCounter,currentEstimateId,doSave]);
+  },[rooms,client,changeItems,roomCounter,changeCounter,currentEstimateId,selectedDealId,doSave]);
 
   const loadEstimates=async()=>{
     if(!_session?.user?.id)return;
     try{
-      const rows=await supaFetch(`/rest/v1/estimates?user_id=eq.${_session.user.id}&select=id,client_name,client_email,updated_at&order=updated_at.desc&limit=50`);
+      const rows=await supaFetch(`/rest/v1/estimates?user_id=eq.${_session.user.id}&select=id,title,client_name,client_email,updated_at&order=updated_at.desc&limit=50`);
       setSavedEstimates(rows||[]);
     }catch(e){console.warn('Load estimates error:',e);}
     setShowLoadPanel(true);
@@ -3900,6 +3909,7 @@ function MasterEstimate(){
         if(st.client)setClient(st.client);
         if(st.changeItems)setChangeItems(st.changeItems);
         if(st.changeCounter!=null)setChangeCounter(st.changeCounter);
+        if(st.selectedDealId)setSelectedDealId(st.selectedDealId);
         setCurrentEstimateId(eid);
       }
     }catch(e){console.warn('Load estimate error:',e);}
@@ -3955,21 +3965,25 @@ function MasterEstimate(){
     {k:'standards',l:'Standards'},
   ];
 
-  const tabBarStyle={background:'var(--fg)',borderBottom:'1px solid rgba(237,233,222,0.1)',padding:'0 20px',display:'flex',gap:2,flexShrink:0};
-  const tabBtnStyle=(active)=>({background:'none',border:'none',cursor:'pointer',padding:'9px 16px',fontSize:12,fontWeight:500,letterSpacing:'0.03em',color:active?'var(--bg)':'rgba(237,233,222,0.5)',borderBottom:active?'2px solid var(--primary)':'2px solid transparent',transition:'all 0.15s'});
+  const tabBarWrapStyle={background:'var(--fg)',borderBottom:'1px solid rgba(237,233,222,0.1)',flexShrink:0,overflowX:'auto',scrollbarWidth:'none'};
+  const tabBarInnerStyle={display:'flex',padding:'0 20px',minWidth:'max-content',gap:2};
+  const tabBtnStyle=(active)=>({background:'none',border:'none',cursor:'pointer',padding:'9px 16px',fontSize:12,fontWeight:500,letterSpacing:'0.03em',color:active?'var(--bg)':'rgba(237,233,222,0.5)',borderBottom:active?'2px solid var(--primary)':'2px solid transparent',transition:'all 0.15s',whiteSpace:'nowrap'});
   const actionBarStyle={background:'var(--card)',borderBottom:'1px solid var(--border)',padding:'8px 20px',display:'flex',gap:8,alignItems:'center',flexShrink:0};
   const actionBtnStyle={fontSize:11,fontWeight:600,padding:'6px 14px',borderRadius:6,cursor:'pointer',border:'1px solid var(--border)',background:'var(--card)',color:'var(--fg)'};
 
   return (
     <div style={{width:'100%',height:'100%',display:'flex',flexDirection:'column',overflow:'hidden'}}>
-      <div style={tabBarStyle}>
-        {TABS.map(t=>(
-          <button key={t.k} onClick={()=>setActiveTab(t.k)} style={tabBtnStyle(activeTab===t.k)}>{t.l}</button>
-        ))}
+      <div style={tabBarWrapStyle}>
+        <div style={tabBarInnerStyle}>
+          {TABS.map(t=>(
+            <button key={t.k} onClick={()=>setActiveTab(t.k)} style={tabBtnStyle(activeTab===t.k)}>{t.l}</button>
+          ))}
+        </div>
       </div>
       <div style={actionBarStyle}>
+        <button onClick={handleSave} disabled={saving} style={{...actionBtnStyle,background:'var(--primary)',color:'#fff',border:'none'}}>Save</button>
         <button onClick={loadEstimates} style={actionBtnStyle}>Load</button>
-        <button onClick={pushToProject} style={{...actionBtnStyle,background:'var(--primary)',color:'#fff',border:'none'}}>Push to Project</button>
+        <button onClick={pushToProject} style={actionBtnStyle}>Push to Project</button>
         <button onClick={newEstimate} style={actionBtnStyle}>New</button>
         <div style={{flex:1}}/>
         {saving&&<Loader2 size={14} style={{animation:'spin 1s linear infinite',color:'var(--muted-fg)'}}/>}
@@ -3977,7 +3991,7 @@ function MasterEstimate(){
       </div>
       <div style={{flex:1,overflow:'hidden',position:'relative'}}>
         {activeTab==='cover'&&(
-          <CoverTab client={client} setClient={setClient} deals={deals} onSelectDeal={onSelectDeal}/>
+          <CoverTab client={client} setClient={setClient} deals={deals} onSelectDeal={onSelectDeal} selectedDealId={selectedDealId}/>
         )}
         {activeTab==='rooms'&&(
           <RoomsTab rooms={rooms} settings={settings}
@@ -4000,15 +4014,15 @@ function MasterEstimate(){
         {activeTab==='changeorder'&&(
           <ChangeOrderTab client={client} items={changeItems} setItems={setChangeItems}/>
         )}
-        {activeTab==='labourrates'&&ps.loaded&&(
+        {activeTab==='labourrates'&&(
           <LabourRatesTab labour={ps.labour} setLabour={ps.setLabour} onSave={handlePaintSave}/>
         )}
-        {activeTab==='paintinputs'&&ps.loaded&&(
+        {activeTab==='paintinputs'&&(
           <PaintInputsTab paints={ps.paints} setPaints={ps.setPaints} ceilPaints={ps.ceilPaints} setCeilPaints={ps.setCeilPaints}
             primers={ps.primers} setPrimers={ps.setPrimers} colours={ps.colours} setColours={ps.setColours}
             supplies={ps.supplies} setSupplies={ps.setSupplies} onSave={handlePaintSave}/>
         )}
-        {activeTab==='standards'&&ps.loaded&&(
+        {activeTab==='standards'&&(
           <StandardsTab standards={ps.standards} setStandards={ps.setStandards} onSave={handlePaintSave}/>
         )}
         {showLoadPanel&&(
@@ -4022,8 +4036,8 @@ function MasterEstimate(){
               {savedEstimates.map(est=>(
                 <div key={est.id} onClick={()=>loadEstimate(est.id)}
                   style={{padding:'12px 14px',borderRadius:8,marginBottom:6,cursor:'pointer',border:'1px solid var(--border)',background:'var(--bg)'}}>
-                  <p style={{fontSize:13,fontWeight:600}}>{est.client_name||'Untitled'}</p>
-                  <p style={{fontSize:11,color:'var(--muted-fg)'}}>{est.client_email||''}</p>
+                  <p style={{fontSize:13,fontWeight:600}}>{est.title||est.client_name||'Untitled'}</p>
+                  <p style={{fontSize:11,color:'var(--muted-fg)'}}>{est.client_name&&est.title?est.client_name:est.client_email||''}</p>
                   {est.updated_at&&<p style={{fontSize:10,color:'var(--muted-fg)',marginTop:4}}>{new Date(est.updated_at).toLocaleDateString('en-CA')}</p>}
                 </div>
               ))}

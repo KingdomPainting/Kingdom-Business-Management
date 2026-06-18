@@ -3263,7 +3263,7 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
         </div>
         <table style={{width:'100%',borderCollapse:'collapse',marginBottom:24}}>
           <thead><tr>
-            <th style={thStyle}>Room</th>
+            <th style={thStyle}>Item</th>
             <th style={thStyle}>Description</th>
             <th style={{...thStyle,textAlign:'right'}}>Amount</th>
           </tr></thead>

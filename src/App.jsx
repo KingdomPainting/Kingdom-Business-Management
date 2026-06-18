@@ -2773,17 +2773,17 @@ function usePaintSettings(){
 }
 
 // ─── ROOM CARD ────────────────────────────────────────────────────────────────
-function RoomCard({room,settings,onChange,onRemove}){
+function RoomCard({room,settings,onChange,onRemove,primers}){
   const [open,setOpen]=useState(true);
-  const [paintOpen,setPaintOpen]=useState(false);
   const calc=calcRoom(room,settings);
   const u=patch=>onChange({...room,...patch});
   const up=patch=>u({paint:{...room.paint,...patch}});
   const uprep=patch=>u({prep:{...room.prep,...patch}});
+  const cbStyle={width:18,height:18,accentColor:'var(--primary)',cursor:'pointer'};
   const S=({label,field,sub})=>(
-    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'4px 0'}}>
+    <div style={{display:'flex',alignItems:'center',gap:10,padding:'4px 0'}}>
       <label style={{fontSize:12,display:'flex',gap:6,alignItems:'center'}}>
-        <input type='checkbox' checked={room[field].enabled} onChange={e=>u({[field]:{...room[field],enabled:e.target.checked}})}/>
+        <input type='checkbox' checked={room[field].enabled} onChange={e=>u({[field]:{...room[field],enabled:e.target.checked}})} style={cbStyle}/>
         {label}
       </label>
       {room[field].enabled&&<select value={room[field].coats} onChange={e=>u({[field]:{...room[field],coats:+e.target.value}})} style={{fontSize:11,padding:'2px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}>
@@ -2824,7 +2824,7 @@ function RoomCard({room,settings,onChange,onRemove}){
               ))}
             </div>
             <div style={{marginTop:8,display:'flex',gap:8,alignItems:'center'}}>
-              <input type='checkbox' id={`irr-${room.id}`} checked={room.irregular} onChange={e=>u({irregular:e.target.checked})}/>
+              <input type='checkbox' id={`irr-${room.id}`} checked={room.irregular} onChange={e=>u({irregular:e.target.checked})} style={cbStyle}/>
               <label htmlFor={`irr-${room.id}`} style={{fontSize:12,cursor:'pointer'}}>Irregular shape</label>
             </div>
             {room.irregular&&(
@@ -2862,9 +2862,9 @@ function RoomCard({room,settings,onChange,onRemove}){
           <div style={{padding:'14px 16px',borderBottom:'1px solid rgba(0,0,0,0.05)'}}>
             <p style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--muted-fg)',marginBottom:8}}>Surfaces</p>
             <S label='Walls' field='walls'/>
-            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'4px 0'}}>
+            <div style={{display:'flex',alignItems:'center',gap:10,padding:'4px 0'}}>
               <label style={{fontSize:12,display:'flex',gap:6,alignItems:'center'}}>
-                <input type='checkbox' checked={room.ceiling.enabled} onChange={e=>u({ceiling:{...room.ceiling,enabled:e.target.checked}})}/>
+                <input type='checkbox' checked={room.ceiling.enabled} onChange={e=>u({ceiling:{...room.ceiling,enabled:e.target.checked}})} style={cbStyle}/>
                 Ceiling
               </label>
               {room.ceiling.enabled&&<select value={room.ceiling.coats} onChange={e=>u({ceiling:{...room.ceiling,coats:+e.target.value}})} style={{fontSize:11,padding:'2px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}>
@@ -2883,7 +2883,7 @@ function RoomCard({room,settings,onChange,onRemove}){
                 </div>
                 {room.ceiling.type==='stucco'&&(
                   <label style={{fontSize:11,display:'flex',gap:6,alignItems:'center',cursor:'pointer'}}>
-                    <input type='checkbox' checked={room.ceiling.removeStucco||false} onChange={e=>u({ceiling:{...room.ceiling,removeStucco:e.target.checked}})}/> Stucco removal
+                    <input type='checkbox' checked={room.ceiling.removeStucco||false} onChange={e=>u({ceiling:{...room.ceiling,removeStucco:e.target.checked}})} style={cbStyle}/> Stucco removal
                   </label>
                 )}
               </div>
@@ -2891,7 +2891,7 @@ function RoomCard({room,settings,onChange,onRemove}){
             <S label='Baseboards' field='baseboards'/><S label='Crown Moulding' field='crown'/>
             <div style={{padding:'4px 0'}}>
               <label style={{fontSize:12,display:'flex',gap:6,alignItems:'center'}}>
-                <input type='checkbox' checked={room.doors?.enabled||false} onChange={e=>u({doors:{...room.doors,enabled:e.target.checked}})}/>
+                <input type='checkbox' checked={room.doors?.enabled||false} onChange={e=>u({doors:{...room.doors,enabled:e.target.checked}})} style={cbStyle}/>
                 Doors
               </label>
               {room.doors?.enabled&&(
@@ -2909,9 +2909,9 @@ function RoomCard({room,settings,onChange,onRemove}){
               )}
             </div>
             <div style={{padding:'4px 0'}}>
-              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+              <div style={{display:'flex',alignItems:'center',gap:10}}>
                 <label style={{fontSize:12,display:'flex',gap:6,alignItems:'center'}}>
-                  <input type='checkbox' checked={room.windows?.enabled||false} onChange={e=>u({windows:{...room.windows,enabled:e.target.checked}})}/>
+                  <input type='checkbox' checked={room.windows?.enabled||false} onChange={e=>u({windows:{...room.windows,enabled:e.target.checked}})} style={cbStyle}/>
                   Windows
                 </label>
                 {room.windows?.enabled&&<select value={room.windows.coats} onChange={e=>u({windows:{...room.windows,coats:+e.target.value}})} style={{fontSize:11,padding:'2px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}>
@@ -2945,22 +2945,25 @@ function RoomCard({room,settings,onChange,onRemove}){
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:4}}>
               {PREP_ITEMS.map(({k,l})=>(
                 <label key={k} style={{display:'flex',gap:6,alignItems:'center',fontSize:12,cursor:'pointer'}}>
-                  <input type='checkbox' checked={room.prep[k]} onChange={e=>uprep({[k]:e.target.checked})}/>{l}
+                  <input type='checkbox' checked={room.prep[k]} onChange={e=>uprep({[k]:e.target.checked})} style={cbStyle}/>{l}
                 </label>
               ))}
             </div>
           </div>
           <div style={{padding:'14px 16px'}}>
-            <button onClick={()=>setPaintOpen(!paintOpen)} style={{display:'flex',gap:6,alignItems:'center',background:'none',border:'none',cursor:'pointer',fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--muted-fg)',marginBottom:8}}>
-              <ChevronDown size={13} style={{transform:paintOpen?'none':'rotate(-90deg)',transition:'transform 0.2s'}}/>Paint Selections
-            </button>
-            {paintOpen&&(
-              <>
-                {room.walls.enabled&&<PaintRow label='Walls' prod={room.paint.wallProduct} colour={room.paint.wallColour} sheen={room.paint.wallSheen} products={WALL_PAINTS} colours={COLOURS} onProd={v=>up({wallProduct:v})} onColour={v=>up({wallColour:v})} onSheen={v=>up({wallSheen:v})}/>}
-                {room.ceiling.enabled&&<PaintRow label='Ceiling' prod={room.paint.ceilProduct} colour={room.paint.ceilColour} sheen={room.paint.ceilSheen} products={CEILING_PAINTS} colours={CEILING_COLOURS} onProd={v=>up({ceilProduct:v})} onColour={v=>up({ceilColour:v})} onSheen={v=>up({ceilSheen:v})}/>}
-                {(room.baseboards.enabled||room.doors?.enabled||roomDoorCount(room)>0||room.crown.enabled)&&<PaintRow label='Trim / Doors' prod={room.paint.trimProduct} colour={room.paint.trimColour} sheen={room.paint.trimSheen} products={TRIM_PAINTS} colours={COLOURS} onProd={v=>up({trimProduct:v})} onColour={v=>up({trimColour:v})} onSheen={v=>up({trimSheen:v})}/>}
-              </>
-            )}
+            <p style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--muted-fg)',marginBottom:8}}>Paint Selections</p>
+            {room.walls.enabled&&<>
+              <PaintRow label='Walls' prod={room.paint.wallProduct} colour={room.paint.wallColour} sheen={room.paint.wallSheen} products={WALL_PAINTS} colours={COLOURS} onProd={v=>up({wallProduct:v})} onColour={v=>up({wallColour:v})} onSheen={v=>up({wallSheen:v})}/>
+              {room.walls.coats===3&&<div style={{marginTop:-6,marginBottom:10}}><p style={{fontSize:11,fontWeight:500,color:'var(--muted-fg)',marginBottom:4}}>Walls Primer</p><select value={room.paint.wallsPrimer||''} onChange={e=>up({wallsPrimer:e.target.value})} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Select Primer —</option>{(primers||[]).map(p=><option key={p.n} value={p.n}>{p.n}</option>)}</select></div>}
+            </>}
+            {room.ceiling.enabled&&<>
+              <PaintRow label='Ceiling' prod={room.paint.ceilProduct} colour={room.paint.ceilColour} sheen={room.paint.ceilSheen} products={CEILING_PAINTS} colours={CEILING_COLOURS} onProd={v=>up({ceilProduct:v})} onColour={v=>up({ceilColour:v})} onSheen={v=>up({ceilSheen:v})}/>
+              {room.ceiling.coats===3&&<div style={{marginTop:-6,marginBottom:10}}><p style={{fontSize:11,fontWeight:500,color:'var(--muted-fg)',marginBottom:4}}>Ceiling Primer</p><select value={room.paint.ceilingPrimer||''} onChange={e=>up({ceilingPrimer:e.target.value})} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Select Primer —</option>{(primers||[]).map(p=><option key={p.n} value={p.n}>{p.n}</option>)}</select></div>}
+            </>}
+            {(room.baseboards.enabled||room.doors?.enabled||roomDoorCount(room)>0||room.crown.enabled)&&<>
+              <PaintRow label='Trim / Doors' prod={room.paint.trimProduct} colour={room.paint.trimColour} sheen={room.paint.trimSheen} products={TRIM_PAINTS} colours={COLOURS} onProd={v=>up({trimProduct:v})} onColour={v=>up({trimColour:v})} onSheen={v=>up({trimSheen:v})}/>
+              {(room.baseboards?.coats===3||room.crown?.coats===3||room.doorFrames?.coats===3||room.windows?.coats===3||(room.doors?.flat?.coats===3)||(room.doors?.sixPanel?.coats===3)||(room.doors?.custom?.coats===3))&&<div style={{marginTop:-6,marginBottom:10}}><p style={{fontSize:11,fontWeight:500,color:'var(--muted-fg)',marginBottom:4}}>Trim Primer</p><select value={room.paint.trimPrimer||''} onChange={e=>up({trimPrimer:e.target.value})} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Select Primer —</option>{(primers||[]).map(p=><option key={p.n} value={p.n}>{p.n}</option>)}</select></div>}
+            </>}
           </div>
         </div>
       )}
@@ -3028,7 +3031,7 @@ function CoverTab({client,setClient,deals,contacts,onSelectDeal,selectedDealId})
 }
 
 // ─── ROOMS TAB ────────────────────────────────────────────────────────────────
-function RoomsTab({rooms,settings,onUpdate,onRemove,onAdd,paints,ceilPaints,colours}){
+function RoomsTab({rooms,settings,onUpdate,onRemove,onAdd,paints,ceilPaints,colours,primers}){
   const totalCost=rooms.reduce((s,r)=>s+calcRoom(r,settings).cost,0);
   return (
     <div style={{padding:'16px 12px',overflow:'auto',maxHeight:'100%'}}>
@@ -3040,7 +3043,7 @@ function RoomsTab({rooms,settings,onUpdate,onRemove,onAdd,paints,ceilPaints,colo
         <span style={{fontSize:13,fontWeight:600,color:'var(--primary)'}}>{fmtCAD(totalCost)}</span>
       </div>
       {rooms.map((r,i)=>(
-        <RoomCard key={r.id} room={r} settings={settings}
+        <RoomCard key={r.id} room={r} settings={settings} primers={primers}
           onChange={updated=>onUpdate(i,updated)}
           onRemove={()=>onRemove(i)}/>
       ))}
@@ -3160,7 +3163,7 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
           </div>
           <div style={{textAlign:'right'}}>
             <p style={{fontSize:11,color:'#666'}}>{todayStr}</p>
-            <p style={{fontSize:10,color:'#999',marginTop:4}}>HST# 742813191RT0001</p>
+            <p style={{fontSize:10,color:'#999',marginTop:4}}>HST# 71164 5556 RT0001</p>
           </div>
         </div>
         <div style={{display:'flex',justifyContent:'space-between',marginBottom:24,fontSize:12}}>
@@ -3267,7 +3270,6 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
               <p style={{fontSize:16,fontWeight:700,marginTop:4}}>{fmtCAD(totals.balance)}</p>
             </div>
           </div>
-          <p style={{fontSize:10,color:'#999',marginTop:12,textAlign:'center'}}>E-transfer to info@kingdompainting.ca</p>
         </div>
       </div>
     </div>
@@ -3477,7 +3479,7 @@ function ChangeOrderTab({client,items,setItems}){
           </div>
           <div style={{textAlign:'right'}}>
             <p style={{fontSize:11,color:'#666'}}>{todayStr}</p>
-            <p style={{fontSize:10,color:'#999',marginTop:4}}>HST# 742813191RT0001</p>
+            <p style={{fontSize:10,color:'#999',marginTop:4}}>HST# 71164 5556 RT0001</p>
           </div>
         </div>
         <p style={{fontSize:12,marginBottom:20}}><strong>Client:</strong> {client.name||'—'}</p>
@@ -3827,7 +3829,6 @@ function StandardsTab({standards,setStandards,onSave}){
   };
 
   const upd = (surface,coats,val)=>{
-    if(!val||val<1)return;
     setStandards(prev=>{
       const next={...prev};
       if(surface==='removeStucco') next.removeStucco={rate:val};
@@ -3838,25 +3839,25 @@ function StandardsTab({standards,setStandards,onSave}){
 
   const numS = {width:80,textAlign:'right',fontSize:13,padding:'4px 8px',border:'1px solid var(--border)',borderRadius:6,background:'var(--card)',color:'var(--fg)'};
 
-  const CoatTable = ({title,surface,subtitle})=>(
+  const coatTable = (surface,subtitle)=>(
     <div>
       {subtitle&&<p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.07em',color:'var(--muted-fg)',margin:'4px 0 6px'}}>{subtitle}</p>}
       <table style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
         <thead><tr style={{borderBottom:'1px solid var(--border)'}}><th style={{textAlign:'left',padding:'6px 8px',fontSize:11,color:'var(--muted-fg)',fontWeight:600}}>Coats</th><th style={{textAlign:'right',padding:'6px 8px',fontSize:11,color:'var(--muted-fg)',fontWeight:600}}>Sqft/Hr</th></tr></thead>
         <tbody>
-          <tr style={{borderBottom:'1px solid rgba(0,0,0,0.05)'}}><td style={{padding:'6px 8px'}}>1 coat</td><td style={{padding:'6px 8px',textAlign:'right'}}><input type='number' min={1} value={standards[surface]?.[1]||0} onChange={e=>upd(surface,1,+e.target.value)} style={numS}/></td></tr>
-          <tr style={{borderBottom:'1px solid rgba(0,0,0,0.05)'}}><td style={{padding:'6px 8px'}}>2 coats</td><td style={{padding:'6px 8px',textAlign:'right'}}><input type='number' min={1} value={standards[surface]?.[2]||0} onChange={e=>upd(surface,2,+e.target.value)} style={numS}/></td></tr>
-          <tr style={{borderBottom:'1px solid rgba(0,0,0,0.05)'}}><td style={{padding:'6px 8px'}}>Primer & 2 coats</td><td style={{padding:'6px 8px',textAlign:'right'}}><input type='number' min={1} value={standards[surface]?.[3]||0} onChange={e=>upd(surface,3,+e.target.value)} style={numS}/></td></tr>
+          <tr style={{borderBottom:'1px solid rgba(0,0,0,0.05)'}}><td style={{padding:'6px 8px'}}>1 coat</td><td style={{padding:'6px 8px',textAlign:'right'}}><input type='number' min={0} value={standards[surface]?.[1]||''} onChange={e=>upd(surface,1,+e.target.value)} style={numS}/></td></tr>
+          <tr style={{borderBottom:'1px solid rgba(0,0,0,0.05)'}}><td style={{padding:'6px 8px'}}>2 coats</td><td style={{padding:'6px 8px',textAlign:'right'}}><input type='number' min={0} value={standards[surface]?.[2]||''} onChange={e=>upd(surface,2,+e.target.value)} style={numS}/></td></tr>
+          <tr style={{borderBottom:'1px solid rgba(0,0,0,0.05)'}}><td style={{padding:'6px 8px'}}>Primer & 2 coats</td><td style={{padding:'6px 8px',textAlign:'right'}}><input type='number' min={0} value={standards[surface]?.[3]||''} onChange={e=>upd(surface,3,+e.target.value)} style={numS}/></td></tr>
         </tbody>
       </table>
     </div>
   );
 
-  const TrimTable = ({surface,label})=>(
+  const trimTable = (surface,label)=>(
     <>
-      <tr style={{borderBottom:'1px solid rgba(0,0,0,0.05)'}}><td rowSpan={3} style={{padding:'6px 8px',verticalAlign:'top',fontWeight:500}}>{label}</td><td style={{padding:'6px 8px'}}>1</td><td style={{padding:'6px 8px',textAlign:'right'}}><input type='number' min={1} value={standards[surface]?.[1]||0} onChange={e=>upd(surface,1,+e.target.value)} style={{...numS,width:70}}/></td></tr>
-      <tr style={{borderBottom:'1px solid rgba(0,0,0,0.05)'}}><td style={{padding:'6px 8px'}}>2</td><td style={{padding:'6px 8px',textAlign:'right'}}><input type='number' min={1} value={standards[surface]?.[2]||0} onChange={e=>upd(surface,2,+e.target.value)} style={{...numS,width:70}}/></td></tr>
-      <tr style={{borderBottom:'1px solid var(--border)'}}><td style={{padding:'6px 8px'}}>Primer & 2 Coats</td><td style={{padding:'6px 8px',textAlign:'right'}}><input type='number' min={1} value={standards[surface]?.[3]||0} onChange={e=>upd(surface,3,+e.target.value)} style={{...numS,width:70}}/></td></tr>
+      <tr style={{borderBottom:'1px solid rgba(0,0,0,0.05)'}}><td rowSpan={3} style={{padding:'6px 8px',verticalAlign:'top',fontWeight:500}}>{label}</td><td style={{padding:'6px 8px'}}>1</td><td style={{padding:'6px 8px',textAlign:'right'}}><input type='number' min={0} value={standards[surface]?.[1]||''} onChange={e=>upd(surface,1,+e.target.value)} style={{...numS,width:70}}/></td></tr>
+      <tr style={{borderBottom:'1px solid rgba(0,0,0,0.05)'}}><td style={{padding:'6px 8px'}}>2</td><td style={{padding:'6px 8px',textAlign:'right'}}><input type='number' min={0} value={standards[surface]?.[2]||''} onChange={e=>upd(surface,2,+e.target.value)} style={{...numS,width:70}}/></td></tr>
+      <tr style={{borderBottom:'1px solid var(--border)'}}><td style={{padding:'6px 8px'}}>Primer & 2 Coats</td><td style={{padding:'6px 8px',textAlign:'right'}}><input type='number' min={0} value={standards[surface]?.[3]||''} onChange={e=>upd(surface,3,+e.target.value)} style={{...numS,width:70}}/></td></tr>
     </>
   );
 
@@ -3869,14 +3870,14 @@ function StandardsTab({standards,setStandards,onSave}){
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:16}}>
         <Card className='p-5'>
           <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--primary)',marginBottom:12}}>Walls — sqft per hour</p>
-          <CoatTable surface='walls'/>
+          {coatTable('walls')}
         </Card>
 
         <Card className='p-5'>
           <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--primary)',marginBottom:12}}>Ceiling — sqft per hour</p>
-          <CoatTable surface='flatCeiling' subtitle='Flat / Drywall'/>
+          {coatTable('flatCeiling','Flat / Drywall')}
           <div style={{borderTop:'1px solid var(--border)',margin:'12px 0 10px'}}/>
-          <CoatTable surface='stuccoCeiling' subtitle='Stucco'/>
+          {coatTable('stuccoCeiling','Stucco')}
           <div style={{borderTop:'1px solid var(--border)',margin:'12px 0 10px'}}/>
           <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.07em',color:'var(--muted-fg)',marginBottom:8}}>Remove Stucco — rate per sqft</p>
           <div>
@@ -3894,21 +3895,21 @@ function StandardsTab({standards,setStandards,onSave}){
               <th style={{textAlign:'right',padding:'6px 8px',fontSize:11,color:'var(--muted-fg)',fontWeight:600}}>LF/Hr</th>
             </tr></thead>
             <tbody>
-              <TrimTable surface='baseboards' label='Baseboards'/>
-              <TrimTable surface='crown' label='Crown'/>
-              <TrimTable surface='doorFrames' label='Door Frames'/>
-              <TrimTable surface='windows' label='Windows'/>
+              {trimTable('baseboards','Baseboards')}
+              {trimTable('crown','Crown')}
+              {trimTable('doorFrames','Door Frames')}
+              {trimTable('windows','Windows')}
             </tbody>
           </table>
         </Card>
 
         <Card className='p-5'>
           <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--primary)',marginBottom:12}}>Doors — sqft per hour</p>
-          <CoatTable surface='doorsFlat' subtitle='Flat'/>
+          {coatTable('doorsFlat','Flat')}
           <div style={{borderTop:'1px solid var(--border)',margin:'12px 0 10px'}}/>
-          <CoatTable surface='doors6Panel' subtitle='6 Panel'/>
+          {coatTable('doors6Panel','6 Panel')}
           <div style={{borderTop:'1px solid var(--border)',margin:'12px 0 10px'}}/>
-          <CoatTable surface='doorsCustom' subtitle='Custom'/>
+          {coatTable('doorsCustom','Custom')}
         </Card>
       </div>
 
@@ -4143,7 +4144,7 @@ function MasterEstimate(){
             onUpdate={(i,updated)=>setRooms(rooms.map((r,j)=>j===i?updated:r))}
             onRemove={(i)=>{if(rooms.length>1)setRooms(rooms.filter((_,j)=>j!==i));}}
             onAdd={()=>{const next=roomCounter+1;setRoomCounter(next);setRooms([...rooms,newRoom(String(next),next)]);}}
-            paints={ps.paints} ceilPaints={ps.ceilPaints} colours={ps.colours}/>
+            paints={ps.paints} ceilPaints={ps.ceilPaints} colours={ps.colours} primers={ps.primers}/>
         )}
         {activeTab==='breakdown'&&(
           <BreakdownTab rooms={rooms} settings={settings}
@@ -4264,7 +4265,7 @@ function exportBidPDF(client,rooms,settings,totals,paints,ceilPaints,primers,col
   html+=`<p style="font-size:18px;font-weight:600;margin-top:8px">${client.name||'Client Name'}</p></div>`;
   html+=`<p style="font-size:12px;color:#999;margin-top:32px">${today}</p></div></div>`;
   html+='<div class="page">';
-  html+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px" class="border-gold"><div style="display:flex;gap:12px;align-items:center"><img src="/kingdom-logo-dark.svg" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:2px">QUOTE</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p><p style="font-size:10px;color:#999;margin-top:4px">HST# 742813191RT0001</p></div></div>`;
+  html+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px" class="border-gold"><div style="display:flex;gap:12px;align-items:center"><img src="/kingdom-logo-dark.svg" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:2px">QUOTE</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p><p style="font-size:10px;color:#999;margin-top:4px">HST# 71164 5556 RT0001</p></div></div>`;
   html+='<div style="margin-bottom:24px;font-size:12px"><p style="font-weight:600;color:#888;font-size:10px;text-transform:uppercase;margin-bottom:4px">Prepared For</p>';
   html+=`<p style="font-weight:600">${client.name||'—'}</p>`;
   if(addr1) html+=`<p style="color:#666">${addr1}</p>`;

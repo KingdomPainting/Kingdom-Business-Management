@@ -3588,7 +3588,7 @@ function ChangeOrderTab({client,items,setItems}){
         <p style={{fontSize:12,marginBottom:20}}><strong>Client:</strong> {client.name||'—'}</p>
         <table style={{width:'100%',borderCollapse:'collapse',marginBottom:16}}>
           <thead><tr>
-            <th style={{fontSize:11,fontWeight:600,textAlign:'left',padding:'8px 10px',borderBottom:'2px solid #e5e5e5',color:'#888',width:60}}>Item #</th>
+            <th style={{fontSize:11,fontWeight:600,textAlign:'left',padding:'8px 10px',borderBottom:'2px solid #e5e5e5',color:'#888',width:60}}>Item</th>
             <th style={{fontSize:11,fontWeight:600,textAlign:'left',padding:'8px 10px',borderBottom:'2px solid #e5e5e5',color:'#888'}}>Description</th>
             <th style={{fontSize:11,fontWeight:600,textAlign:'right',padding:'8px 10px',borderBottom:'2px solid #e5e5e5',color:'#888',width:120}}>Amount</th>
             <th style={{width:40,borderBottom:'2px solid #e5e5e5'}}/>
@@ -3711,7 +3711,8 @@ function LabourRatesTab({labour,setLabour,onSave}){
                 <tr><td style={{padding:'6px 0',color:'var(--muted-fg)'}}>Overhead / hr</td><td style={{textAlign:'right',padding:'6px 0'}}>${ohPerHr.toFixed(2)}</td></tr>
                 <tr><td style={{padding:'6px 0',color:'var(--muted-fg)'}}>Field wage / worker</td><td style={{textAlign:'right',padding:'6px 0'}}>${fieldWage.toFixed(2)}/hr</td></tr>
                 <tr style={{fontWeight:500}}><td style={{padding:'6px 0'}}>Profit / hr</td><td style={{textAlign:'right',padding:'6px 0',color:'var(--primary)'}}>${profitPerHr.toFixed(2)}/hr</td></tr>
-                <tr style={{fontWeight:500,borderTop:'2px solid var(--border)'}}><td style={{padding:'8px 0'}}>Total hourly rate (all workers)</td><td style={{textAlign:'right',padding:'8px 0',color:'var(--primary)',fontSize:15}}>${totalAll.toFixed(2)}/hr</td></tr>
+                <tr style={{fontWeight:500,borderTop:'2px solid var(--border)'}}><td style={{padding:'8px 0'}}>Total hourly rate (1 worker)</td><td style={{textAlign:'right',padding:'8px 0',color:'var(--primary)',fontSize:15}}>${totalHr.toFixed(2)}/hr</td></tr>
+                <tr style={{fontWeight:500}}><td style={{padding:'8px 0'}}>Total hourly rate (all workers)</td><td style={{textAlign:'right',padding:'8px 0',color:'var(--primary)',fontSize:15}}>${totalAll.toFixed(2)}/hr</td></tr>
               </tbody>
             </table>
           </div>
@@ -4277,7 +4278,7 @@ function MasterEstimate(){
         let cohtml='<!DOCTYPE html><html><head><meta charset="utf-8"><title>Change Order</title><style>'+css+'</style></head><body style="padding:40px 48px;max-width:900px;margin:0 auto">';
         cohtml+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid ${gold}"><div style="display:flex;gap:12px;align-items:center"><img src="/kingdom-logo-dark.svg" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:2px">CHANGE ORDER</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p><p style="font-size:10px;color:#999;margin-top:4px">HST# 71164 5556 RT0001</p></div></div>`;
         cohtml+=`<p style="font-size:12px;margin-bottom:20px"><strong>Client:</strong> ${client.name||'—'}</p>`;
-        cohtml+='<table><thead><tr><th style="width:60px">Item #</th><th>Description</th><th style="text-align:right;width:120px">Amount</th></tr></thead><tbody>';
+        cohtml+='<table><thead><tr><th style="width:60px">Item</th><th>Description</th><th style="text-align:right;width:120px">Amount</th></tr></thead><tbody>';
         changeItems.forEach(it=>{cohtml+=`<tr><td>${it.num||''}</td><td>${it.desc||''}</td><td style="text-align:right">${fmtC(parseFloat(it.amount)||0)}</td></tr>`;});
         cohtml+=`</tbody></table><div style="margin-top:16px;padding-top:12px;border-top:2px solid #e5e5e5;text-align:right"><p style="font-size:12px;margin-bottom:4px">Subtotal: ${fmtC(coSub)}</p><p style="font-size:12px;margin-bottom:4px">HST (13%): ${fmtC(coTax)}</p><p style="font-size:14px;font-weight:700;color:${gold}">Total: ${fmtC(coTotal)}</p></div></body></html>`;
         pushData.change_order_html=cohtml;

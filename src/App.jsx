@@ -3025,29 +3025,43 @@ function CoverTab({client,setClient,deals,contacts,onSelectDeal,selectedDealId})
         </div>
       </div>
       <Card className='p-5' style={{display:'flex',flexDirection:'column',gap:16}}>
-        <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--primary)',marginBottom:0}}>Project Details</p>
+        <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--primary)',marginBottom:0}}>Client Information</p>
         <div>
-          <Label>Project</Label>
+          <Label>Select Project</Label>
           <Select value={selectedDealId||''} onChange={e=>{if(e.target.value)onSelectDeal(e.target.value);}}>
-            <option value=''>Select a project...</option>
+            <option value=''>— Select a project —</option>
             {deals.map(d=><option key={d.id} value={d.id}>{dealLabel(d)}</option>)}
           </Select>
         </div>
-        <div>
-          <Label>Client Name</Label>
-          <Input value={client.name} onChange={e=>setClient({...client,name:e.target.value})}/>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+          <div>
+            <Label>Client Name</Label>
+            <Input value={client.name} onChange={e=>setClient({...client,name:e.target.value})} placeholder='Full name'/>
+          </div>
+          <div>
+            <Label>Phone</Label>
+            <Input value={client.phone} onChange={e=>setClient({...client,phone:e.target.value})} placeholder='(xxx) xxx-xxxx'/>
+          </div>
         </div>
-        <div>
-          <Label>Address</Label>
-          <Input value={client.address||''} onChange={e=>setClient({...client,address:e.target.value})} placeholder='Full address'/>
-        </div>
-        <div>
-          <Label>Phone</Label>
-          <Input value={client.phone} onChange={e=>setClient({...client,phone:e.target.value})}/>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+          <div>
+            <Label>Address Line 1</Label>
+            <Input value={client.address? client.address.indexOf(',')>=0? client.address.slice(0,client.address.indexOf(',')).trim(): client.address:''} onChange={e=>{
+              const line2=client.address&&client.address.indexOf(',')>=0?client.address.slice(client.address.indexOf(',')+1).trim():'';
+              setClient({...client,address:line2?`${e.target.value}, ${line2}`:e.target.value});
+            }} placeholder='Street address'/>
+          </div>
+          <div>
+            <Label>Address Line 2</Label>
+            <Input value={client.address&&client.address.indexOf(',')>=0?client.address.slice(client.address.indexOf(',')+1).trim():''} onChange={e=>{
+              const line1=client.address? client.address.indexOf(',')>=0? client.address.slice(0,client.address.indexOf(',')).trim(): client.address:'';
+              setClient({...client,address:e.target.value?`${line1}, ${e.target.value}`:line1});
+            }} placeholder='City, Province, Postal'/>
+          </div>
         </div>
         <div>
           <Label>Email</Label>
-          <Input value={client.email} onChange={e=>setClient({...client,email:e.target.value})}/>
+          <Input value={client.email} onChange={e=>setClient({...client,email:e.target.value})} placeholder='client@email.com'/>
         </div>
       </Card>
     </div>

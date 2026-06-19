@@ -2573,8 +2573,8 @@ function calcTotals(rooms, settings, materialCost=0){
   const discounted = Math.max(0, labourSubtotal - (settings.discount||0));
   const taxAmt = discounted * ((settings.taxRate||13)/100);
   const total = discounted + taxAmt + materialCost;
-  const deposit = total * 0.30;
-  const midway = total * 0.35;
+  const deposit = total * 0.10;
+  const midway = total * 0.45;
   const balance = total - deposit - midway;
   return { labourSubtotal, discounted, taxAmt, total, deposit, midway, balance, materialCost };
 }
@@ -2780,13 +2780,14 @@ function RoomCard({room,settings,onChange,onRemove,primers,paints,ceilPaints,col
   const up=patch=>u({paint:{...room.paint,...patch}});
   const uprep=patch=>u({prep:{...room.prep,...patch}});
   const cbStyle={width:18,height:18,accentColor:'var(--primary)',cursor:'pointer'};
+  const surfaceSelectStyle={fontSize:11,padding:'2px 6px',border:'1px solid var(--border)',borderRadius:4,background:'#fff'};
   const S=({label,field,sub})=>(
-    <div style={{display:'flex',alignItems:'center',gap:10,padding:'4px 0'}}>
-      <label style={{fontSize:12,display:'flex',gap:6,alignItems:'center'}}>
+    <div style={{display:'flex',alignItems:'center',padding:'4px 0'}}>
+      <label style={{fontSize:12,display:'flex',gap:6,alignItems:'center',width:140,flexShrink:0}}>
         <input type='checkbox' checked={room[field].enabled} onChange={e=>u({[field]:{...room[field],enabled:e.target.checked}})} style={cbStyle}/>
         {label}
       </label>
-      {room[field].enabled&&<select value={room[field].coats} onChange={e=>u({[field]:{...room[field],coats:+e.target.value}})} style={{fontSize:11,padding:'2px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}>
+      {room[field].enabled&&<select value={room[field].coats} onChange={e=>u({[field]:{...room[field],coats:+e.target.value}})} style={surfaceSelectStyle}>
         <option value={1}>1 coat</option><option value={2}>2 coats</option><option value={3}>Primer & 2 coats</option>
       </select>}
     </div>
@@ -2795,7 +2796,7 @@ function RoomCard({room,settings,onChange,onRemove,primers,paints,ceilPaints,col
   const PaintRow=({label,prod,colour,sheen,products,colours,onProd,onColour,onSheen})=>(
     <div style={{marginBottom:10}}>
       <p style={{fontSize:11,fontWeight:500,color:'var(--muted-fg)',marginBottom:4}}>{label}</p>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(120px,1fr))',gap:6}}>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6}}>
         <select value={prod} onChange={e=>onProd(e.target.value)} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Product —</option>{products.map(p=><option key={p} value={p}>{p}</option>)}</select>
         <select value={colour} onChange={e=>onColour(e.target.value)} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Colour —</option>{colours.map(c=><option key={c} value={c}>{c}</option>)}</select>
         <select value={sheen} onChange={e=>onSheen(e.target.value)} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Sheen —</option>{SHEENS.map(s=><option key={s} value={s}>{s}</option>)}</select>
@@ -2862,12 +2863,12 @@ function RoomCard({room,settings,onChange,onRemove,primers,paints,ceilPaints,col
           <div style={{padding:'14px 16px',borderBottom:'1px solid rgba(0,0,0,0.05)'}}>
             <p style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--muted-fg)',marginBottom:8}}>Surfaces</p>
             <S label='Walls' field='walls'/>
-            <div style={{display:'flex',alignItems:'center',gap:10,padding:'4px 0'}}>
-              <label style={{fontSize:12,display:'flex',gap:6,alignItems:'center'}}>
+            <div style={{display:'flex',alignItems:'center',padding:'4px 0'}}>
+              <label style={{fontSize:12,display:'flex',gap:6,alignItems:'center',width:140,flexShrink:0}}>
                 <input type='checkbox' checked={room.ceiling.enabled} onChange={e=>u({ceiling:{...room.ceiling,enabled:e.target.checked}})} style={cbStyle}/>
                 Ceiling
               </label>
-              {room.ceiling.enabled&&<select value={room.ceiling.coats} onChange={e=>u({ceiling:{...room.ceiling,coats:+e.target.value}})} style={{fontSize:11,padding:'2px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}>
+              {room.ceiling.enabled&&<select value={room.ceiling.coats} onChange={e=>u({ceiling:{...room.ceiling,coats:+e.target.value}})} style={surfaceSelectStyle}>
                 <option value={1}>1 coat</option><option value={2}>2 coats</option><option value={3}>Primer & 2 coats</option>
               </select>}
             </div>
@@ -3088,7 +3089,8 @@ function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,supplies
     return {room:r,calc:c,lines:calcRoomLines(r,settings)};
   });
   const numWorkers=Math.max(1,settings._standards?.workers||1);
-  const estDays=tHrs>0?Math.ceil(tHrs/6):0;
+  const totalProjectHrs=tHrs>0?Math.ceil(tHrs/numWorkers):0;
+  const estDays=totalProjectHrs>0?Math.ceil(totalProjectHrs/6):0;
   const paintData=calcPaintCosts(rooms,paints||[],ceilPaints||[],primers||[],colours||[],settings._standards?.matBuffer||1.15);
   const statStyle={background:'var(--card)',border:'1px solid var(--border)',borderRadius:10,padding:'14px 16px',textAlign:'center'};
   const statLabel={fontSize:10,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',fontWeight:600};
@@ -3102,7 +3104,7 @@ function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,supplies
         <div style={statStyle}><p style={statLabel}>Total Ceiling</p><p style={statVal}>{fmtN(tCeil)} sqft</p></div>
         <div style={statStyle}><p style={statLabel}>Total Trim</p><p style={statVal}>{fmtN(tTrim)} LF</p></div>
         <div style={statStyle}><p style={statLabel}>Total Doors</p><p style={statVal}>{tDoors}</p></div>
-        <div style={statStyle}><p style={statLabel}>Total Project Hours</p><p style={statVal}>{fmtN(tHrs)}</p></div>
+        <div style={statStyle}><p style={statLabel}>Total Project Hours</p><p style={statVal}>{fmtN(totalProjectHrs)}</p></div>
         <div style={statStyle}><p style={statLabel}>Est. Days</p><p style={statVal}>{estDays}</p></div>
         <div style={statStyle}><p style={statLabel}>Labour Cost</p><p style={statVal}>{fmtCAD(tCost)}</p></div>
         <div style={statStyle}><p style={statLabel}>Active Rooms</p><p style={statVal}>{activeRooms.length}</p></div>
@@ -3349,16 +3351,19 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
           <p style={{fontSize:12,fontWeight:700,marginBottom:12,color:gold}}>Payment Terms</p>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12}}>
             <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:14,textAlign:'center'}}>
-              <p style={{fontSize:10,color:'#888',textTransform:'uppercase',fontWeight:600}}>Deposit (30%)</p>
+              <p style={{fontSize:10,color:'#888',textTransform:'uppercase',fontWeight:600}}>10% Deposit</p>
               <p style={{fontSize:16,fontWeight:700,marginTop:4}}>{fmtCAD(totals.deposit)}</p>
+              <p style={{fontSize:9,color:'#888',marginTop:2}}>Due on first day</p>
             </div>
             <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:14,textAlign:'center'}}>
-              <p style={{fontSize:10,color:'#888',textTransform:'uppercase',fontWeight:600}}>Midway (35%)</p>
+              <p style={{fontSize:10,color:'#888',textTransform:'uppercase',fontWeight:600}}>45% Balance</p>
               <p style={{fontSize:16,fontWeight:700,marginTop:4}}>{fmtCAD(totals.midway)}</p>
+              <p style={{fontSize:9,color:'#888',marginTop:2}}>Due midway through</p>
             </div>
             <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:14,textAlign:'center'}}>
-              <p style={{fontSize:10,color:'#888',textTransform:'uppercase',fontWeight:600}}>Final Balance (35%)</p>
+              <p style={{fontSize:10,color:'#888',textTransform:'uppercase',fontWeight:600}}>Final Balance</p>
               <p style={{fontSize:16,fontWeight:700,marginTop:4}}>{fmtCAD(totals.balance)}</p>
+              <p style={{fontSize:9,color:'#888',marginTop:2}}>Due on completion</p>
             </div>
           </div>
         </div>
@@ -3412,14 +3417,15 @@ function ContractTab({rooms,settings,client,totals}){
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:24,paddingBottom:16,borderBottom:`2px solid ${gold}`}}>
           <div style={{display:'flex',gap:12,alignItems:'center'}}>
             <img src="/kingdom-logo-dark.svg" alt="Kingdom Painting" style={{height:48}}/>
-            <p style={{fontSize:20,fontWeight:700,color:gold,letterSpacing:2}}>CONTRACT</p>
+            <p style={{fontSize:16,fontWeight:700,color:gold,letterSpacing:1}}>Painting Service Agreement</p>
           </div>
           <div style={{textAlign:'right'}}>
             <p style={{fontSize:11,color:'#666'}}>{todayStr}</p>
           </div>
         </div>
 
-        <p style={sectionTitle}>1. Parties</p>
+        <p style={bodyText}>This Painting Service Agreement (&ldquo;Agreement&rdquo;) is made and entered into on {todayStr} by and between:</p>
+
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20,marginBottom:8}}>
           <div style={{fontSize:11,color:'#444',lineHeight:'1.7'}}>
             <p style={{fontWeight:600,marginBottom:4}}>Client</p>
@@ -3432,13 +3438,14 @@ function ContractTab({rooms,settings,client,totals}){
             <p style={{fontWeight:600,marginBottom:4}}>Contractor</p>
             <p>David Truong</p>
             <p>25 Fieldview Crescent</p>
-            <p>Markham ON L3R 3H6</p>
+            <p>Markham, ON L3R 3H6</p>
             <p>(647) 449-6611</p>
             <p>info@kingdompainting.ca</p>
           </div>
         </div>
 
-        <p style={sectionTitle}>2. Scope of Work</p>
+        <p style={sectionTitle}>Scope of Work</p>
+        <p style={bodyText}>The Contractor agrees to perform the following painting services (&ldquo;Services&rdquo;) at the Client&rsquo;s property located at {client.address||'—'}.</p>
         <table style={{width:'100%',borderCollapse:'collapse',fontSize:11,marginBottom:12}}>
           <thead><tr>
             <th style={{textAlign:'left',padding:'6px 8px',borderBottom:'2px solid #e5e5e5',color:'#888',fontWeight:600}}>Room</th>
@@ -3472,56 +3479,62 @@ function ContractTab({rooms,settings,client,totals}){
           </div>
           <div style={{background:'#faf7f2',borderRadius:6,padding:'8px 10px',textAlign:'center'}}>
             <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>Trims</p>
-            <p style={{fontSize:13,fontWeight:700}}>{fmtN(tTrim)} LF</p>
+            <p style={{fontSize:13,fontWeight:700}}>{fmtN(tTrim)} lin ft</p>
           </div>
           <div style={{background:'#faf7f2',borderRadius:6,padding:'8px 10px',textAlign:'center'}}>
             <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>Doors</p>
-            <p style={{fontSize:13,fontWeight:700}}>{tDoors}</p>
+            <p style={{fontSize:13,fontWeight:700}}>{tDoors} total</p>
           </div>
         </div>
 
-        <p style={sectionTitle}>3. Duration</p>
-        <p style={bodyText}>Estimated project duration: <strong>{estDays} working day{estDays!==1?'s':''}</strong>.</p>
+        <p style={sectionTitle}>Duration of Work</p>
+        <p style={bodyText}>The Contractor will commence work on the scheduled date and is expected to complete the work in approximately <strong>{estDays} day{estDays!==1?'(s)':''}</strong>, subject to any unforeseen delays.</p>
 
-        <p style={sectionTitle}>4. Payment Terms</p>
-        <p style={bodyText}>Total project cost: <strong>{fmtCAD(totals.total)}</strong> (HST 13% applied to labour only)</p>
+        <p style={sectionTitle}>Payment Terms</p>
+        <p style={bodyText}>The total cost for the Services shall be <strong>{fmtCAD(totals.total)}</strong>, which includes labour, materials, and any applicable taxes. A different payment plan can be discussed.</p>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:12}}>
           <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:12,textAlign:'center'}}>
-            <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>Deposit (30%)</p>
+            <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>10% Deposit</p>
             <p style={{fontSize:14,fontWeight:700,marginTop:2}}>{fmtCAD(totals.deposit)}</p>
+            <p style={{fontSize:9,color:'#888',marginTop:2}}>Due on first day</p>
           </div>
           <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:12,textAlign:'center'}}>
-            <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>Midway (35%)</p>
+            <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>45% Balance</p>
             <p style={{fontSize:14,fontWeight:700,marginTop:2}}>{fmtCAD(totals.midway)}</p>
+            <p style={{fontSize:9,color:'#888',marginTop:2}}>Due midway through</p>
           </div>
           <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:12,textAlign:'center'}}>
-            <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>Final Balance (35%)</p>
+            <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>Final Balance</p>
             <p style={{fontSize:14,fontWeight:700,marginTop:2}}>{fmtCAD(totals.balance)}</p>
+            <p style={{fontSize:9,color:'#888',marginTop:2}}>Due on completion</p>
           </div>
         </div>
 
-        <p style={sectionTitle}>5. Changes & Modifications</p>
-        <p style={bodyText}>Any changes to the scope of work described herein must be agreed upon in writing by both parties. Additional work will be quoted separately and is subject to additional charges.</p>
+        <p style={sectionTitle}>Changes and Modifications</p>
+        <p style={bodyText}>Any changes or modifications to the Scope of Work must be agreed upon in writing by both the Client and the Contractor. Additional work or changes may result in additional charges.</p>
 
-        <p style={sectionTitle}>6. Warranties</p>
-        <p style={bodyText}>The Contractor warrants all workmanship for a period of two (2) years from the date of project completion. This warranty covers peeling, blistering, and flaking that results from improper application. It does not cover damage caused by the Client, normal wear and tear, or structural defects.</p>
+        <p style={sectionTitle}>Warranties</p>
+        <p style={bodyText}>The Contractor warrants that the Services provided will be performed in a professional manner and in accordance with industry standards. The Contractor also warrants that all materials used are of good quality and fit for the intended purpose.</p>
 
-        <p style={sectionTitle}>7. Liability Protection</p>
-        <p style={bodyText}>The Contractor carries comprehensive general liability insurance with coverage of $2,000,000. Proof of insurance is available upon request.</p>
+        <p style={sectionTitle}>Liability Protection</p>
+        <p style={bodyText}><strong>Insurance:</strong> The Contractor maintains general liability insurance with coverage of $2,000,000 to protect against any claims arising from the performance of the Services.</p>
+        <p style={bodyText}><strong>Limitation of Liability:</strong> The Contractor shall not be liable for any indirect, incidental, or consequential damages arising out of or in connection with the performance of the Services. The total liability of the Contractor for any and all claims shall not exceed the total amount paid by the Client under this Agreement.</p>
+        <p style={bodyText}><strong>Damage to Property:</strong> The Contractor will take all reasonable precautions to protect the Client&rsquo;s property. However, the Contractor is not liable for any damage to the property that occurs as a result of pre-existing conditions or any conditions outside the Contractor&rsquo;s control.</p>
 
-        <p style={sectionTitle}>8. Termination</p>
-        <p style={bodyText}>Either party may terminate this agreement with written notice. If the Client terminates, the Client shall pay for all work completed to date plus materials purchased. If the Contractor terminates, the Contractor shall complete any work in progress and refund payment for incomplete work.</p>
+        <p style={sectionTitle}>Termination</p>
+        <p style={bodyText}>Either party may terminate this Agreement upon written notice if the other party breaches any material term of this Agreement. In the event of termination, the Client shall pay for all Services rendered up to the date of termination.</p>
 
-        <p style={sectionTitle}>9. Indemnification</p>
-        <p style={bodyText}>Each party agrees to indemnify and hold harmless the other party from any claims, damages, losses, or expenses arising out of the indemnifying party's breach of this agreement or negligent acts.</p>
+        <p style={sectionTitle}>Indemnification</p>
+        <p style={bodyText}>The Client agrees to indemnify and hold harmless the Contractor and its employees, agents, and subcontractors from any claims, damages, or expenses arising from the Client&rsquo;s negligence or breach of this Agreement.</p>
 
-        <p style={sectionTitle}>10. Governing Law</p>
-        <p style={bodyText}>This agreement shall be governed by and construed in accordance with the laws of the Province of Ontario, Canada.</p>
+        <p style={sectionTitle}>Governing Law</p>
+        <p style={bodyText}>This Agreement shall be governed by and construed in accordance with the laws of the Province of Ontario.</p>
 
-        <p style={sectionTitle}>11. Entire Agreement</p>
-        <p style={bodyText}>This document constitutes the entire agreement between the parties and supersedes all prior negotiations, representations, or agreements relating to this subject matter.</p>
+        <p style={sectionTitle}>Entire Agreement</p>
+        <p style={bodyText}>This Agreement constitutes the entire understanding between the parties and supersedes all prior agreements, whether oral or written.</p>
 
         <p style={sectionTitle}>Signatures</p>
+        <p style={bodyText}>By signing below, the parties agree to the terms and conditions outlined in this Agreement.</p>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:24,marginTop:12}}>
           <div>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
@@ -4229,7 +4242,7 @@ function MasterEstimate(){
       qhtml+='</body></html>';
 
       let chtml='<!DOCTYPE html><html><head><meta charset="utf-8"><title>Contract</title><style>'+css+'</style></head><body style="padding:40px 48px;max-width:900px;margin:0 auto">';
-      chtml+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid ${gold}"><div style="display:flex;gap:12px;align-items:center"><img src="/kingdom-logo-dark.svg" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:2px">CONTRACT</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p></div></div>`;
+      chtml+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid ${gold}"><div style="display:flex;gap:12px;align-items:center"><img src="/kingdom-logo-dark.svg" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:1px">Painting Service Agreement</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p></div></div>`;
       chtml+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">1. Parties</p>`;
       chtml+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:8px;font-size:11px;color:#444;line-height:1.7">';
       chtml+=`<div><p style="font-weight:600;margin-bottom:4px">Client</p><p>${client.name||'—'}</p>`;
@@ -4248,8 +4261,8 @@ function MasterEstimate(){
       });
       chtml+='</tbody></table>';
       chtml+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">3. Payment Terms</p>`;
-      chtml+=`<div style="font-size:11px;line-height:1.7;color:#444"><p style="margin-bottom:8px">Total contract value: <strong>${fmtC(totals.total)}</strong> (HST 13% applied to labour only)</p>`;
-      chtml+=`<p>30% Deposit: ${fmtC(totals.deposit)} · 35% Midway: ${fmtC(totals.midway)} · 35% Final Balance: ${fmtC(totals.balance)}</p></div>`;
+      chtml+=`<div style="font-size:11px;line-height:1.7;color:#444"><p style="margin-bottom:8px">The total cost for the Services shall be <strong>${fmtC(totals.total)}</strong>, which includes labour, materials, and any applicable taxes. A different payment plan can be discussed.</p>`;
+      chtml+=`<p>10% Deposit: ${fmtC(totals.deposit)} · 45% Balance: ${fmtC(totals.midway)} · Final Balance: ${fmtC(totals.balance)}</p></div>`;
       chtml+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">4. Signatures</p>`;
       chtml+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:24px;font-size:11px">';
       chtml+='<div><div style="border-bottom:1px solid #ccc;height:60px;margin-bottom:8px"></div><p style="color:#888">Client Signature</p></div>';
@@ -4481,7 +4494,7 @@ function exportBidPDF(client,rooms,settings,totals,paints,ceilPaints,primers,col
   html+=`<tr style="border-top:2px solid ${gold}"><td style="text-align:right;padding:8px 16px;font-weight:700;font-size:14px" class="gold">Total</td><td style="text-align:right;padding:8px 0;font-weight:700;font-size:14px" class="gold">${fmtC(totals.total)}</td></tr></table></div>`;
   html+='</div>';
   html+='<div class="page">';
-  html+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px" class="border-gold"><div style="display:flex;gap:12px;align-items:center"><img src="/kingdom-logo-dark.svg" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:2px">CONTRACT</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p></div></div>`;
+  html+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px" class="border-gold"><div style="display:flex;gap:12px;align-items:center"><img src="/kingdom-logo-dark.svg" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:1px">Painting Service Agreement</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p></div></div>`;
   html+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">1. Parties</p>`;
   html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:8px;font-size:11px;color:#444;line-height:1.7">';
   html+=`<div><p style="font-weight:600;margin-bottom:4px">Client</p><p>${client.name||'—'}</p>`;
@@ -4503,8 +4516,8 @@ function exportBidPDF(client,rooms,settings,totals,paints,ceilPaints,primers,col
   });
   html+='</tbody></table>';
   html+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">3. Payment Terms</p>`;
-  html+=`<div style="font-size:11px;line-height:1.7;color:#444"><p style="margin-bottom:8px">Total contract value: <strong>${fmtC(totals.total)}</strong> (HST 13% applied to labour only)</p>`;
-  html+=`<p>30% Deposit: ${fmtC(totals.deposit)} · 35% Midway: ${fmtC(totals.midway)} · 35% Final Balance: ${fmtC(totals.balance)}</p></div>`;
+  html+=`<div style="font-size:11px;line-height:1.7;color:#444"><p style="margin-bottom:8px">The total cost for the Services shall be <strong>${fmtC(totals.total)}</strong>, which includes labour, materials, and any applicable taxes. A different payment plan can be discussed.</p>`;
+  html+=`<p>10% Deposit: ${fmtC(totals.deposit)} · 45% Balance: ${fmtC(totals.midway)} · Final Balance: ${fmtC(totals.balance)}</p></div>`;
   html+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">4. Signatures</p>`;
   html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:24px;font-size:11px">';
   html+='<div><div style="border-bottom:1px solid #ccc;height:60px;margin-bottom:8px"></div><p style="color:#888">Client Signature</p></div>';

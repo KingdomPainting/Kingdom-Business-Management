@@ -2803,7 +2803,14 @@ function usePaintSettings(){
 
 // ─── ROOM CARD ────────────────────────────────────────────────────────────────
 function RoomCard({room,settings,onChange,onRemove,primers,paints,ceilPaints,colours,swColours,supplies}){
-  const allColourNames=[...(colours||[]).map(c=>c.n),...(swColours||[]).map(c=>c.n)];
+  const bmNames=(colours||[]).map(c=>c.n);
+  const swNames=(swColours||[]).map(c=>c.n);
+  const allColourNames=[...bmNames,...swNames];
+  const coloursForProd=(prod)=>{
+    if(prod&&prod.startsWith('Sherwin Williams')) return swNames;
+    if(prod&&prod.startsWith('Benjamin Moore')) return bmNames;
+    return allColourNames;
+  };
   const [open,setOpen]=useState(true);
   const calc=calcRoom(room,settings);
   const u=patch=>onChange({...room,...patch});
@@ -2988,15 +2995,15 @@ function RoomCard({room,settings,onChange,onRemove,primers,paints,ceilPaints,col
           <div style={{padding:'14px 16px'}}>
             <p style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--muted-fg)',marginBottom:8}}>Paint Selections</p>
             {room.walls.enabled&&<>
-              <PaintRow label='Walls' prod={room.paint.wallProduct} colour={room.paint.wallColour} sheen={room.paint.wallSheen} products={(paints||[]).map(p=>p.n)} colours={allColourNames} onProd={v=>up({wallProduct:v})} onColour={v=>up({wallColour:v})} onSheen={v=>up({wallSheen:v})}/>
+              <PaintRow label='Walls' prod={room.paint.wallProduct} colour={room.paint.wallColour} sheen={room.paint.wallSheen} products={(paints||[]).map(p=>p.n)} colours={coloursForProd(room.paint.wallProduct)} onProd={v=>up({wallProduct:v})} onColour={v=>up({wallColour:v})} onSheen={v=>up({wallSheen:v})}/>
               {room.walls.coats===3&&<div style={{marginTop:-6,marginBottom:10}}><p style={{fontSize:11,fontWeight:500,color:'var(--muted-fg)',marginBottom:4}}>Walls Primer</p><select value={room.paint.wallsPrimer||''} onChange={e=>up({wallsPrimer:e.target.value})} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Select Primer —</option>{(primers||[]).map(p=><option key={p.n} value={p.n}>{p.n}</option>)}</select></div>}
             </>}
             {room.ceiling.enabled&&<>
-              <PaintRow label='Ceiling' prod={room.paint.ceilProduct} colour={room.paint.ceilColour} sheen={room.paint.ceilSheen} products={(ceilPaints||[]).map(p=>p.n)} colours={allColourNames.filter(n=>n==='SW 7006 Extra White'||n==='BM White 01')} onProd={v=>up({ceilProduct:v})} onColour={v=>up({ceilColour:v})} onSheen={v=>up({ceilSheen:v})}/>
+              <PaintRow label='Ceiling' prod={room.paint.ceilProduct} colour={room.paint.ceilColour} sheen={room.paint.ceilSheen} products={(ceilPaints||[]).map(p=>p.n)} colours={coloursForProd(room.paint.ceilProduct).filter(n=>n==='SW 7006 Extra White'||n==='BM White 01')} onProd={v=>up({ceilProduct:v})} onColour={v=>up({ceilColour:v})} onSheen={v=>up({ceilSheen:v})}/>
               {room.ceiling.coats===3&&<div style={{marginTop:-6,marginBottom:10}}><p style={{fontSize:11,fontWeight:500,color:'var(--muted-fg)',marginBottom:4}}>Ceiling Primer</p><select value={room.paint.ceilingPrimer||''} onChange={e=>up({ceilingPrimer:e.target.value})} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Select Primer —</option>{(primers||[]).map(p=><option key={p.n} value={p.n}>{p.n}</option>)}</select></div>}
             </>}
             {(room.baseboards.enabled||room.doors?.enabled||roomDoorCount(room)>0||room.crown.enabled)&&<>
-              <PaintRow label='Trim / Doors' prod={room.paint.trimProduct} colour={room.paint.trimColour} sheen={room.paint.trimSheen} products={(paints||[]).map(p=>p.n)} colours={allColourNames} onProd={v=>up({trimProduct:v})} onColour={v=>up({trimColour:v})} onSheen={v=>up({trimSheen:v})}/>
+              <PaintRow label='Trim / Doors' prod={room.paint.trimProduct} colour={room.paint.trimColour} sheen={room.paint.trimSheen} products={(paints||[]).map(p=>p.n)} colours={coloursForProd(room.paint.trimProduct)} onProd={v=>up({trimProduct:v})} onColour={v=>up({trimColour:v})} onSheen={v=>up({trimSheen:v})}/>
               {(room.baseboards?.coats===3||room.crown?.coats===3||room.doorFrames?.coats===3||room.windows?.coats===3||(room.doors?.flat?.coats===3)||(room.doors?.sixPanel?.coats===3)||(room.doors?.custom?.coats===3))&&<div style={{marginTop:-6,marginBottom:10}}><p style={{fontSize:11,fontWeight:500,color:'var(--muted-fg)',marginBottom:4}}>Trim Primer</p><select value={room.paint.trimPrimer||''} onChange={e=>up({trimPrimer:e.target.value})} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Select Primer —</option>{(primers||[]).map(p=><option key={p.n} value={p.n}>{p.n}</option>)}</select></div>}
             </>}
           </div>

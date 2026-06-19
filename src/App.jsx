@@ -2461,6 +2461,33 @@ const DEFAULT_COLOURS = [
   {n:'2131-20 Midnight',h:'#302e28'},{n:'2120-30 Witching Hour',h:'#2c2a30'},
   {n:'1610 French Beret',h:'#302828'},{n:'2124-10 Wrought Iron',h:'#282c2c'},
 ];
+const DEFAULT_SW_COLOURS = [
+  {n:'SW 7029 Agreeable Gray',h:'#D1CBC1'},{n:'SW 7015 Repose Gray',h:'#CCC9C0'},
+  {n:'SW 7036 Accessible Beige',h:'#D3C7B0'},{n:'SW 6258 Tricorn Black',h:'#2F2F30'},
+  {n:'SW 7005 Pure White',h:'#EDECE6'},{n:'SW 7006 Extra White',h:'#EEEFEA'},
+  {n:'SW 7008 Alabaster',h:'#EDEADF'},{n:'SW 7004 Snowbound',h:'#EDE8E0'},
+  {n:'SW 7016 Mindful Gray',h:'#BAB6AB'},{n:'SW 7012 Creamy',h:'#EFE1C6'},
+  {n:'SW 7014 Eider White',h:'#E3DED7'},{n:'SW 6106 Kilim Beige',h:'#C7B296'},
+  {n:'SW 6119 Antique White',h:'#F0E4CB'},{n:'SW 7043 Worldly Gray',h:'#C5BFB2'},
+  {n:'SW 6385 Dover White',h:'#F0E6CE'},{n:'SW 7044 Amazing Gray',h:'#ACA99B'},
+  {n:'SW 6244 Naval',h:'#2E3441'},{n:'SW 7069 Iron Ore',h:'#434343'},
+  {n:'SW 7042 Shoji White',h:'#E9E0CE'},{n:'SW 7030 Anew Gray',h:'#BFB6AA'},
+  {n:'SW 0055 Light French Gray',h:'#C0BFB9'},{n:'SW 7064 Passive',h:'#CCC9C2'},
+  {n:'SW 6204 Sea Salt',h:'#C5D5CB'},{n:'SW 7641 Colonnade Gray',h:'#BBB5A5'},
+  {n:'SW 7011 Natural Choice',h:'#E8E0D1'},{n:'SW 7035 Aesthetic White',h:'#E8DFD0'},
+  {n:'SW 7631 City Loft',h:'#D2CBC0'},{n:'SW 6140 Moderate White',h:'#EADECC'},
+  {n:'SW 7632 Modern Gray',h:'#C3BAAB'},{n:'SW 9166 Drift of Mist',h:'#E7E2D4'},
+  {n:'SW 7010 White Duck',h:'#E5DCC8'},{n:'SW 7013 Ivory Lace',h:'#F0E8D5'},
+  {n:'SW 6073 Perfect Greige',h:'#B9AE9B'},{n:'SW 7526 Maison Blanche',h:'#E8DCCA'},
+  {n:'SW 6105 Divine White',h:'#E9DDCA'},{n:'SW 7638 Jogging Path',h:'#D0C9BA'},
+  {n:'SW 7019 Gauntlet Gray',h:'#838078'},{n:'SW 7672 Knitting Needles',h:'#B4AFA5'},
+  {n:'SW 7045 Intellectual Gray',h:'#9E998E'},{n:'SW 7648 Big Chill',h:'#CED1CE'},
+  {n:'SW 7023 Requisite Gray',h:'#B5AFA3'},{n:'SW 7046 Anonymous',h:'#A49F93'},
+  {n:'SW 7657 Tinsmith',h:'#BBBCBB'},{n:'SW 7009 Pearly White',h:'#EEEAD9'},
+  {n:'SW 7543 Avenue Tan',h:'#C3B39D'},{n:'SW 7070 Site White',h:'#E1DCD4'},
+  {n:'SW 7018 Dovetail',h:'#7D7870'},{n:'SW 6476 Glimmer',h:'#D5E1DB'},
+  {n:'SW 7028 Incredible White',h:'#ECE6D9'},{n:'SW 7637 Oyster White',h:'#D9D1C2'},
+];
 const DEFAULT_SUPPLIES = [
   {n:'9" Roller',p:6},{n:'18" Roller',p:22},{n:'Mini Roller',p:3},
   {n:'FrogTape 4 Pack',p:38.8},{n:'Floor Shield 36x50',p:32.3},
@@ -2706,6 +2733,7 @@ function usePaintSettings(){
   const [ceilPaints, setCeilPaints] = useState(()=>JSON.parse(JSON.stringify(DEFAULT_CEILING_PAINTS)));
   const [primers, setPrimers] = useState(()=>JSON.parse(JSON.stringify(DEFAULT_PRIMERS)));
   const [colours, setColours] = useState(()=>JSON.parse(JSON.stringify(DEFAULT_COLOURS)));
+  const [swColours, setSWColours] = useState(()=>JSON.parse(JSON.stringify(DEFAULT_SW_COLOURS)));
   const [supplies, setSupplies] = useState(()=>JSON.parse(JSON.stringify(DEFAULT_SUPPLIES)));
   const [standards, setStandards] = useState(()=>JSON.parse(JSON.stringify(DEFAULT_STANDARDS)));
   const [labour, setLabour] = useState(()=>({
@@ -2734,6 +2762,7 @@ function usePaintSettings(){
           if(d.ceilPaints?.length) setCeilPaints(d.ceilPaints);
           if(d.primers?.length) setPrimers(d.primers);
           if(d.colours?.length) setColours(d.colours);
+          if(d.swColours?.length) setSWColours(d.swColours);
           if(d.supplies?.length) setSupplies(d.supplies);
           if(row.standards && Object.keys(row.standards).length) setStandards(prev=>({...prev,...row.standards}));
           if(row.labour) setLabour(prev=>({...prev,...row.labour}));
@@ -2750,7 +2779,7 @@ function usePaintSettings(){
       const token = _session.access_token;
       const body = {
         user_id: uid,
-        data: overrides.data || {paints, ceilPaints, primers, colours, supplies},
+        data: overrides.data || {paints, ceilPaints, primers, colours, swColours, supplies},
         labour: overrides.labour || labour,
         standards: overrides.standards || standards,
         updated_at: new Date().toISOString(),
@@ -2762,18 +2791,26 @@ function usePaintSettings(){
       });
       return res.ok;
     }catch(e){console.warn('usePaintSettings save error:',e);return false;}
-  },[paints,ceilPaints,primers,colours,supplies,standards,labour]);
+  },[paints,ceilPaints,primers,colours,swColours,supplies,standards,labour]);
 
   const scheduleSave = useCallback((overrides)=>{
     clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(()=>save(overrides), 1200);
   },[save]);
 
-  return { paints,setPaints, ceilPaints,setCeilPaints, primers,setPrimers, colours,setColours, supplies,setSupplies, standards,setStandards, labour,setLabour, loaded, save, scheduleSave };
+  return { paints,setPaints, ceilPaints,setCeilPaints, primers,setPrimers, colours,setColours, swColours,setSWColours, supplies,setSupplies, standards,setStandards, labour,setLabour, loaded, save, scheduleSave };
 }
 
 // ─── ROOM CARD ────────────────────────────────────────────────────────────────
-function RoomCard({room,settings,onChange,onRemove,primers,paints,ceilPaints,colours,supplies}){
+function RoomCard({room,settings,onChange,onRemove,primers,paints,ceilPaints,colours,swColours,supplies}){
+  const bmNames=(colours||[]).map(c=>c.n);
+  const swNames=(swColours||[]).map(c=>c.n);
+  const allColourNames=[...bmNames,...swNames];
+  const coloursForProd=(prod)=>{
+    if(prod&&prod.startsWith('Sherwin Williams')) return swNames;
+    if(prod&&prod.startsWith('Benjamin Moore')) return bmNames;
+    return allColourNames;
+  };
   const [open,setOpen]=useState(true);
   const calc=calcRoom(room,settings);
   const u=patch=>onChange({...room,...patch});
@@ -2958,15 +2995,15 @@ function RoomCard({room,settings,onChange,onRemove,primers,paints,ceilPaints,col
           <div style={{padding:'14px 16px'}}>
             <p style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--muted-fg)',marginBottom:8}}>Paint Selections</p>
             {room.walls.enabled&&<>
-              <PaintRow label='Walls' prod={room.paint.wallProduct} colour={room.paint.wallColour} sheen={room.paint.wallSheen} products={(paints||[]).map(p=>p.n)} colours={(colours||[]).map(c=>c.n)} onProd={v=>up({wallProduct:v})} onColour={v=>up({wallColour:v})} onSheen={v=>up({wallSheen:v})}/>
+              <PaintRow label='Walls' prod={room.paint.wallProduct} colour={room.paint.wallColour} sheen={room.paint.wallSheen} products={(paints||[]).map(p=>p.n)} colours={coloursForProd(room.paint.wallProduct)} onProd={v=>up({wallProduct:v})} onColour={v=>up({wallColour:v})} onSheen={v=>up({wallSheen:v})}/>
               {room.walls.coats===3&&<div style={{marginTop:-6,marginBottom:10}}><p style={{fontSize:11,fontWeight:500,color:'var(--muted-fg)',marginBottom:4}}>Walls Primer</p><select value={room.paint.wallsPrimer||''} onChange={e=>up({wallsPrimer:e.target.value})} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Select Primer —</option>{(primers||[]).map(p=><option key={p.n} value={p.n}>{p.n}</option>)}</select></div>}
             </>}
             {room.ceiling.enabled&&<>
-              <PaintRow label='Ceiling' prod={room.paint.ceilProduct} colour={room.paint.ceilColour} sheen={room.paint.ceilSheen} products={(ceilPaints||[]).map(p=>p.n)} colours={(colours||[]).map(c=>c.n).filter(n=>n==='SW 7006 Extra White'||n==='BM White 01')} onProd={v=>up({ceilProduct:v})} onColour={v=>up({ceilColour:v})} onSheen={v=>up({ceilSheen:v})}/>
+              <PaintRow label='Ceiling' prod={room.paint.ceilProduct} colour={room.paint.ceilColour} sheen={room.paint.ceilSheen} products={(ceilPaints||[]).map(p=>p.n)} colours={coloursForProd(room.paint.ceilProduct).filter(n=>n==='SW 7006 Extra White'||n==='BM White 01')} onProd={v=>up({ceilProduct:v})} onColour={v=>up({ceilColour:v})} onSheen={v=>up({ceilSheen:v})}/>
               {room.ceiling.coats===3&&<div style={{marginTop:-6,marginBottom:10}}><p style={{fontSize:11,fontWeight:500,color:'var(--muted-fg)',marginBottom:4}}>Ceiling Primer</p><select value={room.paint.ceilingPrimer||''} onChange={e=>up({ceilingPrimer:e.target.value})} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Select Primer —</option>{(primers||[]).map(p=><option key={p.n} value={p.n}>{p.n}</option>)}</select></div>}
             </>}
             {(room.baseboards.enabled||room.doors?.enabled||roomDoorCount(room)>0||room.crown.enabled)&&<>
-              <PaintRow label='Trim / Doors' prod={room.paint.trimProduct} colour={room.paint.trimColour} sheen={room.paint.trimSheen} products={(paints||[]).map(p=>p.n)} colours={(colours||[]).map(c=>c.n)} onProd={v=>up({trimProduct:v})} onColour={v=>up({trimColour:v})} onSheen={v=>up({trimSheen:v})}/>
+              <PaintRow label='Trim / Doors' prod={room.paint.trimProduct} colour={room.paint.trimColour} sheen={room.paint.trimSheen} products={(paints||[]).map(p=>p.n)} colours={coloursForProd(room.paint.trimProduct)} onProd={v=>up({trimProduct:v})} onColour={v=>up({trimColour:v})} onSheen={v=>up({trimSheen:v})}/>
               {(room.baseboards?.coats===3||room.crown?.coats===3||room.doorFrames?.coats===3||room.windows?.coats===3||(room.doors?.flat?.coats===3)||(room.doors?.sixPanel?.coats===3)||(room.doors?.custom?.coats===3))&&<div style={{marginTop:-6,marginBottom:10}}><p style={{fontSize:11,fontWeight:500,color:'var(--muted-fg)',marginBottom:4}}>Trim Primer</p><select value={room.paint.trimPrimer||''} onChange={e=>up({trimPrimer:e.target.value})} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Select Primer —</option>{(primers||[]).map(p=><option key={p.n} value={p.n}>{p.n}</option>)}</select></div>}
             </>}
           </div>
@@ -3025,29 +3062,43 @@ function CoverTab({client,setClient,deals,contacts,onSelectDeal,selectedDealId})
         </div>
       </div>
       <Card className='p-5' style={{display:'flex',flexDirection:'column',gap:16}}>
-        <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--primary)',marginBottom:0}}>Project Details</p>
+        <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--primary)',marginBottom:0}}>Client Information</p>
         <div>
-          <Label>Project</Label>
+          <Label>Select Project</Label>
           <Select value={selectedDealId||''} onChange={e=>{if(e.target.value)onSelectDeal(e.target.value);}}>
-            <option value=''>Select a project...</option>
+            <option value=''>— Select a project —</option>
             {deals.map(d=><option key={d.id} value={d.id}>{dealLabel(d)}</option>)}
           </Select>
         </div>
-        <div>
-          <Label>Client Name</Label>
-          <Input value={client.name} onChange={e=>setClient({...client,name:e.target.value})}/>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+          <div>
+            <Label>Client Name</Label>
+            <Input value={client.name} onChange={e=>setClient({...client,name:e.target.value})} placeholder='Full name'/>
+          </div>
+          <div>
+            <Label>Phone</Label>
+            <Input value={client.phone} onChange={e=>setClient({...client,phone:e.target.value})} placeholder='(xxx) xxx-xxxx'/>
+          </div>
         </div>
-        <div>
-          <Label>Address</Label>
-          <Input value={client.address||''} onChange={e=>setClient({...client,address:e.target.value})} placeholder='Full address'/>
-        </div>
-        <div>
-          <Label>Phone</Label>
-          <Input value={client.phone} onChange={e=>setClient({...client,phone:e.target.value})}/>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+          <div>
+            <Label>Address Line 1</Label>
+            <Input value={client.address? client.address.indexOf(',')>=0? client.address.slice(0,client.address.indexOf(',')).trim(): client.address:''} onChange={e=>{
+              const line2=client.address&&client.address.indexOf(',')>=0?client.address.slice(client.address.indexOf(',')+1).trim():'';
+              setClient({...client,address:line2?`${e.target.value}, ${line2}`:e.target.value});
+            }} placeholder='Street address'/>
+          </div>
+          <div>
+            <Label>Address Line 2</Label>
+            <Input value={client.address&&client.address.indexOf(',')>=0?client.address.slice(client.address.indexOf(',')+1).trim():''} onChange={e=>{
+              const line1=client.address? client.address.indexOf(',')>=0? client.address.slice(0,client.address.indexOf(',')).trim(): client.address:'';
+              setClient({...client,address:e.target.value?`${line1}, ${e.target.value}`:line1});
+            }} placeholder='City, Province, Postal'/>
+          </div>
         </div>
         <div>
           <Label>Email</Label>
-          <Input value={client.email} onChange={e=>setClient({...client,email:e.target.value})}/>
+          <Input value={client.email} onChange={e=>setClient({...client,email:e.target.value})} placeholder='client@email.com'/>
         </div>
       </Card>
     </div>
@@ -3055,7 +3106,7 @@ function CoverTab({client,setClient,deals,contacts,onSelectDeal,selectedDealId})
 }
 
 // ─── ROOMS TAB ────────────────────────────────────────────────────────────────
-function RoomsTab({rooms,settings,onUpdate,onRemove,onAdd,paints,ceilPaints,colours,primers,supplies}){
+function RoomsTab({rooms,settings,onUpdate,onRemove,onAdd,paints,ceilPaints,colours,swColours,primers,supplies}){
   const totalCost=rooms.reduce((s,r)=>s+calcRoom(r,settings).cost,0);
   return (
     <div style={{padding:'16px 12px',overflow:'auto',maxHeight:'100%'}}>
@@ -3067,7 +3118,7 @@ function RoomsTab({rooms,settings,onUpdate,onRemove,onAdd,paints,ceilPaints,colo
         <span style={{fontSize:13,fontWeight:600,color:'var(--primary)'}}>{fmtCAD(totalCost)}</span>
       </div>
       {rooms.map((r,i)=>(
-        <RoomCard key={r.id} room={r} settings={settings} primers={primers} paints={paints} ceilPaints={ceilPaints} colours={colours} supplies={supplies}
+        <RoomCard key={r.id} room={r} settings={settings} primers={primers} paints={paints} ceilPaints={ceilPaints} colours={colours} swColours={swColours} supplies={supplies}
           onChange={updated=>onUpdate(i,updated)}
           onRemove={()=>onRemove(i)}/>
       ))}
@@ -3079,7 +3130,7 @@ function RoomsTab({rooms,settings,onUpdate,onRemove,onAdd,paints,ceilPaints,colo
 }
 
 // ─── BREAKDOWN TAB ────────────────────────────────────────────────────────────
-function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,supplies}){
+function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,swColours,supplies}){
   const fmtN=n=>Math.round(n).toLocaleString('en-CA');
   const activeRooms=rooms.filter(r=>r.walls.enabled||r.ceiling.enabled||r.baseboards.enabled||r.doors?.enabled||roomDoorCount(r)>0);
   let tWalls=0,tCeil=0,tTrim=0,tDoors=0,tHrs=0,tCost=0;
@@ -3091,7 +3142,7 @@ function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,supplies
   const numWorkers=Math.max(1,settings._standards?.workers||1);
   const totalProjectHrs=tHrs>0?Math.ceil(tHrs/numWorkers):0;
   const estDays=totalProjectHrs>0?Math.ceil(totalProjectHrs/6):0;
-  const paintData=calcPaintCosts(rooms,paints||[],ceilPaints||[],primers||[],colours||[],settings._standards?.matBuffer||1.15);
+  const paintData=calcPaintCosts(rooms,paints||[],ceilPaints||[],primers||[],[...(colours||[]),...(swColours||[])],settings._standards?.matBuffer||1.15);
   const statStyle={background:'var(--card)',border:'1px solid var(--border)',borderRadius:10,padding:'14px 16px',textAlign:'center'};
   const statLabel={fontSize:10,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',fontWeight:600};
   const statVal={fontSize:20,fontWeight:700,marginTop:4};
@@ -3232,7 +3283,7 @@ function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,supplies
 }
 
 // ─── QUOTE TAB ────────────────────────────────────────────────────────────────
-function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colours,supplies}){
+function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colours,swColours,supplies}){
   const fmtN=n=>Math.round(n).toLocaleString('en-CA');
   const todayStr=new Date().toLocaleDateString('en-CA',{year:'numeric',month:'long',day:'numeric'});
   const gold='#C4922A';
@@ -3240,8 +3291,8 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
   const thStyle={fontSize:11,fontWeight:600,textAlign:'left',padding:'8px 10px',borderBottom:'2px solid #e5e5e5',color:'#888'};
   const tdStyle={fontSize:12,padding:'8px 10px',borderBottom:'1px solid #eee',verticalAlign:'top'};
   const prepLabelsMap={furniture:'Move furniture',plastic:'Cover w/ plastic',outlets:'Remove outlets',drywall:'Drywall repairs',caulking:'Caulking',cleanup:'Clean up'};
-  const allColours=[...(colours||[])];
-  const getHex=(name)=>{const c=allColours.find(x=>x.n===name);return c?.hex||null;};
+  const allColours=[...(colours||[]),...(swColours||[])];
+  const getHex=(name)=>{const c=allColours.find(x=>x.n===name);return c?.h||null;};
   return (
     <div style={{padding:24,overflow:'auto',maxHeight:'100%',background:'#f5f5f0'}}>
       <div style={docStyle}>
@@ -3821,7 +3872,7 @@ function DragTable({items,setItems,columns,renderRow,addLabel,onAdd}){
   );
 }
 
-function PaintInputsTab({paints,setPaints,ceilPaints,setCeilPaints,primers,setPrimers,colours,setColours,supplies,setSupplies,onSave}){
+function PaintInputsTab({paints,setPaints,ceilPaints,setCeilPaints,primers,setPrimers,colours,setColours,swColours,setSWColours,supplies,setSupplies,onSave}){
   const [saving,setSaving]=useState(false);
   const [saveMsg,setSaveMsg]=useState('');
 
@@ -3878,6 +3929,7 @@ function PaintInputsTab({paints,setPaints,ceilPaints,setCeilPaints,primers,setPr
 
         <Card className='p-5'>
           <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--primary)',marginBottom:12}}>Paint Colours</p>
+          <p style={{fontSize:12,fontWeight:600,color:'var(--fg)',marginBottom:8}}>Benjamin Moore Colours</p>
           <DragTable items={colours} setItems={setColours}
             columns={[{label:'Swatch',width:36},{label:'Name'}]}
             renderRow={(item,i)=>(
@@ -3891,6 +3943,22 @@ function PaintInputsTab({paints,setPaints,ceilPaints,setCeilPaints,primers,setPr
               </>
             )}
             addLabel='Add colour' onAdd={()=>setColours(c=>[...c,{n:'',h:'#cccccc'}])}/>
+          <div style={{borderTop:'1px solid var(--border)',marginTop:16,paddingTop:16}}>
+            <p style={{fontSize:12,fontWeight:600,color:'var(--fg)',marginBottom:8}}>Sherwin Williams Colours</p>
+            <DragTable items={swColours} setItems={setSWColours}
+              columns={[{label:'Swatch',width:36},{label:'Name'}]}
+              renderRow={(item,i)=>(
+                <>
+                  <td style={{padding:'4px 6px',width:36}}>
+                    <input type='color' value={item.h||'#cccccc'} onChange={e=>{const next=[...swColours];next[i]={...next[i],h:e.target.value};setSWColours(next);}}
+                      style={{width:30,height:28,padding:2,border:'1px solid var(--border)',borderRadius:6,cursor:'pointer',background:'var(--card)'}}/>
+                  </td>
+                  <td style={{padding:'4px 6px'}}><input type='text' value={item.n||''} onChange={e=>{const next=[...swColours];next[i]={...next[i],n:e.target.value};setSWColours(next);}} style={fieldS}/></td>
+                  <td style={{padding:'4px 6px',width:32}}><button onClick={()=>setSWColours(swColours.filter((_,j)=>j!==i))} style={{background:'none',border:'none',cursor:'pointer',color:'var(--muted-fg)',fontSize:14}}>×</button></td>
+                </>
+              )}
+              addLabel='Add colour' onAdd={()=>setSWColours(c=>[...c,{n:'',h:'#cccccc'}])}/>
+          </div>
         </Card>
 
         <Card className='p-5'>
@@ -4060,7 +4128,7 @@ function MasterEstimate(){
     _standards:ps.standards
   };
 
-  const paintTotal=calcPaintCosts(rooms,ps.paints||[],ps.ceilPaints||[],ps.primers||[],ps.colours||[],settings._standards?.matBuffer||1.15).total;
+  const paintTotal=calcPaintCosts(rooms,ps.paints||[],ps.ceilPaints||[],ps.primers||[],[...(ps.colours||[]),...(ps.swColours||[])],settings._standards?.matBuffer||1.15).total;
   const supplyTotal=rooms.reduce((s,r)=>s+calcRoomSupplyCost(r,ps.supplies||[]),0);
   const totals=calcTotals(rooms,settings,paintTotal+supplyTotal);
   const totalHrs=rooms.reduce((s,r)=>s+calcRoom(r,settings).totalHrs,0);
@@ -4188,7 +4256,7 @@ function MasterEstimate(){
       const todayISO=new Date().toISOString().slice(0,10);
       const gold='#C4922A';
       const clientAddr=client.address||'';
-      const allColours=[...(ps.colours||[])];
+      const allColours=[...(ps.colours||[]),...(ps.swColours||[])];
       const getHex=name=>{const c=allColours.find(x=>x.n===name);return c?.h||null;};
       const prepLabelsMap={furniture:'Move furniture',plastic:'Cover w/ plastic',outlets:'Remove outlets',drywall:'Drywall repairs',caulking:'Caulking',cleanup:'Clean up'};
       const css='*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,sans-serif;color:#1a1a1a;font-size:12px}table{width:100%;border-collapse:collapse}th{text-align:left;padding:8px 10px;border-bottom:2px solid #e5e5e5;color:#888;font-size:11px;font-weight:600}td{padding:8px 10px;border-bottom:1px solid #eee;font-size:12px;vertical-align:top}';
@@ -4326,7 +4394,7 @@ function MasterEstimate(){
         <button onClick={loadEstimates} style={actionBtnStyle}>Load</button>
         <button onClick={pushToProject} style={actionBtnStyle}>Push</button>
         <button onClick={newEstimate} style={actionBtnStyle}>New</button>
-        <button onClick={()=>{const deal=deals.find(d=>d.id===selectedDealId);exportBidPDF(client,rooms,settings,totals,ps.paints,ps.ceilPaints,ps.primers,ps.colours,ps.supplies,deal?.dealName||'');}} style={actionBtnStyle}>Export Bid</button>
+        <button onClick={()=>{const deal=deals.find(d=>d.id===selectedDealId);exportBidPDF(client,rooms,settings,totals,ps.paints,ps.ceilPaints,ps.primers,ps.colours,ps.swColours,ps.supplies,deal?.dealName||'');}} style={actionBtnStyle}>Export Bid</button>
         <div style={{flex:1}}/>
         {saving&&<Loader2 size={14} style={{animation:'spin 1s linear infinite',color:'var(--muted-fg)'}}/>}
         {saveMsg&&<span style={{fontSize:11,fontWeight:600,color:saveMsg==='Saved'||saveMsg==='Pushed!'?'#22c55e':'#ef4444'}}>{saveMsg}</span>}
@@ -4340,15 +4408,15 @@ function MasterEstimate(){
             onUpdate={(i,updated)=>setRooms(rooms.map((r,j)=>j===i?updated:r))}
             onRemove={(i)=>{if(rooms.length>1)setRooms(rooms.filter((_,j)=>j!==i));}}
             onAdd={()=>{const next=roomCounter+1;setRoomCounter(next);setRooms([...rooms,newRoom(String(next),next)]);}}
-            paints={ps.paints} ceilPaints={ps.ceilPaints} colours={ps.colours} primers={ps.primers} supplies={ps.supplies}/>
+            paints={ps.paints} ceilPaints={ps.ceilPaints} colours={ps.colours} swColours={ps.swColours} primers={ps.primers} supplies={ps.supplies}/>
         )}
         {activeTab==='breakdown'&&(
           <BreakdownTab rooms={rooms} settings={settings}
-            paints={ps.paints} ceilPaints={ps.ceilPaints} primers={ps.primers} colours={ps.colours} supplies={ps.supplies}/>
+            paints={ps.paints} ceilPaints={ps.ceilPaints} primers={ps.primers} colours={ps.colours} swColours={ps.swColours} supplies={ps.supplies}/>
         )}
         {activeTab==='quote'&&(
           <QuoteTab rooms={rooms} settings={settings} client={client} totals={totals}
-            paints={ps.paints} ceilPaints={ps.ceilPaints} primers={ps.primers} colours={ps.colours} supplies={ps.supplies}/>
+            paints={ps.paints} ceilPaints={ps.ceilPaints} primers={ps.primers} colours={ps.colours} swColours={ps.swColours} supplies={ps.supplies}/>
         )}
         {activeTab==='contract'&&(
           <ContractTab rooms={rooms} settings={settings} client={client} totals={totals}/>
@@ -4362,6 +4430,7 @@ function MasterEstimate(){
         {activeTab==='paintinputs'&&(
           <PaintInputsTab paints={ps.paints} setPaints={ps.setPaints} ceilPaints={ps.ceilPaints} setCeilPaints={ps.setCeilPaints}
             primers={ps.primers} setPrimers={ps.setPrimers} colours={ps.colours} setColours={ps.setColours}
+            swColours={ps.swColours} setSWColours={ps.setSWColours}
             supplies={ps.supplies} setSupplies={ps.setSupplies} onSave={handlePaintSave}/>
         )}
         {activeTab==='standards'&&(
@@ -4435,16 +4504,16 @@ function KPLogo({height=32}){
     </svg>
   );
 }
-function exportBidPDF(client,rooms,settings,totals,paints,ceilPaints,primers,colours,supplies,projectName){
+function exportBidPDF(client,rooms,settings,totals,paints,ceilPaints,primers,colours,swColours,supplies,projectName){
   const fmtN=n=>Math.round(n).toLocaleString('en-CA');
   const fmtC=n=>'$'+n.toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2});
   const today=new Date().toLocaleDateString('en-CA',{year:'numeric',month:'long',day:'numeric'});
   const gold='#C4922A';
   const clientAddr=client.address||'';
   const roomCalcs=rooms.map(r=>({room:r,calc:calcRoom(r,settings),lines:calcRoomLines(r,settings)}));
-  const paintData=calcPaintCosts(rooms,paints||[],ceilPaints||[],primers||[],colours||[],settings._standards?.matBuffer||1.15);
-  const allColours=[...(colours||[])];
-  const getHex=name=>{const c=allColours.find(x=>x.n===name);return c?.hex||null;};
+  const paintData=calcPaintCosts(rooms,paints||[],ceilPaints||[],primers||[],[...(colours||[]),...(swColours||[])],settings._standards?.matBuffer||1.15);
+  const allColours=[...(colours||[]),...(swColours||[])];
+  const getHex=name=>{const c=allColours.find(x=>x.n===name);return c?.h||null;};
   const prepLabelsMap={furniture:'Move furniture',plastic:'Cover w/ plastic',outlets:'Remove outlets',drywall:'Drywall repairs',caulking:'Caulking',cleanup:'Clean up'};
   const docTitle=projectName?`Bid Proposal - ${projectName}`:'Bid Proposal';
   let html='<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+docTitle+'</title>';

@@ -2573,8 +2573,8 @@ function calcTotals(rooms, settings, materialCost=0){
   const discounted = Math.max(0, labourSubtotal - (settings.discount||0));
   const taxAmt = discounted * ((settings.taxRate||13)/100);
   const total = discounted + taxAmt + materialCost;
-  const deposit = total * 0.10;
-  const midway = total * 0.45;
+  const deposit = total * 0.30;
+  const midway = total * 0.35;
   const balance = total - deposit - midway;
   return { labourSubtotal, discounted, taxAmt, total, deposit, midway, balance, materialCost };
 }
@@ -2962,7 +2962,7 @@ function RoomCard({room,settings,onChange,onRemove,primers,paints,ceilPaints,col
               {room.walls.coats===3&&<div style={{marginTop:-6,marginBottom:10}}><p style={{fontSize:11,fontWeight:500,color:'var(--muted-fg)',marginBottom:4}}>Walls Primer</p><select value={room.paint.wallsPrimer||''} onChange={e=>up({wallsPrimer:e.target.value})} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Select Primer —</option>{(primers||[]).map(p=><option key={p.n} value={p.n}>{p.n}</option>)}</select></div>}
             </>}
             {room.ceiling.enabled&&<>
-              <PaintRow label='Ceiling' prod={room.paint.ceilProduct} colour={room.paint.ceilColour} sheen={room.paint.ceilSheen} products={(ceilPaints||[]).map(p=>p.n)} colours={(colours||[]).map(c=>c.n)} onProd={v=>up({ceilProduct:v})} onColour={v=>up({ceilColour:v})} onSheen={v=>up({ceilSheen:v})}/>
+              <PaintRow label='Ceiling' prod={room.paint.ceilProduct} colour={room.paint.ceilColour} sheen={room.paint.ceilSheen} products={(ceilPaints||[]).map(p=>p.n)} colours={(colours||[]).map(c=>c.n).filter(n=>n==='SW 7006 Extra White'||n==='BM White 01')} onProd={v=>up({ceilProduct:v})} onColour={v=>up({ceilColour:v})} onSheen={v=>up({ceilSheen:v})}/>
               {room.ceiling.coats===3&&<div style={{marginTop:-6,marginBottom:10}}><p style={{fontSize:11,fontWeight:500,color:'var(--muted-fg)',marginBottom:4}}>Ceiling Primer</p><select value={room.paint.ceilingPrimer||''} onChange={e=>up({ceilingPrimer:e.target.value})} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Select Primer —</option>{(primers||[]).map(p=><option key={p.n} value={p.n}>{p.n}</option>)}</select></div>}
             </>}
             {(room.baseboards.enabled||room.doors?.enabled||roomDoorCount(room)>0||room.crown.enabled)&&<>
@@ -3351,17 +3351,17 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
           <p style={{fontSize:12,fontWeight:700,marginBottom:12,color:gold}}>Payment Terms</p>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12}}>
             <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:14,textAlign:'center'}}>
-              <p style={{fontSize:10,color:'#888',textTransform:'uppercase',fontWeight:600}}>10% Deposit</p>
+              <p style={{fontSize:10,color:'#888',textTransform:'uppercase',fontWeight:600}}>30% Deposit</p>
               <p style={{fontSize:16,fontWeight:700,marginTop:4}}>{fmtCAD(totals.deposit)}</p>
               <p style={{fontSize:9,color:'#888',marginTop:2}}>Due on first day</p>
             </div>
             <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:14,textAlign:'center'}}>
-              <p style={{fontSize:10,color:'#888',textTransform:'uppercase',fontWeight:600}}>45% Balance</p>
+              <p style={{fontSize:10,color:'#888',textTransform:'uppercase',fontWeight:600}}>35% Balance</p>
               <p style={{fontSize:16,fontWeight:700,marginTop:4}}>{fmtCAD(totals.midway)}</p>
               <p style={{fontSize:9,color:'#888',marginTop:2}}>Due midway through</p>
             </div>
             <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:14,textAlign:'center'}}>
-              <p style={{fontSize:10,color:'#888',textTransform:'uppercase',fontWeight:600}}>Final Balance</p>
+              <p style={{fontSize:10,color:'#888',textTransform:'uppercase',fontWeight:600}}>35% Final Balance</p>
               <p style={{fontSize:16,fontWeight:700,marginTop:4}}>{fmtCAD(totals.balance)}</p>
               <p style={{fontSize:9,color:'#888',marginTop:2}}>Due on completion</p>
             </div>
@@ -3494,17 +3494,17 @@ function ContractTab({rooms,settings,client,totals}){
         <p style={bodyText}>The total cost for the Services shall be <strong>{fmtCAD(totals.total)}</strong>, which includes labour, materials, and any applicable taxes. A different payment plan can be discussed.</p>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:12}}>
           <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:12,textAlign:'center'}}>
-            <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>10% Deposit</p>
+            <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>30% Deposit</p>
             <p style={{fontSize:14,fontWeight:700,marginTop:2}}>{fmtCAD(totals.deposit)}</p>
             <p style={{fontSize:9,color:'#888',marginTop:2}}>Due on first day</p>
           </div>
           <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:12,textAlign:'center'}}>
-            <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>45% Balance</p>
+            <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>35% Balance</p>
             <p style={{fontSize:14,fontWeight:700,marginTop:2}}>{fmtCAD(totals.midway)}</p>
             <p style={{fontSize:9,color:'#888',marginTop:2}}>Due midway through</p>
           </div>
           <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:12,textAlign:'center'}}>
-            <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>Final Balance</p>
+            <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>35% Final Balance</p>
             <p style={{fontSize:14,fontWeight:700,marginTop:2}}>{fmtCAD(totals.balance)}</p>
             <p style={{fontSize:9,color:'#888',marginTop:2}}>Due on completion</p>
           </div>
@@ -3857,7 +3857,7 @@ function PaintInputsTab({paints,setPaints,ceilPaints,setCeilPaints,primers,setPr
     <div style={{padding:24,overflowY:'auto',height:'100%'}}>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:16}}>
         <Card className='p-5'>
-          <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--primary)',marginBottom:12}}>Paints (Walls & Trim)</p>
+          <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--primary)',marginBottom:12}}>Paints</p>
           <DragTable items={paints} setItems={setPaints} columns={paintCols}
             renderRow={(item,i)=>paintRow(item,i,paints,setPaints)}
             addLabel='Add paint' onAdd={()=>setPaints(p=>[...p,{n:'',g:0,p:0}])}/>
@@ -4262,7 +4262,7 @@ function MasterEstimate(){
       chtml+='</tbody></table>';
       chtml+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">3. Payment Terms</p>`;
       chtml+=`<div style="font-size:11px;line-height:1.7;color:#444"><p style="margin-bottom:8px">The total cost for the Services shall be <strong>${fmtC(totals.total)}</strong>, which includes labour, materials, and any applicable taxes. A different payment plan can be discussed.</p>`;
-      chtml+=`<p>10% Deposit: ${fmtC(totals.deposit)} · 45% Balance: ${fmtC(totals.midway)} · Final Balance: ${fmtC(totals.balance)}</p></div>`;
+      chtml+=`<p>30% Deposit: ${fmtC(totals.deposit)} · 35% Balance: ${fmtC(totals.midway)} · 35% Final Balance: ${fmtC(totals.balance)}</p></div>`;
       chtml+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">4. Signatures</p>`;
       chtml+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:24px;font-size:11px">';
       chtml+='<div><div style="border-bottom:1px solid #ccc;height:60px;margin-bottom:8px"></div><p style="color:#888">Client Signature</p></div>';
@@ -4517,7 +4517,7 @@ function exportBidPDF(client,rooms,settings,totals,paints,ceilPaints,primers,col
   html+='</tbody></table>';
   html+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">3. Payment Terms</p>`;
   html+=`<div style="font-size:11px;line-height:1.7;color:#444"><p style="margin-bottom:8px">The total cost for the Services shall be <strong>${fmtC(totals.total)}</strong>, which includes labour, materials, and any applicable taxes. A different payment plan can be discussed.</p>`;
-  html+=`<p>10% Deposit: ${fmtC(totals.deposit)} · 45% Balance: ${fmtC(totals.midway)} · Final Balance: ${fmtC(totals.balance)}</p></div>`;
+  html+=`<p>30% Deposit: ${fmtC(totals.deposit)} · 35% Balance: ${fmtC(totals.midway)} · 35% Final Balance: ${fmtC(totals.balance)}</p></div>`;
   html+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">4. Signatures</p>`;
   html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:24px;font-size:11px">';
   html+='<div><div style="border-bottom:1px solid #ccc;height:60px;margin-bottom:8px"></div><p style="color:#888">Client Signature</p></div>';

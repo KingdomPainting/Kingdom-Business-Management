@@ -3023,7 +3023,8 @@ function CoverTab({client,setClient,deals,contacts,onSelectDeal,selectedDealId})
           <p style={{fontSize:12,color:'#999',marginTop:32}}>{todayStr}</p>
         </div>
       </div>
-      <div style={{background:'var(--card)',border:'1px solid var(--border)',borderRadius:12,padding:20,boxShadow:'var(--shadow)',display:'flex',flexDirection:'column',gap:16}}>
+      <Card className='p-5' style={{display:'flex',flexDirection:'column',gap:16}}>
+        <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--primary)',marginBottom:0}}>Project Details</p>
         <div>
           <Label>Project</Label>
           <Select value={selectedDealId||''} onChange={e=>{if(e.target.value)onSelectDeal(e.target.value);}}>
@@ -3033,21 +3034,21 @@ function CoverTab({client,setClient,deals,contacts,onSelectDeal,selectedDealId})
         </div>
         <div>
           <Label>Client Name</Label>
-          <Input value={client.name} onChange={e=>setClient({...client,name:e.target.value})} style={{padding:'10px 12px',fontSize:14}}/>
+          <Input value={client.name} onChange={e=>setClient({...client,name:e.target.value})}/>
         </div>
         <div>
           <Label>Address</Label>
-          <Input value={client.address||''} onChange={e=>setClient({...client,address:e.target.value})} placeholder='Full address' style={{padding:'10px 12px',fontSize:14}}/>
+          <Input value={client.address||''} onChange={e=>setClient({...client,address:e.target.value})} placeholder='Full address'/>
         </div>
         <div>
           <Label>Phone</Label>
-          <Input value={client.phone} onChange={e=>setClient({...client,phone:e.target.value})} style={{padding:'10px 12px',fontSize:14}}/>
+          <Input value={client.phone} onChange={e=>setClient({...client,phone:e.target.value})}/>
         </div>
         <div>
           <Label>Email</Label>
-          <Input value={client.email} onChange={e=>setClient({...client,email:e.target.value})} style={{padding:'10px 12px',fontSize:14}}/>
+          <Input value={client.email} onChange={e=>setClient({...client,email:e.target.value})}/>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }
@@ -3087,7 +3088,7 @@ function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,supplies
     return {room:r,calc:c,lines:calcRoomLines(r,settings)};
   });
   const numWorkers=Math.max(1,settings._standards?.workers||1);
-  const estDays=tHrs>0?Math.ceil(tHrs/numWorkers/8):0;
+  const estDays=tHrs>0?Math.ceil(tHrs/6):0;
   const paintData=calcPaintCosts(rooms,paints||[],ceilPaints||[],primers||[],colours||[],settings._standards?.matBuffer||1.15);
   const statStyle={background:'var(--card)',border:'1px solid var(--border)',borderRadius:10,padding:'14px 16px',textAlign:'center'};
   const statLabel={fontSize:10,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',fontWeight:600};
@@ -3101,7 +3102,7 @@ function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,supplies
         <div style={statStyle}><p style={statLabel}>Total Ceiling</p><p style={statVal}>{fmtN(tCeil)} sqft</p></div>
         <div style={statStyle}><p style={statLabel}>Total Trim</p><p style={statVal}>{fmtN(tTrim)} LF</p></div>
         <div style={statStyle}><p style={statLabel}>Total Doors</p><p style={statVal}>{tDoors}</p></div>
-        <div style={statStyle}><p style={statLabel}>Hours / Worker</p><p style={statVal}>{fmtN(tHrs)}</p></div>
+        <div style={statStyle}><p style={statLabel}>Total Project Hours</p><p style={statVal}>{fmtN(tHrs)}</p></div>
         <div style={statStyle}><p style={statLabel}>Est. Days</p><p style={statVal}>{estDays}</p></div>
         <div style={statStyle}><p style={statLabel}>Labour Cost</p><p style={statVal}>{fmtCAD(tCost)}</p></div>
         <div style={statStyle}><p style={statLabel}>Active Rooms</p><p style={statVal}>{activeRooms.length}</p></div>

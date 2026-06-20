@@ -52,6 +52,7 @@ const fmtUSD = n => `$${(n ?? 0).toLocaleString()}`;
 // ─── Supabase client ──────────────────────────────────────────────────────────
 const SUPA_URL = 'https://cyzvmcmlpnozwrqifrdt.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN5enZtY21scG5vendycWlmcmR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2Mzk1MzEsImV4cCI6MjA5NDIxNTUzMX0.IeZRx5xcPddSQcL77vhKjOgAKFi8bKpj3dMfajHpV3c';
+const ADMIN_EMAIL = 'info@kingdompainting.ca';
 
 // ─── Auth state ──────────────────────────────────────────────────────────────
 let _session = null; // { access_token, user }
@@ -5220,6 +5221,327 @@ const NAV=[
   {id:'financials',Icon:DollarSign,label:'Financials'},
 ];
 
+// ─── Client Portal (non-admin users) ─────────────────────────────────────────
+const PORTAL_STYLES = `
+  .cp-header{background:#262E4B;padding:0 32px;height:60px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+  .cp-signout{background:none;border:1px solid rgba(255,255,255,.25);color:rgba(255,255,255,.8);font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;padding:6px 14px;border-radius:6px}
+  .cp-body{flex:1;max-width:860px;width:100%;margin:0 auto;padding:32px 24px}
+  .cp-title{font-size:22px;font-weight:800;color:#262E4B;margin-bottom:6px}
+  .cp-subtitle{font-size:13px;color:#7a6e65;margin-bottom:28px}
+  .cp-card{background:#fff;border:1px solid #ddd9d0;border-radius:12px;margin-bottom:14px;box-shadow:0 1px 6px rgba(0,0,0,.07);overflow:hidden;cursor:pointer;transition:box-shadow .15s}
+  .cp-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.13)}
+  .cp-card-head{padding:18px 20px}
+  .cp-stage-pill{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;padding:2px 10px;border-radius:20px;margin-bottom:8px}
+  .cp-name{font-size:16px;font-weight:700;color:#1a1714;margin-bottom:4px}
+  .cp-addr{font-size:12px;color:#7a6e65;margin-bottom:10px}
+  .cp-val{font-size:14px;color:#C4922A;font-weight:700}
+  .cp-rooms{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;margin-bottom:8px}
+  .cp-room{display:flex;align-items:center;gap:5px;padding:3px 10px 3px 6px;border-radius:20px;background:#f4f5f7;border:1px solid #e2e5eb;font-size:11px;font-weight:600;color:#374151}
+  .cp-room.done{background:#f0fdf4;border-color:#bbf7d0}
+  .cp-room-name.done{color:#15803d;text-decoration:line-through;opacity:.7}
+  .cp-progress{margin-top:4px}
+  .cp-prog-label{font-size:11px;color:#7a6e65;margin-bottom:4px}
+  .cp-prog-bar{height:6px;background:#e5e1d8;border-radius:9px;overflow:hidden}
+  .cp-prog-fill{height:100%;background:#C4922A;border-radius:9px}
+  .cp-docs{border-top:1px solid #ede9df;padding:14px 16px;background:#faf8f4}
+  .cp-doc-row{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:#fff;border:1px solid #e5e1d8;border-radius:8px;margin-bottom:8px;cursor:pointer;transition:background .12s,border-color .12s}
+  .cp-doc-row:hover{background:#f5f3ef;border-color:#C4922A}
+  .cp-doc-label{font-size:13px;font-weight:600;color:#262E4B;display:flex;align-items:center;gap:8px}
+  .cp-section-sep{margin:28px 0 16px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af;border-bottom:1px solid #e5e1d8;padding-bottom:8px}
+  .cp-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;flex-direction:column}
+  .cp-overlay-bar{background:#262E4B;padding:12px 20px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+  .cp-overlay-title{color:#fff;font-size:14px;font-weight:700;flex:1}
+  .cp-overlay-close{background:none;border:1px solid rgba(255,255,255,.3);color:#fff;font-family:inherit;font-size:12px;cursor:pointer;padding:5px 14px;border-radius:6px}
+  .cp-overlay-body{flex:1;overflow:auto;background:#fff}
+  .cp-overlay-body iframe{width:100%;height:100%;border:none}
+  .cp-sig-panel{background:#faf8f4;border-top:3px solid #C4922A;padding:20px 24px;flex-shrink:0}
+  .cp-sig-panel h3{font-size:14px;font-weight:700;color:#262E4B;margin-bottom:6px}
+  .cp-sig-panel p{font-size:12px;color:#7a6e65;margin-bottom:12px}
+  .cp-sig-canvas{border:1.5px solid #c8bfb4;border-radius:8px;background:#fff;display:block;cursor:crosshair;touch-action:none;width:100%;max-width:500px;height:120px}
+  .cp-sig-actions{display:flex;gap:10px;margin-top:12px;align-items:center;flex-wrap:wrap}
+  .cp-btn-clear{background:none;border:1px solid #c8bfb4;color:#7a6e65;font-family:inherit;font-size:12px;cursor:pointer;padding:8px 16px;border-radius:6px}
+  .cp-btn-save-sig{background:#C4922A;color:#fff;border:none;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;padding:9px 24px;border-radius:6px}
+  .cp-btn-save-sig:disabled{opacity:.5;cursor:not-allowed}
+  .cp-sig-status{font-size:12px;font-weight:600}
+  .cp-toast{position:fixed;bottom:28px;right:28px;background:#262E4B;color:#fff;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,.3);z-index:99999;max-width:340px}
+`;
+
+function portalStageStyle(stage){
+  const m={'Lead':'background:#dbeafe;color:#1d4ed8','Contacted':'background:#ede9fe;color:#7c3aed','Quote Sent':'background:#fef9c3;color:#a16207','Scheduled':'background:#ffedd5;color:#ea580c','In Progress':'background:#d1fae5;color:#065f46','Archive':'background:#f3f4f6;color:#6b7280'};
+  return m[stage]||'background:#f3f4f6;color:#6b7280';
+}
+
+function portalStageObj(stage){
+  const s = portalStageStyle(stage);
+  const parts = s.split(';').reduce((o,p)=>{const [k,v]=p.split(':');if(k&&v)o[k.trim()]=v.trim();return o;},{});
+  return parts;
+}
+
+function ClientPortal({session}){
+  const email = session.user?.email||'';
+  const [deals, setDeals] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [overlay, setOverlay] = useState(null);
+  const [toast, setToast] = useState('');
+  const [sigStatus, setSigStatus] = useState('');
+  const [sigSaving, setSigSaving] = useState(false);
+  const sigCanvasRef = useRef(null);
+  const sigDrawingRef = useRef(false);
+  const frameRef = useRef(null);
+  const blobUrlRef = useRef(null);
+
+  const showToast = (msg) => { setToast(msg); setTimeout(()=>setToast(''),5000); };
+
+  const loadProjects = useCallback(async()=>{
+    try{
+      const data = await supaFetch(`/rest/v1/rpc/get_client_deals`, 'POST', {client_email: email});
+      if(data) setDeals(data);
+      else setDeals([]);
+    }catch(e){
+      setError(e.message);
+    }finally{
+      setLoading(false);
+    }
+  },[email]);
+
+  useEffect(()=>{
+    if(email) loadProjects();
+  },[email, loadProjects]);
+
+  const wrapDocHtml = (html)=>{
+    if(html&&(html.trim().toLowerCase().startsWith('<!doctype')||html.trim().toLowerCase().startsWith('<html'))){
+      const fontLink='<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet"/>';
+      const baseStyle='<style>body{padding:32px;max-width:860px;margin:0 auto;}@media print{body{padding:16px}}</style>';
+      if(html.includes('</head>')) return html.replace('</head>',fontLink+baseStyle+'</head>');
+      return html;
+    }
+    return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><style>
+:root{--bg:#ede9de;--fg:#2e3557;--ink:#1a1714;--ink2:#3a3530;--ink3:#7a6e65;--cream:#ede9de;--cream2:#e0dbd0;--cream3:#c8bfb4;--gold:#C4922A;--gold2:#b07e20;--r:6px;--r2:12px;--sans:'Montserrat',sans-serif;}
+*{box-sizing:border-box}
+body{font-family:'Montserrat',Georgia,sans-serif;background:#fff;color:#1a1714;padding:32px;max-width:860px;margin:0 auto;font-size:13px;line-height:1.7}
+</style><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet"/></head><body>${html}</body></html>`;
+  };
+
+  const openDoc = (key, label, dealId, signable)=>{
+    const d = deals.find(x=>x.id===dealId);
+    if(!d||!d[key]) return;
+    const wrapped = wrapDocHtml(d[key]);
+    const blob = new Blob([wrapped],{type:'text/html'});
+    const url = URL.createObjectURL(blob);
+    if(blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
+    blobUrlRef.current = url;
+    setOverlay({label, url, dealId, signable: signable&&!d.contract_signed_html, docKey: key});
+    setSigStatus('');
+  };
+
+  const closeOverlay = ()=>{
+    if(blobUrlRef.current){URL.revokeObjectURL(blobUrlRef.current);blobUrlRef.current=null;}
+    setOverlay(null);
+  };
+
+  const initSig = useCallback(()=>{
+    const canvas = sigCanvasRef.current;
+    if(!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.strokeStyle='#1a1714';ctx.lineWidth=2.5;ctx.lineCap='round';ctx.lineJoin='round';
+    const getPos=(e)=>{const r=canvas.getBoundingClientRect();const src=e.touches?e.touches[0]:e;return{x:(src.clientX-r.left)*(canvas.width/r.width),y:(src.clientY-r.top)*(canvas.height/r.height)};};
+    canvas.onmousedown=canvas.ontouchstart=(e)=>{e.preventDefault();sigDrawingRef.current=true;const p=getPos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);};
+    canvas.onmousemove=canvas.ontouchmove=(e)=>{e.preventDefault();if(!sigDrawingRef.current)return;const p=getPos(e);ctx.lineTo(p.x,p.y);ctx.stroke();};
+    canvas.onmouseup=canvas.ontouchend=()=>{sigDrawingRef.current=false;};
+  },[]);
+
+  useEffect(()=>{
+    if(overlay?.signable) setTimeout(initSig, 100);
+  },[overlay, initSig]);
+
+  const clearSig = ()=>{
+    const canvas = sigCanvasRef.current;
+    if(canvas){const ctx=canvas.getContext('2d');ctx.clearRect(0,0,canvas.width,canvas.height);}
+  };
+
+  const saveSig = async()=>{
+    const canvas = sigCanvasRef.current;
+    if(!canvas||!overlay) return;
+    const ctx = canvas.getContext('2d');
+    const px = ctx.getImageData(0,0,canvas.width,canvas.height).data;
+    if(!Array.from(px).some((v,i)=>i%4===3&&v>0)){
+      setSigStatus('Please draw your signature first.');return;
+    }
+    setSigSaving(true);
+    const sigImg = canvas.toDataURL('image/png');
+    const now = new Date().toLocaleString('en-CA',{dateStyle:'long',timeStyle:'short'});
+    const d = deals.find(x=>x.id===overlay.dealId);
+    const sigBlock = `<div style="margin-top:40px;padding:20px 24px;border-top:2px solid #C4922A;font-family:sans-serif;font-size:12px"><p style="color:#555;margin-bottom:10px">Electronically signed by <strong>${email}</strong> on ${now}</p><img src="${sigImg}" style="max-width:320px;border:1px solid #ddd;border-radius:6px;padding:8px;background:#fff;display:block"/></div>`;
+    const signedHtml = (d.contract_html||'') + sigBlock;
+    try{
+      await supaFetch('/rest/v1/rpc/save_signed_contract','POST',{deal_id:overlay.dealId,signed_html:signedHtml});
+      setSigStatus('Contract signed!');
+      setTimeout(async()=>{
+        closeOverlay();
+        setLoading(true);
+        await loadProjects();
+        showToast('Contract signed successfully!');
+      },1500);
+    }catch(e){
+      setSigStatus('Error saving. Try again.');
+    }finally{
+      setSigSaving(false);
+    }
+  };
+
+  const activeDeals = deals.filter(d=>d.stage!=='Archive');
+  const pastDeals = deals.filter(d=>d.stage==='Archive');
+
+  const renderRooms = (rooms)=>{
+    const valid = (rooms||[]).filter(r=>r&&r.name);
+    if(!valid.length) return null;
+    return (
+      <div className="cp-rooms">
+        {valid.map((r,i)=>{
+          const done = !!(r.done||r.completed);
+          return (
+            <div key={i} className={`cp-room${done?' done':''}`}>
+              <span style={{display:'flex',alignItems:'center',flexShrink:0}}>
+                {done
+                  ? <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="6" fill="#22c55e"/><path d="M3.5 6l1.8 1.8L8.5 4.5" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  : <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="6" stroke="#c8bfb4" strokeWidth="1.5"/></svg>
+                }
+              </span>
+              <span className={`cp-room-name${done?' done':''}`}>{r.name||'Unnamed Room'}</span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderDocRows = (d)=>{
+    const docDefs = [
+      {key:'quote_html',label:'Quote',icon:'\u{1F4C4}'},
+      {key:'contract_html',label:'Contract',icon:'\u{1F4CB}',signable:true},
+      {key:'change_order_html',label:'Change Order',icon:'\u{1F4DD}'},
+      {key:'invoice_html',label:'Invoice',icon:'\u{1F9FE}'}
+    ].filter(doc=>d[doc.key]);
+    const driveFiles = d.drive_files||[];
+    if(!docDefs.length&&!driveFiles.length) return <p style={{fontSize:12,color:'#9ca3af',padding:'4px 0'}}>No documents available yet.</p>;
+    const signed = d.contract_signed_html&&d.contract_signed_at;
+    const signedDate = signed?new Date(d.contract_signed_at).toLocaleDateString('en-CA',{year:'numeric',month:'short',day:'numeric'}):'';
+    return (
+      <>
+        {docDefs.map(doc=>{
+          const isSigned = doc.signable&&signed;
+          const canSign = doc.signable&&!isSigned;
+          return (
+            <div key={doc.key} className="cp-doc-row" onClick={()=>openDoc(doc.key,doc.label,d.id,canSign)}>
+              <span className="cp-doc-label">
+                {doc.icon} {doc.label}
+                {canSign&&<span style={{fontSize:10,fontWeight:700,color:'#C4922A',background:'#fff8ee',border:'1px solid #C4922A',padding:'1px 7px',borderRadius:20,marginLeft:6}}>Sign</span>}
+                {isSigned&&<span style={{fontSize:11,color:'#16a34a',fontWeight:600,marginLeft:6}}>{'✅'} Signed {signedDate}</span>}
+              </span>
+              <span style={{fontSize:11,color:'#7a6e65',fontWeight:600}}>Open {'↗'}</span>
+            </div>
+          );
+        })}
+        {driveFiles.map((file,i)=>(
+          <div key={`drive-${i}`} className="cp-doc-row" onClick={()=>window.open(file.url,'_blank')}>
+            <span className="cp-doc-label">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{flexShrink:0}}><path d="M6.5 20L1 11l4-7h14l4 7-5.5 9H6.5z" stroke="#4285f4" strokeWidth="1.5"/><path d="M8.5 20L14 11H1" stroke="#4285f4" strokeWidth="1.5"/><path d="M23 11H14l-5.5 9" stroke="#4285f4" strokeWidth="1.5"/></svg>
+              {file.name}
+            </span>
+            <span style={{fontSize:11,color:'#4285f4',fontWeight:600}}>Open {'↗'}</span>
+          </div>
+        ))}
+      </>
+    );
+  };
+
+  const renderCard = (d, past)=>{
+    const pct = Math.min(100,Math.max(0,d.progress||0));
+    const hasDocs = d.quote_html||d.contract_html||d.change_order_html||d.invoice_html||(d.drive_files&&d.drive_files.length);
+    const stObj = portalStageObj(d.stage);
+    return (
+      <div key={d.id} className="cp-card">
+        <div className="cp-card-head">
+          <div className="cp-stage-pill" style={stObj}>{d.stage||'Lead'}</div>
+          <div className="cp-name">{d.dealName||'Project'}</div>
+          {d.address&&<div className="cp-addr">{'\u{1F4CD}'} {d.address}</div>}
+          {d.value&&<div className="cp-val">${parseFloat(d.value).toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>}
+          {!past&&renderRooms(d.rooms)}
+          {!past&&(
+            <div className="cp-progress">
+              <div className="cp-prog-label">Progress &mdash; {pct}%</div>
+              <div className="cp-prog-bar"><div className="cp-prog-fill" style={{width:`${pct}%`}}/></div>
+            </div>
+          )}
+        </div>
+        <div className="cp-docs">
+          {hasDocs ? renderDocRows(d) : <p style={{fontSize:12,color:'#9ca3af',padding:'4px 0'}}>No documents yet.</p>}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <>
+      <style>{STYLE}</style>
+      <style>{PORTAL_STYLES}</style>
+      <div style={{display:'flex',flexDirection:'column',minHeight:'100vh',background:'#f0ede6'}}>
+        <div className="cp-header">
+          <KPLogo height={36}/>
+          <button className="cp-signout" onClick={signOut}>Sign out</button>
+        </div>
+        <div className="cp-body">
+          <div className="cp-title">My Projects</div>
+          <div className="cp-subtitle">{email}</div>
+          {loading&&<p style={{color:'#9ca3af',fontSize:13}}>Loading projects...</p>}
+          {error&&<p style={{color:'#dc2626',fontSize:13}}>Error: {error}</p>}
+          {!loading&&!error&&activeDeals.length===0&&pastDeals.length===0&&(
+            <p style={{color:'#9ca3af',fontSize:13}}>No projects found for this email.</p>
+          )}
+          {!loading&&activeDeals.length===0&&deals.length>0&&(
+            <p style={{color:'#9ca3af',fontSize:13}}>No active projects.</p>
+          )}
+          {activeDeals.map(d=>renderCard(d,false))}
+          {pastDeals.length>0&&(
+            <>
+              <div className="cp-section-sep">Past Projects</div>
+              {pastDeals.map(d=>renderCard(d,true))}
+            </>
+          )}
+        </div>
+      </div>
+
+      {overlay&&(
+        <div className="cp-overlay">
+          <div className="cp-overlay-bar">
+            <span className="cp-overlay-title">{overlay.label}</span>
+            <button className="cp-overlay-close" onClick={closeOverlay}>Close</button>
+          </div>
+          <div className="cp-overlay-body">
+            <iframe ref={frameRef} src={overlay.url} style={{width:'100%',height:'100%',border:'none'}} referrerPolicy="no-referrer"/>
+          </div>
+          {overlay.signable&&(
+            <div className="cp-sig-panel">
+              <h3>Sign this contract</h3>
+              <p>Draw your signature below then click Save Signature.</p>
+              <canvas ref={sigCanvasRef} className="cp-sig-canvas" width={600} height={120}/>
+              <div className="cp-sig-actions">
+                <button className="cp-btn-clear" onClick={clearSig}>Clear</button>
+                <button className="cp-btn-save-sig" onClick={saveSig} disabled={sigSaving}>{sigSaving?'Saving...':'Save Signature'}</button>
+                {sigStatus&&<span className="cp-sig-status" style={{color:sigStatus.includes('signed')?'#16a34a':'#dc2626'}}>{sigStatus}</span>}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {toast&&<div className="cp-toast">{toast}</div>}
+    </>
+  );
+}
+
 // ─── Login Screen ─────────────────────────────────────────────────────────────
 function LoginScreen(){
   const [mode, setMode] = useState('login'); // 'login' | 'signup'
@@ -5298,14 +5620,6 @@ function LoginScreen(){
               {mode==='login' ? 'Create one' : 'Sign in'}
             </button>
           </div>
-          <div style={{textAlign:'center',marginTop:8,fontSize:12,color:'#7a6e65'}}>
-            Client Portal{' '}
-            <a href="https://kingdom-crm-kingdompaintings-projects.vercel.app/portal"
-              target="_blank" rel="noopener noreferrer"
-              style={{color:'#C4922A',fontWeight:700,textDecoration:'none'}}>
-              click here
-            </a>
-          </div>
         </div>
       </div>
     </div>
@@ -5335,6 +5649,7 @@ export default function App(){
   },[session]);
 
   if(!session) return <LoginScreen/>;
+  if(session.user?.email?.toLowerCase() !== ADMIN_EMAIL) return <ClientPortal session={session}/>;
 
   return (
     <>

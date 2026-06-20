@@ -4279,6 +4279,24 @@ function MasterEstimate(){
     setCurrentEstimateId(null);setActiveTab('cover');
   };
 
+  const deleteEstimate=async(eid)=>{
+    if(!confirm('Delete this saved estimate?'))return;
+    try{
+      await supaFetch(`/rest/v1/estimates?id=eq.${eid}`,'DELETE');
+      setSavedEstimates(prev=>prev.filter(e=>e.id!==eid));
+      if(currentEstimateId===eid) setCurrentEstimateId(null);
+    }catch(e){console.warn('Delete estimate error:',e);}
+  };
+
+  const deleteAllEstimates=async()=>{
+    if(!confirm(`Delete all ${savedEstimates.length} saved estimates? This cannot be undone.`))return;
+    try{
+      await supaFetch(`/rest/v1/estimates?user_id=eq.${_session.user.id}`,'DELETE');
+      setSavedEstimates([]);
+      setCurrentEstimateId(null);
+    }catch(e){console.warn('Delete all estimates error:',e);}
+  };
+
   const onSelectDeal=(dealId)=>{
     setSelectedDealId(dealId);
     const deal=deals.find(d=>d.id===dealId);
@@ -4486,16 +4504,35 @@ function MasterEstimate(){
           <div style={{position:'absolute',top:0,right:0,width:360,height:'100%',background:'var(--card)',borderLeft:'1px solid var(--border)',boxShadow:'-4px 0 20px rgba(0,0,0,0.1)',zIndex:10,display:'flex',flexDirection:'column'}}>
             <div style={{padding:'16px 20px',borderBottom:'1px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
               <p style={{fontSize:14,fontWeight:700}}>Saved Estimates</p>
-              <button onClick={()=>setShowLoadPanel(false)} style={{background:'none',border:'none',cursor:'pointer',fontSize:18,color:'var(--muted-fg)'}}>&times;</button>
+              <div style={{display:'flex',alignItems:'center',gap:8}}>
+                {savedEstimates.length>0&&(
+                  <button onClick={deleteAllEstimates}
+                    style={{background:'none',border:'1px solid rgba(239,68,68,0.3)',borderRadius:6,padding:'4px 10px',fontSize:11,fontWeight:600,color:'#ef4444',cursor:'pointer',whiteSpace:'nowrap'}}
+                    onMouseEnter={e=>e.target.style.background='rgba(239,68,68,0.08)'}
+                    onMouseLeave={e=>e.target.style.background='none'}>
+                    Delete All
+                  </button>
+                )}
+                <button onClick={()=>setShowLoadPanel(false)} style={{background:'none',border:'none',cursor:'pointer',fontSize:18,color:'var(--muted-fg)'}}>&times;</button>
+              </div>
             </div>
             <div style={{flex:1,overflow:'auto',padding:12}}>
               {savedEstimates.length===0&&<p style={{fontSize:12,color:'var(--muted-fg)',textAlign:'center',padding:20}}>No saved estimates</p>}
               {savedEstimates.map(est=>(
-                <div key={est.id} onClick={()=>loadEstimate(est.id)}
-                  style={{padding:'12px 14px',borderRadius:8,marginBottom:6,cursor:'pointer',border:'1px solid var(--border)',background:'var(--bg)'}}>
-                  <p style={{fontSize:13,fontWeight:600}}>{est.title||est.client_name||'Untitled'}</p>
-                  <p style={{fontSize:11,color:'var(--muted-fg)'}}>{est.client_name&&est.title?est.client_name:est.client_email||''}</p>
-                  {est.updated_at&&<p style={{fontSize:10,color:'var(--muted-fg)',marginTop:4}}>{new Date(est.updated_at).toLocaleDateString('en-CA')}</p>}
+                <div key={est.id}
+                  style={{padding:'12px 14px',borderRadius:8,marginBottom:6,border:'1px solid var(--border)',background:'var(--bg)',display:'flex',alignItems:'flex-start',gap:10}}>
+                  <div style={{flex:1,cursor:'pointer'}} onClick={()=>loadEstimate(est.id)}>
+                    <p style={{fontSize:13,fontWeight:600}}>{est.title||est.client_name||'Untitled'}</p>
+                    <p style={{fontSize:11,color:'var(--muted-fg)'}}>{est.client_name&&est.title?est.client_name:est.client_email||''}</p>
+                    {est.updated_at&&<p style={{fontSize:10,color:'var(--muted-fg)',marginTop:4}}>{new Date(est.updated_at).toLocaleDateString('en-CA')}</p>}
+                  </div>
+                  <button onClick={(e)=>{e.stopPropagation();deleteEstimate(est.id);}}
+                    title="Delete estimate"
+                    style={{background:'none',border:'none',cursor:'pointer',color:'var(--muted-fg)',padding:4,borderRadius:4,flexShrink:0,display:'flex',alignItems:'center',marginTop:2}}
+                    onMouseEnter={e=>{e.currentTarget.style.color='#ef4444';e.currentTarget.style.background='rgba(239,68,68,0.08)';}}
+                    onMouseLeave={e=>{e.currentTarget.style.color='var(--muted-fg)';e.currentTarget.style.background='none';}}>
+                    <Trash2 size={14}/>
+                  </button>
                 </div>
               ))}
             </div>

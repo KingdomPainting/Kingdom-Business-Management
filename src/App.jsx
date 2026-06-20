@@ -998,6 +998,27 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead'}){
       drive_files:f.drive_files&&f.drive_files.length?f.drive_files:null,
       projectCalEventId:projectCalEventId||undefined,
     },deal?.id);
+    // Send email notification for newly completed rooms
+    if(deal?.id && f.rooms){
+      const oldRooms = deal.rooms || [];
+      const cid = Array.isArray(deal.contact)?deal.contact[0]:deal.contact;
+      const contact = contacts.find(c=>c.id===cid);
+      const clientEmail = contact?.email;
+      if(clientEmail){
+        f.rooms.forEach((room,i)=>{
+          const wasNotDone = !oldRooms[i]?.done;
+          if(room.done && wasNotDone){
+            supaFetch('/rest/v1/rpc/send_room_notification','POST',{
+              p_deal_id: deal.id,
+              p_client_email: clientEmail,
+              p_room_name: room.name || `Room ${i+1}`,
+              p_progress: f.progress || 0,
+              p_project_name: f.dealName || 'your project',
+            }).catch(()=>{});
+          }
+        });
+      }
+    }
     // Auto-create task if stage changed to Scheduled
     if(f.stage==='Scheduled' && deal?.stage!=='Scheduled'){
       const dealObj={id:deal?.id,...f};
@@ -2583,7 +2604,12 @@ function calcRoom(room, settings){
   if(room.ceiling?.enabled && ceilSqft){
     const cstd = room.ceiling.type==='stucco' ? (std.stuccoCeiling||std.flatCeiling) : std.flatCeiling;
     hrs += ceilSqft / (cstd?.[room.ceiling.coats] || 90);
-    if(room.ceiling.removeStucco) hrs += ceilSqft * (std.removeStucco?.rate || 0.75);
+  }
+  let stuccoCost = 0;
+  let stuccoHrs = 0;
+  if(room.ceiling?.enabled && ceilSqft && room.ceiling.removeStucco){
+    stuccoHrs = ceilSqft / 28;
+    stuccoCost = ceilSqft * (std.removeStucco?.rate || 0.75);
   }
   if(room.baseboards?.enabled && perimLF) hrs += perimLF / (std.baseboards?.[room.baseboards.coats] || 60);
   if(room.crown?.enabled && perimLF) hrs += perimLF / (std.crown?.[room.crown.coats] || 55);
@@ -2596,8 +2622,8 @@ function calcRoom(room, settings){
   } else if(room.doors?.count > 0) hrs += (room.doors.count * 21) / (std.doors?.[room.doors.coats] || 42);
   if(room.windows?.enabled && winLF) hrs += winLF / (std.windows?.[room.windows.coats] || 60);
   hrs += (room.prepHrs || 0);
-  const cost = hrs * (settings.hourlyRate || 65) * (settings.labourBuffer || 1.25);
-  return { wallSqft, ceilSqft, perimLF, winLF, totalHrs:hrs, cost };
+  const cost = hrs * (settings.hourlyRate || 65) * (settings.labourBuffer || 1.25) + stuccoCost;
+  return { wallSqft, ceilSqft, perimLF, winLF, totalHrs: hrs + stuccoHrs, cost };
 }
 
 function calcTotals(rooms, settings, materialCost=0){
@@ -2629,6 +2655,12 @@ function calcRoomLines(room, settings){
     const r = cstd?.[room.ceiling.coats]||90;
     const h = ceilSqft/r;
     lines.push({surface:'Ceiling',area:Math.round(ceilSqft),areaUnit:'sqft',coats:room.ceiling.coats,rate:r,rateLabel:'sqft/hr',hours:h,cost:h*rate});
+    if(room.ceiling.removeStucco){
+      const rr = 28;
+      const hh = ceilSqft / rr;
+      const directCost = ceilSqft * (std.removeStucco?.rate || 0.75);
+      lines.push({surface:'Remove Stucco',area:Math.round(ceilSqft),areaUnit:'sqft',coats:0,rate:rr,rateLabel:'sqft/hr',hours:hh,cost:directCost});
+    }
   }
   if(room.baseboards?.enabled && perimLF){
     const r = std.baseboards?.[room.baseboards.coats]||60;
@@ -5264,6 +5296,17 @@ const PORTAL_STYLES = `
   .cp-btn-save-sig:disabled{opacity:.5;cursor:not-allowed}
   .cp-sig-status{font-size:12px;font-weight:600}
   .cp-toast{position:fixed;bottom:28px;right:28px;background:#262E4B;color:#fff;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,.3);z-index:99999;max-width:340px}
+  .cp-bell{position:absolute;top:14px;right:16px;background:none;border:none;cursor:pointer;padding:4px;border-radius:50%;transition:background .15s}
+  .cp-bell:hover{background:rgba(196,146,42,.12)}
+  .cp-bell.subscribed svg{fill:#C4922A;stroke:#C4922A}
+  @keyframes cp-shake{0%,100%{transform:rotate(0)}15%{transform:rotate(14deg)}30%{transform:rotate(-12deg)}45%{transform:rotate(10deg)}60%{transform:rotate(-8deg)}75%{transform:rotate(4deg)}90%{transform:rotate(-2deg)}}
+  .cp-bell.shaking{animation:cp-shake .6s ease-in-out}
+  .cp-bell-popup{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99998;display:flex;align-items:center;justify-content:center;padding:20px}
+  .cp-bell-popup-card{background:#fff;border-radius:16px;padding:32px 28px;max-width:380px;width:100%;box-shadow:0 8px 40px rgba(0,0,0,.25);text-align:center}
+  .cp-bell-popup-icon{width:56px;height:56px;background:rgba(196,146,42,.1);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px}
+  .cp-bell-popup h3{font-size:17px;font-weight:700;color:#262E4B;margin-bottom:8px}
+  .cp-bell-popup p{font-size:13px;color:#7a6e65;line-height:1.6;margin-bottom:20px}
+  .cp-bell-popup-btn{background:#C4922A;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer}
 `;
 
 function portalStageStyle(stage){
@@ -5286,6 +5329,9 @@ function ClientPortal({session}){
   const [toast, setToast] = useState('');
   const [sigStatus, setSigStatus] = useState('');
   const [sigSaving, setSigSaving] = useState(false);
+  const [notifSubs, setNotifSubs] = useState({});
+  const [shakingBell, setShakingBell] = useState(null);
+  const [bellPopup, setBellPopup] = useState(null);
   const sigCanvasRef = useRef(null);
   const sigDrawingRef = useRef(false);
   const frameRef = useRef(null);
@@ -5308,6 +5354,41 @@ function ClientPortal({session}){
   useEffect(()=>{
     if(email) loadProjects();
   },[email, loadProjects]);
+
+  useEffect(()=>{
+    if(!email) return;
+    (async()=>{
+      try{
+        const rows = await supaFetch(`/rest/v1/project_notifications?email=eq.${encodeURIComponent(email)}&select=deal_id`);
+        if(rows){
+          const map = {};
+          rows.forEach(r=>{map[r.deal_id]=true;});
+          setNotifSubs(map);
+        }
+      }catch(e){}
+    })();
+  },[email]);
+
+  const toggleBellNotification = async(dealId)=>{
+    setShakingBell(dealId);
+    setTimeout(()=>setShakingBell(null),600);
+    const alreadySubscribed = notifSubs[dealId];
+    if(alreadySubscribed){
+      try{
+        await supaFetch(`/rest/v1/project_notifications?email=eq.${encodeURIComponent(email)}&deal_id=eq.${encodeURIComponent(dealId)}`,'DELETE');
+        setNotifSubs(prev=>{const n={...prev};delete n[dealId];return n;});
+        showToast('Email notifications turned off for this project.');
+      }catch(e){}
+    } else {
+      try{
+        await supaFetch('/rest/v1/project_notifications','POST',{email, deal_id:dealId});
+        setNotifSubs(prev=>({...prev,[dealId]:true}));
+        setBellPopup(dealId);
+      }catch(e){
+        showToast('Could not enable notifications. Please try again.');
+      }
+    }
+  };
 
   const wrapDocHtml = (html)=>{
     if(html&&(html.trim().toLowerCase().startsWith('<!doctype')||html.trim().toLowerCase().startsWith('<html'))){
@@ -5462,8 +5543,16 @@ body{font-family:'Montserrat',Georgia,sans-serif;background:#fff;color:#1a1714;p
     const hasDocs = d.quote_html||d.contract_html||d.change_order_html||d.invoice_html||(d.drive_files&&d.drive_files.length);
     const stObj = portalStageObj(d.stage);
     return (
-      <div key={d.id} className="cp-card">
+      <div key={d.id} className="cp-card" style={{position:'relative'}}>
         <div className="cp-card-head">
+          <button
+            className={`cp-bell${notifSubs[d.id]?' subscribed':''}${shakingBell===d.id?' shaking':''}`}
+            onClick={e=>{e.stopPropagation();toggleBellNotification(d.id);}}
+            title={notifSubs[d.id]?'Notifications on — click to turn off':'Get email updates'}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill={notifSubs[d.id]?'#C4922A':'none'} stroke={notifSubs[d.id]?'#C4922A':'#9ca3af'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+          </button>
           <div className="cp-stage-pill" style={stObj}>{d.stage||'Lead'}</div>
           <div className="cp-name">{d.dealName||'Project'}</div>
           {d.address&&<div className="cp-addr">{'\u{1F4CD}'} {d.address}</div>}
@@ -5534,6 +5623,21 @@ body{font-family:'Montserrat',Georgia,sans-serif;background:#fff;color:#1a1714;p
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {bellPopup&&(
+        <div className="cp-bell-popup" onClick={()=>setBellPopup(null)}>
+          <div className="cp-bell-popup-card" onClick={e=>e.stopPropagation()}>
+            <div className="cp-bell-popup-icon">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="#C4922A" stroke="#C4922A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+              </svg>
+            </div>
+            <h3>Notifications Enabled</h3>
+            <p>Now receiving email updates on the progress of your project!</p>
+            <button className="cp-bell-popup-btn" onClick={()=>setBellPopup(null)}>Got it</button>
+          </div>
         </div>
       )}
 

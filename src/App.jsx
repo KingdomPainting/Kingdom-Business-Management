@@ -3364,8 +3364,8 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
               const prepItems=Object.entries(r.prep).filter(([k,v])=>v&&k!=='custom').map(([k])=>prepLabelsMap[k]||k).filter(Boolean);
               if(r.prep?.custom) prepItems.push(r.prep.custom);
               const surfaces=[];
-              if(r.walls.enabled) surfaces.push(`${r.walls.coats} coat${r.walls.coats>1?'s':''} on walls — ${fmtN(c.wallSqft)} sqft`);
-              if(r.ceiling.enabled) surfaces.push(`${r.ceiling.coats} coat${r.ceiling.coats>1?'s':''} on ceiling — ${fmtN(c.ceilSqft)} sqft`);
+              if(r.walls.enabled) surfaces.push(`${r.walls.coats} coat${r.walls.coats>1?'s':''} on walls — ${fmtN(c.wallSqft)} square feet`);
+              if(r.ceiling.enabled) surfaces.push(`${r.ceiling.coats} coat${r.ceiling.coats>1?'s':''} on ceiling — ${fmtN(c.ceilSqft)} square feet`);
               if(r.baseboards.enabled) surfaces.push(`${r.baseboards.coats} coat${r.baseboards.coats>1?'s':''} on baseboards`);
               if(r.crown.enabled) surfaces.push(`${r.crown.coats} coat${r.crown.coats>1?'s':''} on crown moulding`);
               if(r.doorFrames?.enabled) surfaces.push(`${r.doorFrames.coats} coat${r.doorFrames.coats>1?'s':''} on door frames`);
@@ -3559,15 +3559,15 @@ function ContractTab({rooms,settings,client,totals}){
         <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:8}}>
           <div style={{background:'#faf7f2',borderRadius:6,padding:'8px 10px',textAlign:'center'}}>
             <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>Walls</p>
-            <p style={{fontSize:13,fontWeight:700}}>{fmtN(tWalls)} sqft</p>
+            <p style={{fontSize:13,fontWeight:700}}>{fmtN(tWalls)} square feet</p>
           </div>
           <div style={{background:'#faf7f2',borderRadius:6,padding:'8px 10px',textAlign:'center'}}>
             <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>Ceiling</p>
-            <p style={{fontSize:13,fontWeight:700}}>{fmtN(tCeil)} sqft</p>
+            <p style={{fontSize:13,fontWeight:700}}>{fmtN(tCeil)} square feet</p>
           </div>
           <div style={{background:'#faf7f2',borderRadius:6,padding:'8px 10px',textAlign:'center'}}>
             <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>Trims</p>
-            <p style={{fontSize:13,fontWeight:700}}>{fmtN(tTrim)} lin ft</p>
+            <p style={{fontSize:13,fontWeight:700}}>{fmtN(tTrim)} linear feet</p>
           </div>
           <div style={{background:'#faf7f2',borderRadius:6,padding:'8px 10px',textAlign:'center'}}>
             <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>Doors</p>
@@ -4311,8 +4311,8 @@ function MasterEstimate(){
       rooms.forEach(r=>{
         const c=calcRoom(r,settings);
         const surfaces=[],prepItems=[];
-        if(r.walls?.enabled) surfaces.push(`${r.walls.coats} coat${r.walls.coats>1?'s':''} on walls — ${fmtN(c.wallSqft)} sqft`);
-        if(r.ceiling?.enabled) surfaces.push(`${r.ceiling.coats} coat${r.ceiling.coats>1?'s':''} on ceiling — ${fmtN(c.ceilSqft)} sqft`);
+        if(r.walls?.enabled) surfaces.push(`${r.walls.coats} coat${r.walls.coats>1?'s':''} on walls — ${fmtN(c.wallSqft)} square feet`);
+        if(r.ceiling?.enabled) surfaces.push(`${r.ceiling.coats} coat${r.ceiling.coats>1?'s':''} on ceiling — ${fmtN(c.ceilSqft)} square feet`);
         if(r.baseboards?.enabled) surfaces.push('Baseboards');
         if(r.crown?.enabled) surfaces.push('Crown moulding');
         const dc=roomDoorCount(r);if(dc>0) surfaces.push(`${dc} door${dc>1?'s':''}`);
@@ -4582,8 +4582,8 @@ function exportBidPDF(client,rooms,settings,totals,paints,ceilPaints,primers,col
   rooms.forEach(r=>{
     const c=calcRoom(r,settings);
     const surfaces=[],prepItems=[];
-    if(r.walls?.enabled) surfaces.push(`${r.walls.coats} coat${r.walls.coats>1?'s':''} on walls — ${fmtN(c.wallSqft)} sqft`);
-    if(r.ceiling?.enabled) surfaces.push(`${r.ceiling.coats} coat${r.ceiling.coats>1?'s':''} on ceiling — ${fmtN(c.ceilSqft)} sqft`);
+    if(r.walls?.enabled) surfaces.push(`${r.walls.coats} coat${r.walls.coats>1?'s':''} on walls — ${fmtN(c.wallSqft)} square feet`);
+    if(r.ceiling?.enabled) surfaces.push(`${r.ceiling.coats} coat${r.ceiling.coats>1?'s':''} on ceiling — ${fmtN(c.ceilSqft)} square feet`);
     if(r.baseboards?.enabled) surfaces.push(`Baseboards`);
     if(r.crown?.enabled) surfaces.push(`Crown moulding`);
     const dc=roomDoorCount(r);if(dc>0) surfaces.push(`${dc} door${dc>1?'s':''}`);

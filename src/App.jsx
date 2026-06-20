@@ -998,6 +998,27 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead'}){
       drive_files:f.drive_files&&f.drive_files.length?f.drive_files:null,
       projectCalEventId:projectCalEventId||undefined,
     },deal?.id);
+    // Send email notification for newly completed rooms
+    if(deal?.id && f.rooms){
+      const oldRooms = deal.rooms || [];
+      const cid = Array.isArray(deal.contact)?deal.contact[0]:deal.contact;
+      const contact = contacts.find(c=>c.id===cid);
+      const clientEmail = contact?.email;
+      if(clientEmail){
+        f.rooms.forEach((room,i)=>{
+          const wasNotDone = !oldRooms[i]?.done;
+          if(room.done && wasNotDone){
+            supaFetch('/rest/v1/rpc/send_room_notification','POST',{
+              p_deal_id: deal.id,
+              p_client_email: clientEmail,
+              p_room_name: room.name || `Room ${i+1}`,
+              p_progress: f.progress || 0,
+              p_project_name: f.dealName || 'your project',
+            }).catch(()=>{});
+          }
+        });
+      }
+    }
     // Auto-create task if stage changed to Scheduled
     if(f.stage==='Scheduled' && deal?.stage!=='Scheduled'){
       const dealObj={id:deal?.id,...f};
@@ -1305,14 +1326,16 @@ function TaskModal({open,onClose,task,contacts,deals,onSaved}){
 
   const doneCount=f.subtasks.filter(s=>s.completed).length;
 
+  const tS={fontSize:12,padding:'6px 10px',border:'1px solid var(--border)',borderRadius:6,background:'var(--card)',color:'var(--fg)',width:'100%',fontFamily:'inherit',outline:'none',boxSizing:'border-box'};
+
   return (
     <Modal open={open} onClose={onClose} title={task?'Edit Task':'New Task'}>
       <div style={{display:'flex',flexDirection:'column',gap:14}}>
         {/* Title */}
-        <div><Label>Task Title</Label><Input value={f.title} onChange={e=>setF(x=>({...x,title:e.target.value}))} placeholder='What needs to be done?'/></div>
+        <div><Label>Task Title</Label><input value={f.title} onChange={e=>setF(x=>({...x,title:e.target.value}))} placeholder='What needs to be done?' style={tS}/></div>
 
         {/* Details */}
-        <div><Label>Details / Notes</Label><Textarea value={f.details} onChange={e=>setF(x=>({...x,details:e.target.value}))} rows={2} placeholder='Add details, instructions, or notes…'/></div>
+        <div><Label>Details / Notes</Label><textarea value={f.details} onChange={e=>setF(x=>({...x,details:e.target.value}))} rows={2} placeholder='Add details, instructions, or notes…' style={{...tS,resize:'vertical'}}/></div>
 
         {/* Subtasks */}
         <div>
@@ -1329,44 +1352,44 @@ function TaskModal({open,onClose,task,contacts,deals,onSaved}){
             {f.subtasks.length===0&&<p style={{padding:'8px 12px',fontSize:12,color:'var(--muted-fg)'}}>No subtasks yet.</p>}
           </div>
           <div style={{display:'flex',gap:8,marginTop:8}}>
-            <Input value={newSub} onChange={e=>setNewSub(e.target.value)}
+            <input value={newSub} onChange={e=>setNewSub(e.target.value)}
               onKeyDown={e=>e.key==='Enter'&&(e.preventDefault(),addSub())}
-              placeholder='Add subtask…' style={{flex:1}}/>
+              placeholder='Add subtask…' style={{...tS,flex:1}}/>
             <Btn onClick={addSub} disabled={!newSub.trim()}>Add</Btn>
           </div>
         </div>
 
         {/* Due date + time */}
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-          <div><Label>Due Date</Label><Input type='date' value={f.dueDate} onChange={e=>setF(x=>({...x,dueDate:e.target.value}))}/></div>
-          <div><Label>Due Time</Label><Input type='time' value={f.dueTime} onChange={e=>setF(x=>({...x,dueTime:e.target.value}))}/></div>
+          <div><Label>Due Date</Label><input type='date' value={f.dueDate} onChange={e=>setF(x=>({...x,dueDate:e.target.value}))} style={tS}/></div>
+          <div><Label>Due Time</Label><input type='time' value={f.dueTime} onChange={e=>setF(x=>({...x,dueTime:e.target.value}))} style={tS}/></div>
         </div>
 
         {/* Contact + Project */}
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
           <div><Label>Contact</Label>
-            <Select value={f.contactId||'__none'} onChange={e=>setF(x=>({...x,contactId:e.target.value==='__none'?'':e.target.value}))}>
+            <select value={f.contactId||'__none'} onChange={e=>setF(x=>({...x,contactId:e.target.value==='__none'?'':e.target.value}))} style={tS}>
               <option value='__none'>None</option>
               {contacts.map(c=><option key={c.id} value={c.id}>{c.fullName||c.email||'Unnamed'}</option>)}
-            </Select>
+            </select>
           </div>
           <div><Label>Project</Label>
-            <Select value={f.dealId||'__none'} onChange={e=>setF(x=>({...x,dealId:e.target.value==='__none'?'':e.target.value}))}>
+            <select value={f.dealId||'__none'} onChange={e=>setF(x=>({...x,dealId:e.target.value==='__none'?'':e.target.value}))} style={tS}>
               <option value='__none'>None</option>
               {deals.map(d=><option key={d.id} value={d.id}>{d.dealName}</option>)}
-            </Select>
+            </select>
           </div>
         </div>
 
         {/* Priority + completed */}
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
           <div><Label>Priority</Label>
-            <Select value={f.priority} onChange={e=>setF(x=>({...x,priority:e.target.value}))}>
+            <select value={f.priority} onChange={e=>setF(x=>({...x,priority:e.target.value}))} style={tS}>
               {['none','low','medium','high'].map(p=><option key={p} value={p}>{p.charAt(0).toUpperCase()+p.slice(1)}</option>)}
-            </Select>
+            </select>
           </div>
           <div style={{display:'flex',alignItems:'flex-end',paddingBottom:2}}>
-            <label style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer',fontSize:13,color:'var(--fg)',fontWeight:500,padding:'8px 12px',border:'1px solid var(--border)',borderRadius:6,background:'var(--card)',width:'100%'}}>
+            <label style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer',fontSize:12,color:'var(--fg)',fontWeight:500,padding:'6px 10px',border:'1px solid var(--border)',borderRadius:6,background:'var(--card)',width:'100%'}}>
               <input type='checkbox' checked={f.completed} onChange={e=>setF(x=>({...x,completed:e.target.checked}))} style={{cursor:'pointer',accentColor:'var(--primary)',width:14,height:14}}/>
               Completed
             </label>
@@ -2583,7 +2606,12 @@ function calcRoom(room, settings){
   if(room.ceiling?.enabled && ceilSqft){
     const cstd = room.ceiling.type==='stucco' ? (std.stuccoCeiling||std.flatCeiling) : std.flatCeiling;
     hrs += ceilSqft / (cstd?.[room.ceiling.coats] || 90);
-    if(room.ceiling.removeStucco) hrs += ceilSqft * (std.removeStucco?.rate || 0.75);
+  }
+  let stuccoCost = 0;
+  let stuccoHrs = 0;
+  if(room.ceiling?.enabled && ceilSqft && room.ceiling.removeStucco){
+    stuccoHrs = ceilSqft / 28;
+    stuccoCost = ceilSqft * (std.removeStucco?.rate || 0.75);
   }
   if(room.baseboards?.enabled && perimLF) hrs += perimLF / (std.baseboards?.[room.baseboards.coats] || 60);
   if(room.crown?.enabled && perimLF) hrs += perimLF / (std.crown?.[room.crown.coats] || 55);
@@ -2596,8 +2624,8 @@ function calcRoom(room, settings){
   } else if(room.doors?.count > 0) hrs += (room.doors.count * 21) / (std.doors?.[room.doors.coats] || 42);
   if(room.windows?.enabled && winLF) hrs += winLF / (std.windows?.[room.windows.coats] || 60);
   hrs += (room.prepHrs || 0);
-  const cost = hrs * (settings.hourlyRate || 65) * (settings.labourBuffer || 1.25);
-  return { wallSqft, ceilSqft, perimLF, winLF, totalHrs:hrs, cost };
+  const cost = hrs * (settings.hourlyRate || 65) * (settings.labourBuffer || 1.25) + stuccoCost;
+  return { wallSqft, ceilSqft, perimLF, winLF, totalHrs: hrs + stuccoHrs, cost };
 }
 
 function calcTotals(rooms, settings, materialCost=0){
@@ -2629,6 +2657,12 @@ function calcRoomLines(room, settings){
     const r = cstd?.[room.ceiling.coats]||90;
     const h = ceilSqft/r;
     lines.push({surface:'Ceiling',area:Math.round(ceilSqft),areaUnit:'sqft',coats:room.ceiling.coats,rate:r,rateLabel:'sqft/hr',hours:h,cost:h*rate});
+    if(room.ceiling.removeStucco){
+      const rr = 28;
+      const hh = ceilSqft / rr;
+      const directCost = ceilSqft * (std.removeStucco?.rate || 0.75);
+      lines.push({surface:'Remove Stucco',area:Math.round(ceilSqft),areaUnit:'sqft',coats:0,rate:rr,rateLabel:'sqft/hr',hours:hh,cost:directCost});
+    }
   }
   if(room.baseboards?.enabled && perimLF){
     const r = std.baseboards?.[room.baseboards.coats]||60;
@@ -3037,6 +3071,7 @@ function CoverTab({client,setClient,deals,contacts,onSelectDeal,selectedDealId})
   const todayStr=new Date().toLocaleDateString('en-CA',{year:'numeric',month:'long',day:'numeric'});
   const docStyle={background:'#fff',color:'#1a1a1a',borderRadius:8,maxWidth:900,margin:'0 auto',padding:40,boxShadow:'0 2px 12px rgba(0,0,0,0.08)'};
   const gold='#C4922A';
+  const fS={fontSize:12,padding:'6px 10px',border:'1px solid var(--border)',borderRadius:6,background:'var(--card)',color:'var(--fg)',width:'100%',fontFamily:'inherit',outline:'none',boxSizing:'border-box'};
   const dealLabel=(d)=>{
     const cid=Array.isArray(d.contact)?d.contact[0]:d.contact;
     const c=(contacts||[]).find(x=>x.id===cid);
@@ -3070,40 +3105,40 @@ function CoverTab({client,setClient,deals,contacts,onSelectDeal,selectedDealId})
         <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--primary)',marginBottom:0}}>Client Information</p>
         <div>
           <Label>Select Project</Label>
-          <Select value={selectedDealId||''} onChange={e=>{if(e.target.value)onSelectDeal(e.target.value);}}>
+          <select value={selectedDealId||''} onChange={e=>{if(e.target.value)onSelectDeal(e.target.value);}} style={fS}>
             <option value=''>— Select a project —</option>
             {deals.map(d=><option key={d.id} value={d.id}>{dealLabel(d)}</option>)}
-          </Select>
+          </select>
         </div>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
           <div>
             <Label>Client Name</Label>
-            <Input value={client.name} onChange={e=>setClient({...client,name:e.target.value})} placeholder='Full name'/>
+            <input value={client.name} onChange={e=>setClient({...client,name:e.target.value})} placeholder='Full name' style={fS}/>
           </div>
           <div>
             <Label>Phone</Label>
-            <Input value={client.phone} onChange={e=>setClient({...client,phone:e.target.value})} placeholder='(xxx) xxx-xxxx'/>
+            <input value={client.phone} onChange={e=>setClient({...client,phone:e.target.value})} placeholder='(xxx) xxx-xxxx' style={fS}/>
           </div>
         </div>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
           <div>
             <Label>Address Line 1</Label>
-            <Input value={client.address? client.address.indexOf(',')>=0? client.address.slice(0,client.address.indexOf(',')).trim(): client.address:''} onChange={e=>{
+            <input value={client.address? client.address.indexOf(',')>=0? client.address.slice(0,client.address.indexOf(',')).trim(): client.address:''} onChange={e=>{
               const line2=client.address&&client.address.indexOf(',')>=0?client.address.slice(client.address.indexOf(',')+1).trim():'';
               setClient({...client,address:line2?`${e.target.value}, ${line2}`:e.target.value});
-            }} placeholder='Street address'/>
+            }} placeholder='Street address' style={fS}/>
           </div>
           <div>
             <Label>Address Line 2</Label>
-            <Input value={client.address&&client.address.indexOf(',')>=0?client.address.slice(client.address.indexOf(',')+1).trim():''} onChange={e=>{
+            <input value={client.address&&client.address.indexOf(',')>=0?client.address.slice(client.address.indexOf(',')+1).trim():''} onChange={e=>{
               const line1=client.address? client.address.indexOf(',')>=0? client.address.slice(0,client.address.indexOf(',')).trim(): client.address:'';
               setClient({...client,address:e.target.value?`${line1}, ${e.target.value}`:line1});
-            }} placeholder='City, Province, Postal'/>
+            }} placeholder='City, Province, Postal' style={fS}/>
           </div>
         </div>
         <div>
           <Label>Email</Label>
-          <Input value={client.email} onChange={e=>setClient({...client,email:e.target.value})} placeholder='client@email.com'/>
+          <input value={client.email} onChange={e=>setClient({...client,email:e.target.value})} placeholder='client@email.com' style={fS}/>
         </div>
       </Card>
     </div>
@@ -3332,8 +3367,8 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
               const prepItems=Object.entries(r.prep).filter(([k,v])=>v&&k!=='custom').map(([k])=>prepLabelsMap[k]||k).filter(Boolean);
               if(r.prep?.custom) prepItems.push(r.prep.custom);
               const surfaces=[];
-              if(r.walls.enabled) surfaces.push(`${r.walls.coats} coat${r.walls.coats>1?'s':''} on walls — ${fmtN(c.wallSqft)} sqft`);
-              if(r.ceiling.enabled) surfaces.push(`${r.ceiling.coats} coat${r.ceiling.coats>1?'s':''} on ceiling — ${fmtN(c.ceilSqft)} sqft`);
+              if(r.walls.enabled) surfaces.push(`${r.walls.coats} coat${r.walls.coats>1?'s':''} on walls — ${fmtN(c.wallSqft)} square feet`);
+              if(r.ceiling.enabled) surfaces.push(`${r.ceiling.coats} coat${r.ceiling.coats>1?'s':''} on ceiling — ${fmtN(c.ceilSqft)} square feet`);
               if(r.baseboards.enabled) surfaces.push(`${r.baseboards.coats} coat${r.baseboards.coats>1?'s':''} on baseboards`);
               if(r.crown.enabled) surfaces.push(`${r.crown.coats} coat${r.crown.coats>1?'s':''} on crown moulding`);
               if(r.doorFrames?.enabled) surfaces.push(`${r.doorFrames.coats} coat${r.doorFrames.coats>1?'s':''} on door frames`);
@@ -3527,15 +3562,15 @@ function ContractTab({rooms,settings,client,totals}){
         <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:8}}>
           <div style={{background:'#faf7f2',borderRadius:6,padding:'8px 10px',textAlign:'center'}}>
             <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>Walls</p>
-            <p style={{fontSize:13,fontWeight:700}}>{fmtN(tWalls)} sqft</p>
+            <p style={{fontSize:13,fontWeight:700}}>{fmtN(tWalls)} square feet</p>
           </div>
           <div style={{background:'#faf7f2',borderRadius:6,padding:'8px 10px',textAlign:'center'}}>
             <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>Ceiling</p>
-            <p style={{fontSize:13,fontWeight:700}}>{fmtN(tCeil)} sqft</p>
+            <p style={{fontSize:13,fontWeight:700}}>{fmtN(tCeil)} square feet</p>
           </div>
           <div style={{background:'#faf7f2',borderRadius:6,padding:'8px 10px',textAlign:'center'}}>
             <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>Trims</p>
-            <p style={{fontSize:13,fontWeight:700}}>{fmtN(tTrim)} lin ft</p>
+            <p style={{fontSize:13,fontWeight:700}}>{fmtN(tTrim)} linear feet</p>
           </div>
           <div style={{background:'#faf7f2',borderRadius:6,padding:'8px 10px',textAlign:'center'}}>
             <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>Doors</p>
@@ -4279,8 +4314,8 @@ function MasterEstimate(){
       rooms.forEach(r=>{
         const c=calcRoom(r,settings);
         const surfaces=[],prepItems=[];
-        if(r.walls?.enabled) surfaces.push(`${r.walls.coats} coat${r.walls.coats>1?'s':''} on walls — ${fmtN(c.wallSqft)} sqft`);
-        if(r.ceiling?.enabled) surfaces.push(`${r.ceiling.coats} coat${r.ceiling.coats>1?'s':''} on ceiling — ${fmtN(c.ceilSqft)} sqft`);
+        if(r.walls?.enabled) surfaces.push(`${r.walls.coats} coat${r.walls.coats>1?'s':''} on walls — ${fmtN(c.wallSqft)} square feet`);
+        if(r.ceiling?.enabled) surfaces.push(`${r.ceiling.coats} coat${r.ceiling.coats>1?'s':''} on ceiling — ${fmtN(c.ceilSqft)} square feet`);
         if(r.baseboards?.enabled) surfaces.push('Baseboards');
         if(r.crown?.enabled) surfaces.push('Crown moulding');
         const dc=roomDoorCount(r);if(dc>0) surfaces.push(`${dc} door${dc>1?'s':''}`);
@@ -4550,8 +4585,8 @@ function exportBidPDF(client,rooms,settings,totals,paints,ceilPaints,primers,col
   rooms.forEach(r=>{
     const c=calcRoom(r,settings);
     const surfaces=[],prepItems=[];
-    if(r.walls?.enabled) surfaces.push(`${r.walls.coats} coat${r.walls.coats>1?'s':''} on walls — ${fmtN(c.wallSqft)} sqft`);
-    if(r.ceiling?.enabled) surfaces.push(`${r.ceiling.coats} coat${r.ceiling.coats>1?'s':''} on ceiling — ${fmtN(c.ceilSqft)} sqft`);
+    if(r.walls?.enabled) surfaces.push(`${r.walls.coats} coat${r.walls.coats>1?'s':''} on walls — ${fmtN(c.wallSqft)} square feet`);
+    if(r.ceiling?.enabled) surfaces.push(`${r.ceiling.coats} coat${r.ceiling.coats>1?'s':''} on ceiling — ${fmtN(c.ceilSqft)} square feet`);
     if(r.baseboards?.enabled) surfaces.push(`Baseboards`);
     if(r.crown?.enabled) surfaces.push(`Crown moulding`);
     const dc=roomDoorCount(r);if(dc>0) surfaces.push(`${dc} door${dc>1?'s':''}`);
@@ -5264,6 +5299,17 @@ const PORTAL_STYLES = `
   .cp-btn-save-sig:disabled{opacity:.5;cursor:not-allowed}
   .cp-sig-status{font-size:12px;font-weight:600}
   .cp-toast{position:fixed;bottom:28px;right:28px;background:#262E4B;color:#fff;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,.3);z-index:99999;max-width:340px}
+  .cp-bell{position:absolute;top:14px;right:16px;background:none;border:none;cursor:pointer;padding:4px;border-radius:50%;transition:background .15s}
+  .cp-bell:hover{background:rgba(196,146,42,.12)}
+  .cp-bell.subscribed svg{fill:#C4922A;stroke:#C4922A}
+  @keyframes cp-shake{0%,100%{transform:rotate(0)}15%{transform:rotate(14deg)}30%{transform:rotate(-12deg)}45%{transform:rotate(10deg)}60%{transform:rotate(-8deg)}75%{transform:rotate(4deg)}90%{transform:rotate(-2deg)}}
+  .cp-bell.shaking{animation:cp-shake .6s ease-in-out}
+  .cp-bell-popup{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99998;display:flex;align-items:center;justify-content:center;padding:20px}
+  .cp-bell-popup-card{background:#fff;border-radius:16px;padding:32px 28px;max-width:380px;width:100%;box-shadow:0 8px 40px rgba(0,0,0,.25);text-align:center}
+  .cp-bell-popup-icon{width:56px;height:56px;background:rgba(196,146,42,.1);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px}
+  .cp-bell-popup h3{font-size:17px;font-weight:700;color:#262E4B;margin-bottom:8px}
+  .cp-bell-popup p{font-size:13px;color:#7a6e65;line-height:1.6;margin-bottom:20px}
+  .cp-bell-popup-btn{background:#C4922A;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer}
 `;
 
 function portalStageStyle(stage){
@@ -5286,6 +5332,9 @@ function ClientPortal({session}){
   const [toast, setToast] = useState('');
   const [sigStatus, setSigStatus] = useState('');
   const [sigSaving, setSigSaving] = useState(false);
+  const [notifSubs, setNotifSubs] = useState({});
+  const [shakingBell, setShakingBell] = useState(null);
+  const [bellPopup, setBellPopup] = useState(null);
   const sigCanvasRef = useRef(null);
   const sigDrawingRef = useRef(false);
   const frameRef = useRef(null);
@@ -5308,6 +5357,41 @@ function ClientPortal({session}){
   useEffect(()=>{
     if(email) loadProjects();
   },[email, loadProjects]);
+
+  useEffect(()=>{
+    if(!email) return;
+    (async()=>{
+      try{
+        const rows = await supaFetch(`/rest/v1/project_notifications?email=eq.${encodeURIComponent(email)}&select=deal_id`);
+        if(rows){
+          const map = {};
+          rows.forEach(r=>{map[r.deal_id]=true;});
+          setNotifSubs(map);
+        }
+      }catch(e){}
+    })();
+  },[email]);
+
+  const toggleBellNotification = async(dealId)=>{
+    setShakingBell(dealId);
+    setTimeout(()=>setShakingBell(null),600);
+    const alreadySubscribed = notifSubs[dealId];
+    if(alreadySubscribed){
+      try{
+        await supaFetch(`/rest/v1/project_notifications?email=eq.${encodeURIComponent(email)}&deal_id=eq.${encodeURIComponent(dealId)}`,'DELETE');
+        setNotifSubs(prev=>{const n={...prev};delete n[dealId];return n;});
+        showToast('Email notifications turned off for this project.');
+      }catch(e){}
+    } else {
+      try{
+        await supaFetch('/rest/v1/project_notifications','POST',{email, deal_id:dealId});
+        setNotifSubs(prev=>({...prev,[dealId]:true}));
+        setBellPopup(dealId);
+      }catch(e){
+        showToast('Could not enable notifications. Please try again.');
+      }
+    }
+  };
 
   const wrapDocHtml = (html)=>{
     if(html&&(html.trim().toLowerCase().startsWith('<!doctype')||html.trim().toLowerCase().startsWith('<html'))){
@@ -5462,8 +5546,16 @@ body{font-family:'Montserrat',Georgia,sans-serif;background:#fff;color:#1a1714;p
     const hasDocs = d.quote_html||d.contract_html||d.change_order_html||d.invoice_html||(d.drive_files&&d.drive_files.length);
     const stObj = portalStageObj(d.stage);
     return (
-      <div key={d.id} className="cp-card">
+      <div key={d.id} className="cp-card" style={{position:'relative'}}>
         <div className="cp-card-head">
+          <button
+            className={`cp-bell${notifSubs[d.id]?' subscribed':''}${shakingBell===d.id?' shaking':''}`}
+            onClick={e=>{e.stopPropagation();toggleBellNotification(d.id);}}
+            title={notifSubs[d.id]?'Notifications on — click to turn off':'Get email updates'}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill={notifSubs[d.id]?'#C4922A':'none'} stroke={notifSubs[d.id]?'#C4922A':'#9ca3af'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+          </button>
           <div className="cp-stage-pill" style={stObj}>{d.stage||'Lead'}</div>
           <div className="cp-name">{d.dealName||'Project'}</div>
           {d.address&&<div className="cp-addr">{'\u{1F4CD}'} {d.address}</div>}
@@ -5534,6 +5626,21 @@ body{font-family:'Montserrat',Georgia,sans-serif;background:#fff;color:#1a1714;p
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {bellPopup&&(
+        <div className="cp-bell-popup" onClick={()=>setBellPopup(null)}>
+          <div className="cp-bell-popup-card" onClick={e=>e.stopPropagation()}>
+            <div className="cp-bell-popup-icon">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="#C4922A" stroke="#C4922A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+              </svg>
+            </div>
+            <h3>Notifications Enabled</h3>
+            <p>Now receiving email updates on the progress of your project!</p>
+            <button className="cp-bell-popup-btn" onClick={()=>setBellPopup(null)}>Got it</button>
+          </div>
         </div>
       )}
 

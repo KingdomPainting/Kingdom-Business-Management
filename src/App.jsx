@@ -39,6 +39,12 @@ const STYLE = `
   .est-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
   @media (max-width:768px) {
     .est-grid-2 { grid-template-columns:1fr; }
+    .fin-grid { grid-template-columns:1fr !important; }
+    .fin-grid .fin-stat-val { font-size:22px !important; }
+    .fin-outer { padding:16px 12px !important; }
+    .fin-table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    .fin-table-wrap table { min-width:600px !important; }
+    .fin-pie-wrap { display:flex; justify-content:center; }
   }
 `;
 
@@ -4273,6 +4279,24 @@ function MasterEstimate(){
     setCurrentEstimateId(null);setActiveTab('cover');
   };
 
+  const deleteEstimate=async(eid)=>{
+    if(!confirm('Delete this saved estimate?'))return;
+    try{
+      await supaFetch(`/rest/v1/estimates?id=eq.${eid}`,'DELETE');
+      setSavedEstimates(prev=>prev.filter(e=>e.id!==eid));
+      if(currentEstimateId===eid) setCurrentEstimateId(null);
+    }catch(e){console.warn('Delete estimate error:',e);}
+  };
+
+  const deleteAllEstimates=async()=>{
+    if(!confirm(`Delete all ${savedEstimates.length} saved estimates? This cannot be undone.`))return;
+    try{
+      await supaFetch(`/rest/v1/estimates?user_id=eq.${_session.user.id}`,'DELETE');
+      setSavedEstimates([]);
+      setCurrentEstimateId(null);
+    }catch(e){console.warn('Delete all estimates error:',e);}
+  };
+
   const onSelectDeal=(dealId)=>{
     setSelectedDealId(dealId);
     const deal=deals.find(d=>d.id===dealId);
@@ -4480,16 +4504,35 @@ function MasterEstimate(){
           <div style={{position:'absolute',top:0,right:0,width:360,height:'100%',background:'var(--card)',borderLeft:'1px solid var(--border)',boxShadow:'-4px 0 20px rgba(0,0,0,0.1)',zIndex:10,display:'flex',flexDirection:'column'}}>
             <div style={{padding:'16px 20px',borderBottom:'1px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
               <p style={{fontSize:14,fontWeight:700}}>Saved Estimates</p>
-              <button onClick={()=>setShowLoadPanel(false)} style={{background:'none',border:'none',cursor:'pointer',fontSize:18,color:'var(--muted-fg)'}}>&times;</button>
+              <div style={{display:'flex',alignItems:'center',gap:8}}>
+                {savedEstimates.length>0&&(
+                  <button onClick={deleteAllEstimates}
+                    style={{background:'none',border:'1px solid rgba(239,68,68,0.3)',borderRadius:6,padding:'4px 10px',fontSize:11,fontWeight:600,color:'#ef4444',cursor:'pointer',whiteSpace:'nowrap'}}
+                    onMouseEnter={e=>e.target.style.background='rgba(239,68,68,0.08)'}
+                    onMouseLeave={e=>e.target.style.background='none'}>
+                    Delete All
+                  </button>
+                )}
+                <button onClick={()=>setShowLoadPanel(false)} style={{background:'none',border:'none',cursor:'pointer',fontSize:18,color:'var(--muted-fg)'}}>&times;</button>
+              </div>
             </div>
             <div style={{flex:1,overflow:'auto',padding:12}}>
               {savedEstimates.length===0&&<p style={{fontSize:12,color:'var(--muted-fg)',textAlign:'center',padding:20}}>No saved estimates</p>}
               {savedEstimates.map(est=>(
-                <div key={est.id} onClick={()=>loadEstimate(est.id)}
-                  style={{padding:'12px 14px',borderRadius:8,marginBottom:6,cursor:'pointer',border:'1px solid var(--border)',background:'var(--bg)'}}>
-                  <p style={{fontSize:13,fontWeight:600}}>{est.title||est.client_name||'Untitled'}</p>
-                  <p style={{fontSize:11,color:'var(--muted-fg)'}}>{est.client_name&&est.title?est.client_name:est.client_email||''}</p>
-                  {est.updated_at&&<p style={{fontSize:10,color:'var(--muted-fg)',marginTop:4}}>{new Date(est.updated_at).toLocaleDateString('en-CA')}</p>}
+                <div key={est.id}
+                  style={{padding:'12px 14px',borderRadius:8,marginBottom:6,border:'1px solid var(--border)',background:'var(--bg)',display:'flex',alignItems:'flex-start',gap:10}}>
+                  <div style={{flex:1,cursor:'pointer'}} onClick={()=>loadEstimate(est.id)}>
+                    <p style={{fontSize:13,fontWeight:600}}>{est.title||est.client_name||'Untitled'}</p>
+                    <p style={{fontSize:11,color:'var(--muted-fg)'}}>{est.client_name&&est.title?est.client_name:est.client_email||''}</p>
+                    {est.updated_at&&<p style={{fontSize:10,color:'var(--muted-fg)',marginTop:4}}>{new Date(est.updated_at).toLocaleDateString('en-CA')}</p>}
+                  </div>
+                  <button onClick={(e)=>{e.stopPropagation();deleteEstimate(est.id);}}
+                    title="Delete estimate"
+                    style={{background:'none',border:'none',cursor:'pointer',color:'var(--muted-fg)',padding:4,borderRadius:4,flexShrink:0,display:'flex',alignItems:'center',marginTop:2}}
+                    onMouseEnter={e=>{e.currentTarget.style.color='#ef4444';e.currentTarget.style.background='rgba(239,68,68,0.08)';}}
+                    onMouseLeave={e=>{e.currentTarget.style.color='var(--muted-fg)';e.currentTarget.style.background='none';}}>
+                    <Trash2 size={14}/>
+                  </button>
                 </div>
               ))}
             </div>
@@ -5014,13 +5057,13 @@ function Financials({showToast}){
   const thStyle={padding:'8px 10px',fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--muted-fg)',borderBottom:'2px solid var(--border)',whiteSpace:'nowrap',textAlign:'left'};
 
   return (
-    <div style={{padding:'20px 24px',overflowY:'auto',height:'100%',display:'flex',flexDirection:'column',gap:20}}>
+    <div className="fin-outer" style={{padding:'20px 24px',overflowY:'auto',height:'100%',display:'flex',flexDirection:'column',gap:20}}>
       <div>
         <h1 style={{fontSize:22,fontWeight:700}}>Financials</h1>
       </div>
 
       {/* ── Stat cards (Row 1) ── */}
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:14,flexShrink:0}}>
+      <div className="fin-grid" style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:14,flexShrink:0}}>
         {[
           {label:'Avg Revenue / Month',value:fmtUSD(avgRevenuePerMonth),color:'var(--primary)'},
           {label:'Avg Profit / Month',value:fmtUSD(avgProfitPerMonth),color:avgProfitPerMonth>=0?'#22c55e':'#ef4444'},
@@ -5028,13 +5071,13 @@ function Financials({showToast}){
         ].map(({label,value,color})=>(
           <Card key={label} style={{padding:'14px 18px'}}>
             <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',marginBottom:4}}>{label}</p>
-            <p style={{fontSize:28,fontWeight:700,color,lineHeight:1}}>{value}</p>
+            <p className="fin-stat-val" style={{fontSize:28,fontWeight:700,color,lineHeight:1}}>{value}</p>
           </Card>
         ))}
       </div>
 
       {/* ── Row 2: charts ── */}
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:14}}>
+      <div className="fin-grid" style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:14}}>
         <Card style={{display:'flex',flexDirection:'column'}}>
           <div style={{padding:'10px 14px 4px',fontWeight:600,fontSize:12}}>Monthly Revenue</div>
           <div style={{padding:'0 14px 10px'}}>
@@ -5107,7 +5150,7 @@ function Financials({showToast}){
         // Leads by source — avg per month using quote_date
         const totalLeadsWithSrc=activeDeals.filter(d=>d.leadSource).length||1;
         return (
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:14}}>
+          <div className="fin-grid" style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:14}}>
             <Card style={{padding:'14px 18px',display:'flex',flexDirection:'column',gap:4}}>
               <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',marginBottom:8}}>Leads by Source / Month</p>
               <div style={{display:'flex',flexDirection:'column',gap:7}}>
@@ -5130,12 +5173,14 @@ function Financials({showToast}){
             </Card>
             <Card style={{padding:'14px 18px',display:'flex',flexDirection:'column',gap:8}}>
               <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)'}}>Cost Breakdown (Avg)</p>
-              <div style={{display:'flex',alignItems:'center',gap:8,flex:1}}>
-                <PieChart width={150} height={150}>
-                  <Pie data={costPieData} cx={70} cy={70} innerRadius={42} outerRadius={68} dataKey='value' startAngle={90} endAngle={-270} strokeWidth={0}>
-                    {costPieData.map((e,i)=><Cell key={i} fill={e.color}/>)}
-                  </Pie>
-                </PieChart>
+              <div style={{display:'flex',alignItems:'center',gap:8,flex:1,flexWrap:'wrap'}}>
+                <div className="fin-pie-wrap" style={{width:150,height:150,flexShrink:0}}>
+                  <PieChart width={150} height={150}>
+                    <Pie data={costPieData} cx={70} cy={70} innerRadius={42} outerRadius={68} dataKey='value' startAngle={90} endAngle={-270} strokeWidth={0}>
+                      {costPieData.map((e,i)=><Cell key={i} fill={e.color}/>)}
+                    </Pie>
+                  </PieChart>
+                </div>
                 <div style={{display:'flex',flexDirection:'column',gap:10,flex:1}}>
                   {costPieData.map(d=>(
                     <div key={d.name} style={{display:'flex',alignItems:'center',gap:8}}>
@@ -5167,7 +5212,7 @@ function Financials({showToast}){
 
       {/* ── Financials table ── */}
       <Card>
-        <div style={{overflowX:'auto'}}>
+        <div className="fin-table-wrap" style={{overflowX:'auto'}}>
           <table style={{width:'100%',borderCollapse:'collapse',minWidth:800}}>
             <thead>
               <tr style={{background:'var(--muted)'}}>

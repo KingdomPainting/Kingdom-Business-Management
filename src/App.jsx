@@ -36,6 +36,10 @@ const STYLE = `
   ::-webkit-scrollbar { width: 5px; height: 5px; }
   ::-webkit-scrollbar-track { background: var(--bg); }
   ::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 9px; }
+  .est-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+  @media (max-width:768px) {
+    .est-grid-2 { grid-template-columns:1fr; }
+  }
 `;
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
@@ -3734,7 +3738,7 @@ function LabourRatesTab({labour,setLabour,onSave}){
 
   return (
     <div style={{padding:24,overflowY:'auto',height:'100%'}}>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:16}}>
+      <div className='est-grid-2'>
         <Card className='p-5'>
           <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--primary)',marginBottom:12}}>Rate Calculation</p>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:12}}>
@@ -3907,7 +3911,7 @@ function PaintInputsTab({paints,setPaints,ceilPaints,setCeilPaints,primers,setPr
 
   return (
     <div style={{padding:24,overflowY:'auto',height:'100%'}}>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:16}}>
+      <div className='est-grid-2'>
         <Card className='p-5'>
           <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--primary)',marginBottom:12}}>Paints</p>
           <DragTable items={paints} setItems={setPaints} columns={paintCols}
@@ -4038,7 +4042,7 @@ function StandardsTab({standards,setStandards,onSave}){
         All values are editable and update labour calculations in real time.
       </div>
 
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:16}}>
+      <div className='est-grid-2'>
         <Card className='p-5'>
           <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--primary)',marginBottom:12}}>Walls — sqft per hour</p>
           {coatTable('walls')}

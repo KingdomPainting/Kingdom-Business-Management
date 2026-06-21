@@ -4402,7 +4402,7 @@ function MasterEstimate(){
       chtml+='<div><div style="border-bottom:1px solid #ccc;height:60px;margin-bottom:8px"></div><p style="color:#888">Contractor Signature</p></div></div>';
       chtml+='</body></html>';
 
-      const pushData={value:totals.total,estimateHrs:totalHrs,rooms:dealRooms,quote_html:qhtml,quote_date:todayISO,contract_html:chtml};
+      const pushData={value:totals.total,rooms:dealRooms,quote_html:qhtml,quote_date:todayISO,contract_html:chtml};
 
       if(changeItems.length>0){
         const coSub=changeItems.reduce((s,it)=>s+(parseFloat(it.amount)||0),0);

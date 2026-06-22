@@ -1890,10 +1890,19 @@ function PhotoCaptureOverlay({onClose,onSave,bmColours,swColours}){
   const [brand,setBrand]=useState('Benjamin Moore');
   const [colour,setColour]=useState('');
   const [saving,setSaving]=useState(false);
-  const [intensity,setIntensity]=useState(0.55);
+  const [intensity,setIntensity]=useState(0.7);
+  const [brushSize,setBrushSize]=useState(32);
+  const [erase,setErase]=useState(false);
+  const [hasPaint,setHasPaint]=useState(false);
   const fileRef=useRef(null);
-  const canvasRef=useRef(null);
-  const imgRef=useRef(null);
+  const dispRef=useRef(null);     // visible canvas
+  const baseImgRef=useRef(null);  // loaded Image
+  const maskRef=useRef(null);     // offscreen mask canvas (white where wall painted)
+  const tintRef=useRef(null);     // offscreen tint layer
+  const paintingRef=useRef(false);
+  const lastPosRef=useRef(null);
+  const hexRef=useRef('');
+  const intensityRef=useRef(0.7);
 
   const colours=brand==='Benjamin Moore'?bmColours:swColours;
   const selColour=colours.find(c=>c.n===colour);
@@ -1901,33 +1910,75 @@ function PhotoCaptureOverlay({onClose,onSave,bmColours,swColours}){
   useEffect(()=>{setColour(colours[0]?.n||'');},[brand]);
   useEffect(()=>{if(!photoData) fileRef.current?.click();},[]);
 
+  useEffect(()=>{hexRef.current=selColour?.h||'';render();},[selColour?.h]);
+  useEffect(()=>{intensityRef.current=intensity;render();},[intensity]);
+
+  // Load image + set up canvases when a photo is captured
   useEffect(()=>{
-    if(!photoData||!selColour) return;
+    if(!photoData) return;
     const img=new Image();
     img.onload=()=>{
-      imgRef.current=img;
-      paintCanvas(img,selColour.h,intensity);
+      baseImgRef.current=img;
+      const mk=document.createElement('canvas');mk.width=img.width;mk.height=img.height;
+      const tn=document.createElement('canvas');tn.width=img.width;tn.height=img.height;
+      maskRef.current=mk;tintRef.current=tn;
+      const cv=dispRef.current;
+      if(cv){cv.width=img.width;cv.height=img.height;}
+      setHasPaint(false);
+      render();
     };
     img.src=photoData;
   },[photoData]);
 
-  useEffect(()=>{
-    if(imgRef.current&&selColour) paintCanvas(imgRef.current,selColour.h,intensity);
-  },[selColour?.h,intensity]);
+  const render=()=>{
+    const cv=dispRef.current,img=baseImgRef.current,mk=maskRef.current,tn=tintRef.current;
+    if(!cv||!img||!mk||!tn) return;
+    const dctx=cv.getContext('2d');
+    dctx.globalCompositeOperation='source-over';dctx.globalAlpha=1;
+    dctx.clearRect(0,0,cv.width,cv.height);
+    dctx.drawImage(img,0,0);
+    // build tint = swatch colour masked to painted walls
+    const hex=hexRef.current;
+    if(hex){
+      const tctx=tn.getContext('2d');
+      tctx.globalCompositeOperation='source-over';tctx.globalAlpha=1;
+      tctx.clearRect(0,0,tn.width,tn.height);
+      tctx.fillStyle=hex;tctx.fillRect(0,0,tn.width,tn.height);
+      tctx.globalCompositeOperation='destination-in';
+      tctx.drawImage(mk,0,0);
+      tctx.globalCompositeOperation='source-over';
+      // apply tint with 'color' blend only over the walls
+      dctx.globalCompositeOperation='color';
+      dctx.globalAlpha=intensityRef.current;
+      dctx.drawImage(tn,0,0);
+      dctx.globalCompositeOperation='source-over';
+      dctx.globalAlpha=1;
+    }
+  };
 
-  const paintCanvas=(img,hex,alpha)=>{
-    const cv=canvasRef.current;
-    if(!cv) return;
-    cv.width=img.width;cv.height=img.height;
-    const ctx=cv.getContext('2d');
-    ctx.clearRect(0,0,cv.width,cv.height);
-    ctx.drawImage(img,0,0);
-    ctx.globalCompositeOperation='color';
-    ctx.globalAlpha=alpha;
-    ctx.fillStyle=hex;
-    ctx.fillRect(0,0,cv.width,cv.height);
-    ctx.globalCompositeOperation='source-over';
-    ctx.globalAlpha=1.0;
+  const getPos=e=>{
+    const cv=dispRef.current,rect=cv.getBoundingClientRect();
+    const sx=cv.width/rect.width,sy=cv.height/rect.height;
+    return {x:(e.clientX-rect.left)*sx,y:(e.clientY-rect.top)*sy,bx:brushSize*sx};
+  };
+  const stroke=p=>{
+    const mctx=maskRef.current.getContext('2d');
+    mctx.globalCompositeOperation=erase?'destination-out':'source-over';
+    mctx.strokeStyle='#fff';mctx.fillStyle='#fff';mctx.lineCap='round';mctx.lineJoin='round';mctx.lineWidth=p.bx;
+    const last=lastPosRef.current;
+    if(last){mctx.beginPath();mctx.moveTo(last.x,last.y);mctx.lineTo(p.x,p.y);mctx.stroke();}
+    else{mctx.beginPath();mctx.arc(p.x,p.y,p.bx/2,0,Math.PI*2);mctx.fill();}
+    lastPosRef.current=p;
+    if(!erase)setHasPaint(true);
+    render();
+  };
+  const onDown=e=>{e.preventDefault();dispRef.current.setPointerCapture?.(e.pointerId);paintingRef.current=true;lastPosRef.current=null;stroke(getPos(e));};
+  const onMove=e=>{if(paintingRef.current){e.preventDefault();stroke(getPos(e));}};
+  const onUp=()=>{paintingRef.current=false;lastPosRef.current=null;};
+  const clearMask=()=>{
+    const mk=maskRef.current;if(!mk)return;
+    mk.getContext('2d').clearRect(0,0,mk.width,mk.height);
+    setHasPaint(false);render();
   };
 
   const handleFile=async e=>{
@@ -1940,7 +1991,7 @@ function PhotoCaptureOverlay({onClose,onSave,bmColours,swColours}){
   const handleSave=async()=>{
     if(!photoData)return;
     setSaving(true);
-    const cv=canvasRef.current;
+    const cv=dispRef.current;
     const tinted=cv?cv.toDataURL('image/jpeg',0.8):photoData;
     await onSave({data:photoData,preview:tinted,brand,colour,colourHex:selColour?.h||'',takenAt:new Date().toISOString()});
     setSaving(false);
@@ -1948,17 +1999,18 @@ function PhotoCaptureOverlay({onClose,onSave,bmColours,swColours}){
   };
 
   const oS={position:'fixed',inset:0,background:'rgba(0,0,0,.65)',zIndex:99999,display:'flex',alignItems:'center',justifyContent:'center',padding:16};
-  const cS={background:'#fff',borderRadius:14,maxWidth:480,width:'100%',maxHeight:'90vh',overflowY:'auto',boxShadow:'0 8px 40px rgba(0,0,0,.3)'};
+  const cS={background:'#fff',borderRadius:14,maxWidth:480,width:'100%',maxHeight:'92vh',overflowY:'auto',boxShadow:'0 8px 40px rgba(0,0,0,.3)'};
   const hS={padding:'16px 20px',borderBottom:'1px solid #eee',display:'flex',alignItems:'center',justifyContent:'space-between'};
   const bS={padding:'16px 20px'};
   const selS={width:'100%',fontSize:13,padding:'8px 10px',border:'1px solid #ddd',borderRadius:8,background:'#fff',fontFamily:'inherit',outline:'none',boxSizing:'border-box'};
   const btnS={background:'#C4922A',color:'#fff',border:'none',borderRadius:8,padding:'10px 0',fontSize:14,fontWeight:700,fontFamily:'inherit',cursor:'pointer',width:'100%',marginTop:12};
+  const pillS=active=>({fontSize:11,fontWeight:600,padding:'6px 12px',borderRadius:8,border:'1px solid '+(active?'#C4922A':'#ddd'),background:active?'rgba(196,146,42,.1)':'#fff',color:active?'#C4922A':'#666',cursor:'pointer',fontFamily:'inherit'});
 
   return (
     <div style={oS} onClick={onClose}>
       <div style={cS} onClick={e=>e.stopPropagation()}>
         <div style={hS}>
-          <span style={{fontSize:15,fontWeight:700,color:'#1a1714'}}>Tag Photo</span>
+          <span style={{fontSize:15,fontWeight:700,color:'#1a1714'}}>Preview Wall Colour</span>
           <button onClick={onClose} style={{background:'none',border:'none',fontSize:20,cursor:'pointer',color:'#999',lineHeight:1}}>&times;</button>
         </div>
         <div style={bS}>
@@ -1966,12 +2018,27 @@ function PhotoCaptureOverlay({onClose,onSave,bmColours,swColours}){
           {!photoData&&<button onClick={()=>fileRef.current?.click()} style={{...btnS,background:'#262E4B',marginTop:0}}>Open Camera</button>}
           {photoData&&(
             <>
-              <canvas ref={canvasRef} style={{width:'100%',borderRadius:8,marginBottom:6,border:'1px solid #eee',display:'block'}}/>
+              <canvas ref={dispRef}
+                onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerLeave={onUp}
+                style={{width:'100%',borderRadius:8,marginBottom:6,border:'1px solid #eee',display:'block',touchAction:'none',cursor:'crosshair'}}/>
+              <p style={{fontSize:11,color:'#888',marginBottom:10,textAlign:'center'}}>
+                {hasPaint?'Brush over the walls to preview the colour.':'\u{1F58C}️ Brush over the walls to paint them with the selected colour.'}
+              </p>
+              <div style={{display:'flex',gap:8,marginBottom:12}}>
+                <button onClick={()=>setErase(false)} style={pillS(!erase)}>Paint</button>
+                <button onClick={()=>setErase(true)} style={pillS(erase)}>Erase</button>
+                <button onClick={clearMask} style={{...pillS(false),marginLeft:'auto'}}>Reset</button>
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+                <span style={{fontSize:11,color:'#888',flexShrink:0,minWidth:56}}>Brush</span>
+                <input type="range" min="10" max="80" value={brushSize}
+                  onChange={e=>setBrushSize(+e.target.value)} style={{flex:1,accentColor:'#C4922A'}}/>
+                <span style={{fontSize:11,color:'#555',minWidth:32,textAlign:'right'}}>{brushSize}</span>
+              </div>
               <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:14}}>
                 <span style={{fontSize:11,color:'#888',flexShrink:0,minWidth:56}}>Intensity</span>
                 <input type="range" min="0" max="100" value={Math.round(intensity*100)}
-                  onChange={e=>setIntensity(e.target.value/100)}
-                  style={{flex:1,accentColor:'#C4922A'}}/>
+                  onChange={e=>setIntensity(e.target.value/100)} style={{flex:1,accentColor:'#C4922A'}}/>
                 <span style={{fontSize:11,color:'#555',minWidth:32,textAlign:'right'}}>{Math.round(intensity*100)}%</span>
               </div>
               <label style={{display:'block',fontSize:12,fontWeight:600,color:'#888',marginBottom:4}}>Paint Brand</label>

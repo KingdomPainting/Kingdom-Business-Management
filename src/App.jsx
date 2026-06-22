@@ -10,7 +10,7 @@ import {
   MapPin, Star, CalendarDays, StickyNote, CheckSquare, DollarSign,
   TrendingUp, Percent, Layers, ArrowRight, ArrowLeft,
   ChevronRight, ChevronDown, Archive as ArchiveIcon, Receipt, BarChart2,
-  Save, Loader2, GripVertical, Printer, Download, Eye,
+  Save, Loader2, GripVertical, Printer, Download, Eye, Camera,
 } from "lucide-react";
 
 // ─── Theme / CSS variables ───────────────────────────────────────────────────
@@ -1853,6 +1853,110 @@ async function autoCreateScheduledTask(deal, contacts){
   }catch(e){console.warn('autoCreateScheduledTask error:',e);}
 }
 
+async function loadPaintColours(){
+  try{
+    if(!_session?.user?.id) return {bm:DEFAULT_COLOURS,sw:DEFAULT_SW_COLOURS};
+    const rows=await supaFetch(`/rest/v1/paint_settings?user_id=eq.${_session.user.id}&select=data`);
+    if(rows&&rows.length){
+      const d=rows[0].data||{};
+      return {bm:d.colours?.length?d.colours:DEFAULT_COLOURS,sw:d.swColours?.length?d.swColours:DEFAULT_SW_COLOURS};
+    }
+  }catch(e){}
+  return {bm:DEFAULT_COLOURS,sw:DEFAULT_SW_COLOURS};
+}
+
+function compressImage(file,maxW=1200){
+  return new Promise(resolve=>{
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const img=new Image();
+      img.onload=()=>{
+        const canvas=document.createElement('canvas');
+        let w=img.width,h=img.height;
+        if(w>maxW){h=Math.round(h*(maxW/w));w=maxW;}
+        canvas.width=w;canvas.height=h;
+        const ctx=canvas.getContext('2d');
+        ctx.drawImage(img,0,0,w,h);
+        resolve(canvas.toDataURL('image/jpeg',0.7));
+      };
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function PhotoCaptureOverlay({onClose,onSave,bmColours,swColours}){
+  const [photoData,setPhotoData]=useState(null);
+  const [brand,setBrand]=useState('Benjamin Moore');
+  const [colour,setColour]=useState('');
+  const [saving,setSaving]=useState(false);
+  const fileRef=useRef(null);
+
+  const colours=brand==='Benjamin Moore'?bmColours:swColours;
+  const selColour=colours.find(c=>c.n===colour);
+
+  useEffect(()=>{setColour(colours[0]?.n||'');},[brand]);
+  useEffect(()=>{if(!photoData) fileRef.current?.click();},[]);
+
+  const handleFile=async e=>{
+    const file=e.target.files?.[0];
+    if(!file){onClose();return;}
+    const data=await compressImage(file);
+    setPhotoData(data);
+  };
+
+  const handleSave=async()=>{
+    if(!photoData)return;
+    setSaving(true);
+    await onSave({data:photoData,brand,colour,colourHex:selColour?.h||'',takenAt:new Date().toISOString()});
+    setSaving(false);
+    onClose();
+  };
+
+  const oS={position:'fixed',inset:0,background:'rgba(0,0,0,.65)',zIndex:99999,display:'flex',alignItems:'center',justifyContent:'center',padding:16};
+  const cS={background:'#fff',borderRadius:14,maxWidth:420,width:'100%',maxHeight:'90vh',overflowY:'auto',boxShadow:'0 8px 40px rgba(0,0,0,.3)'};
+  const hS={padding:'16px 20px',borderBottom:'1px solid #eee',display:'flex',alignItems:'center',justifyContent:'space-between'};
+  const bS={padding:'16px 20px'};
+  const selS={width:'100%',fontSize:13,padding:'8px 10px',border:'1px solid #ddd',borderRadius:8,background:'#fff',fontFamily:'inherit',outline:'none',boxSizing:'border-box'};
+  const btnS={background:'#C4922A',color:'#fff',border:'none',borderRadius:8,padding:'10px 0',fontSize:14,fontWeight:700,fontFamily:'inherit',cursor:'pointer',width:'100%',marginTop:12};
+
+  return (
+    <div style={oS} onClick={onClose}>
+      <div style={cS} onClick={e=>e.stopPropagation()}>
+        <div style={hS}>
+          <span style={{fontSize:15,fontWeight:700,color:'#1a1714'}}>Tag Photo</span>
+          <button onClick={onClose} style={{background:'none',border:'none',fontSize:20,cursor:'pointer',color:'#999',lineHeight:1}}>&times;</button>
+        </div>
+        <div style={bS}>
+          <input ref={fileRef} type="file" accept="image/*" capture="environment" style={{display:'none'}} onChange={handleFile}/>
+          {!photoData&&<button onClick={()=>fileRef.current?.click()} style={{...btnS,background:'#262E4B',marginTop:0}}>Open Camera</button>}
+          {photoData&&(
+            <>
+              <img src={photoData} alt="Captured" style={{width:'100%',borderRadius:8,marginBottom:14,border:'1px solid #eee'}}/>
+              <label style={{display:'block',fontSize:12,fontWeight:600,color:'#888',marginBottom:4}}>Paint Brand</label>
+              <select value={brand} onChange={e=>setBrand(e.target.value)} style={{...selS,marginBottom:12}}>
+                <option>Benjamin Moore</option>
+                <option>Sherwin Williams</option>
+              </select>
+              <label style={{display:'block',fontSize:12,fontWeight:600,color:'#888',marginBottom:4}}>Colour</label>
+              <select value={colour} onChange={e=>setColour(e.target.value)} style={selS}>
+                {colours.map(c=><option key={c.n} value={c.n}>{c.n}</option>)}
+              </select>
+              {selColour&&(
+                <div style={{display:'flex',alignItems:'center',gap:8,marginTop:8}}>
+                  <div style={{width:24,height:24,borderRadius:6,background:selColour.h,border:'1px solid #ccc',flexShrink:0}}/>
+                  <span style={{fontSize:12,color:'#555'}}>{selColour.n}</span>
+                </div>
+              )}
+              <button onClick={handleSave} disabled={saving} style={{...btnS,opacity:saving?.5:1}}>{saving?'Saving...':'Save Photo'}</button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Pipeline({showToast}){
   const [deals,setDeals]=useState(()=>api.getDeals());
   const [contacts,setContacts]=useState(()=>api.getContacts());
@@ -1863,11 +1967,15 @@ function Pipeline({showToast}){
   const [dragId,setDragId]=useState(null);
   const [dragOver,setDragOver]=useState(null);
   const [showArchive,setShowArchive]=useState(false);
+  const [cameraDeal,setCameraDeal]=useState(null);
+  const [bmColours,setBmColours]=useState(DEFAULT_COLOURS);
+  const [swColours,setSwColours]=useState(DEFAULT_SW_COLOURS);
 
   const load=()=>{setDeals(api.getDeals());setContacts(api.getContacts());};
   useEffect(()=>{
     api.loadDeals().then(()=>load());
     api.loadContacts().then(()=>setContacts(api.getContacts()));
+    loadPaintColours().then(c=>{setBmColours(c.bm);setSwColours(c.sw);});
   },[]);
   const contactName=deal=>{const cid=Array.isArray(deal.contact)?deal.contact[0]:deal.contact;return contacts.find(c=>c.id===cid)?.fullName||deal.contactFreeText||'';};
   const refName=deal=>{if(!deal.referralName)return '';return contacts.find(c=>c.id===deal.referralName)?.fullName||'';};
@@ -1881,6 +1989,14 @@ function Pipeline({showToast}){
       showToast(`Moved to ${newStage}`);
       load();
     }
+  };
+
+  const savePhoto=async(dealId,photo)=>{
+    const deal=deals.find(d=>d.id===dealId);
+    const photos=[...(deal?.photos||[]),{id:Date.now().toString(36),...photo}];
+    await api.saveDeal({photos},dealId);
+    load();
+    showToast('Photo saved');
   };
 
   const removeDay=async(deal,date)=>{
@@ -1972,14 +2088,21 @@ function Pipeline({showToast}){
                           {deal.leadSource&&<span style={{fontSize:11,fontWeight:700,padding:'2px 9px',borderRadius:20,background:(LEAD_COLORS[deal.leadSource]||{bg:'#f3f4f6'}).bg,color:(LEAD_COLORS[deal.leadSource]||{color:'#374151'}).color,letterSpacing:'0.01em'}}>{deal.leadSource}</span>}
                         </div>
                       )}
-                      {/* Title + delete */}
+                      {/* Title + actions */}
                       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:6,marginBottom:8}}>
                         <p style={{fontSize:15,fontWeight:600,lineHeight:1.35,color:'var(--fg)'}}>{deal.dealName}</p>
-                        <button onClick={e=>{e.stopPropagation();setConfirm({id:deal.id,name:deal.dealName,deal});}}
-                          style={{background:'none',border:'none',cursor:'pointer',padding:4,borderRadius:6,color:'var(--destructive)',flexShrink:0,opacity:0.4}}
-                          onMouseEnter={e=>e.currentTarget.style.opacity=1} onMouseLeave={e=>e.currentTarget.style.opacity=0.4}>
-                          <Trash2 size={13}/>
-                        </button>
+                        <div style={{display:'flex',gap:2,flexShrink:0}}>
+                          <button onClick={e=>{e.stopPropagation();setCameraDeal(deal.id);}}
+                            style={{background:'none',border:'none',cursor:'pointer',padding:4,borderRadius:6,color:'var(--muted-fg)',opacity:0.5}}
+                            onMouseEnter={e=>{e.currentTarget.style.opacity=1;e.currentTarget.style.color='var(--primary)';}} onMouseLeave={e=>{e.currentTarget.style.opacity=0.5;e.currentTarget.style.color='var(--muted-fg)';}}>
+                            <Camera size={13}/>
+                          </button>
+                          <button onClick={e=>{e.stopPropagation();setConfirm({id:deal.id,name:deal.dealName,deal});}}
+                            style={{background:'none',border:'none',cursor:'pointer',padding:4,borderRadius:6,color:'var(--destructive)',flexShrink:0,opacity:0.4}}
+                            onMouseEnter={e=>e.currentTarget.style.opacity=1} onMouseLeave={e=>e.currentTarget.style.opacity=0.4}>
+                            <Trash2 size={13}/>
+                          </button>
+                        </div>
                       </div>
                       {/* Contact */}
                       {(contactName(deal)||deal.contactFreeText)&&(
@@ -2069,6 +2192,7 @@ function Pipeline({showToast}){
         if(confirm?.deal?.projectCalEventId) await gcalDeleteEvent(confirm.deal.projectCalEventId);
         await api.deleteDeal(confirm.id);load();showToast('Project deleted');
       }} title='Delete Project' desc={`Delete "${confirm?.name}"? This will also remove all calendar events.`}/>
+      {cameraDeal&&<PhotoCaptureOverlay onClose={()=>setCameraDeal(null)} onSave={photo=>savePhoto(cameraDeal,photo)} bmColours={bmColours} swColours={swColours}/>}
     </div>
   );
 }
@@ -5358,6 +5482,9 @@ const PORTAL_STYLES = `
   .cp-btn-save-sig:disabled{opacity:.5;cursor:not-allowed}
   .cp-sig-status{font-size:12px;font-weight:600}
   .cp-toast{position:fixed;bottom:28px;right:28px;background:#262E4B;color:#fff;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,.3);z-index:99999;max-width:340px}
+  .cp-cam{position:absolute;top:14px;right:52px;background:none;border:none;cursor:pointer;padding:4px;border-radius:50%;transition:background .15s}
+  .cp-cam:hover{background:rgba(196,146,42,.12)}
+  .cp-cam:hover svg{stroke:#C4922A}
   .cp-bell{position:absolute;top:14px;right:16px;background:none;border:none;cursor:pointer;padding:4px;border-radius:50%;transition:background .15s}
   .cp-bell:hover{background:rgba(196,146,42,.12)}
   .cp-bell.subscribed svg{fill:#C4922A;stroke:#C4922A}
@@ -5394,6 +5521,9 @@ function ClientPortal({session}){
   const [notifSubs, setNotifSubs] = useState({});
   const [shakingBell, setShakingBell] = useState(null);
   const [bellPopup, setBellPopup] = useState(null);
+  const [cameraDeal, setCameraDeal] = useState(null);
+  const [bmColours, setBmColours] = useState(DEFAULT_COLOURS);
+  const [swColours, setSwColours] = useState(DEFAULT_SW_COLOURS);
   const sigCanvasRef = useRef(null);
   const sigDrawingRef = useRef(false);
   const frameRef = useRef(null);
@@ -5415,6 +5545,7 @@ function ClientPortal({session}){
 
   useEffect(()=>{
     if(email) loadProjects();
+    loadPaintColours().then(c=>{setBmColours(c.bm);setSwColours(c.sw);});
   },[email, loadProjects]);
 
   useEffect(()=>{
@@ -5450,6 +5581,16 @@ function ClientPortal({session}){
         showToast('Could not enable notifications. Please try again.');
       }
     }
+  };
+
+  const savePhoto = async(dealId, photo)=>{
+    try{
+      const deal = deals.find(d=>d.id===dealId);
+      const photos = [...(deal?.photos||[]),{id:Date.now().toString(36),...photo}];
+      await supaFetch(`/rest/v1/deals?id=eq.${dealId}`,'PATCH',{photos});
+      setDeals(prev=>prev.map(d=>d.id===dealId?{...d,photos}:d));
+      showToast('Photo saved');
+    }catch(e){ showToast('Could not save photo'); }
   };
 
   const wrapDocHtml = (html)=>{
@@ -5607,6 +5748,13 @@ body{font-family:'Montserrat',Georgia,sans-serif;background:#fff;color:#1a1714;p
     return (
       <div key={d.id} className="cp-card" style={{position:'relative'}}>
         <div className="cp-card-head">
+          <button className="cp-cam"
+            onClick={e=>{e.stopPropagation();setCameraDeal(d.id);}}
+            title="Take a photo">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
+            </svg>
+          </button>
           <button
             className={`cp-bell${notifSubs[d.id]?' subscribed':''}${shakingBell===d.id?' shaking':''}`}
             onClick={e=>{e.stopPropagation();toggleBellNotification(d.id);}}
@@ -5702,6 +5850,8 @@ body{font-family:'Montserrat',Georgia,sans-serif;background:#fff;color:#1a1714;p
           </div>
         </div>
       )}
+
+      {cameraDeal&&<PhotoCaptureOverlay onClose={()=>setCameraDeal(null)} onSave={photo=>savePhoto(cameraDeal,photo)} bmColours={bmColours} swColours={swColours}/>}
 
       {toast&&<div className="cp-toast">{toast}</div>}
     </>

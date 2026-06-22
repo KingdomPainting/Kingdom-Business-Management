@@ -1892,17 +1892,20 @@ function PhotoCaptureOverlay({onClose,onSave,bmColours,swColours}){
   const [saving,setSaving]=useState(false);
   const [intensity,setIntensity]=useState(0.7);
   const [brushSize,setBrushSize]=useState(32);
-  const [erase,setErase]=useState(false);
+  const [tool,setTool]=useState('fill'); // 'fill' | 'brush' | 'erase'
+  const [tolerance,setTolerance]=useState(32);
   const [hasPaint,setHasPaint]=useState(false);
   const fileRef=useRef(null);
-  const dispRef=useRef(null);     // visible canvas
-  const baseImgRef=useRef(null);  // loaded Image
-  const maskRef=useRef(null);     // offscreen mask canvas (white where wall painted)
-  const tintRef=useRef(null);     // offscreen tint layer
+  const dispRef=useRef(null);
+  const baseImgRef=useRef(null);
+  const maskRef=useRef(null);
+  const tintRef=useRef(null);
+  const srcDataRef=useRef(null);  // ImageData of original photo for flood-fill reads
   const paintingRef=useRef(false);
   const lastPosRef=useRef(null);
   const hexRef=useRef('');
   const intensityRef=useRef(0.7);
+  const toleranceRef=useRef(32);
 
   const colours=brand==='Benjamin Moore'?bmColours:swColours;
   const selColour=colours.find(c=>c.n===colour);
@@ -1912,18 +1915,23 @@ function PhotoCaptureOverlay({onClose,onSave,bmColours,swColours}){
 
   useEffect(()=>{hexRef.current=selColour?.h||'';render();},[selColour?.h]);
   useEffect(()=>{intensityRef.current=intensity;render();},[intensity]);
+  useEffect(()=>{toleranceRef.current=tolerance;},[tolerance]);
 
-  // Load image + set up canvases when a photo is captured
   useEffect(()=>{
     if(!photoData) return;
     const img=new Image();
     img.onload=()=>{
       baseImgRef.current=img;
-      const mk=document.createElement('canvas');mk.width=img.width;mk.height=img.height;
-      const tn=document.createElement('canvas');tn.width=img.width;tn.height=img.height;
+      const w=img.width,h=img.height;
+      const mk=document.createElement('canvas');mk.width=w;mk.height=h;
+      const tn=document.createElement('canvas');tn.width=w;tn.height=h;
       maskRef.current=mk;tintRef.current=tn;
       const cv=dispRef.current;
-      if(cv){cv.width=img.width;cv.height=img.height;}
+      if(cv){cv.width=w;cv.height=h;}
+      // cache source pixel data for flood-fill
+      const tmp=document.createElement('canvas');tmp.width=w;tmp.height=h;
+      const tc=tmp.getContext('2d');tc.drawImage(img,0,0);
+      srcDataRef.current=tc.getImageData(0,0,w,h);
       setHasPaint(false);
       render();
     };
@@ -1937,7 +1945,6 @@ function PhotoCaptureOverlay({onClose,onSave,bmColours,swColours}){
     dctx.globalCompositeOperation='source-over';dctx.globalAlpha=1;
     dctx.clearRect(0,0,cv.width,cv.height);
     dctx.drawImage(img,0,0);
-    // build tint = swatch colour masked to painted walls
     const hex=hexRef.current;
     if(hex){
       const tctx=tn.getContext('2d');
@@ -1947,13 +1954,46 @@ function PhotoCaptureOverlay({onClose,onSave,bmColours,swColours}){
       tctx.globalCompositeOperation='destination-in';
       tctx.drawImage(mk,0,0);
       tctx.globalCompositeOperation='source-over';
-      // apply tint with 'color' blend only over the walls
       dctx.globalCompositeOperation='color';
       dctx.globalAlpha=intensityRef.current;
       dctx.drawImage(tn,0,0);
       dctx.globalCompositeOperation='source-over';
       dctx.globalAlpha=1;
     }
+  };
+
+  // ── flood-fill into the mask ──
+  const floodFill=(sx,sy)=>{
+    const src=srcDataRef.current;
+    if(!src) return;
+    const w=src.width,h=src.height,d=src.data;
+    const mk=maskRef.current;
+    const mctx=mk.getContext('2d');
+    const mImg=mctx.getImageData(0,0,w,h);
+    const md=mImg.data;
+    const tol=toleranceRef.current;
+    const x0=Math.round(sx),y0=Math.round(sy);
+    if(x0<0||x0>=w||y0<0||y0>=h) return;
+    const idx0=(y0*w+x0)*4;
+    const tr=d[idx0],tg=d[idx0+1],tb=d[idx0+2];
+    const visited=new Uint8Array(w*h);
+    const stack=[x0,y0];
+    while(stack.length){
+      const cy=stack.pop(),cx=stack.pop();
+      if(cx<0||cx>=w||cy<0||cy>=h) continue;
+      const pi=cy*w+cx;
+      if(visited[pi]) continue;
+      visited[pi]=1;
+      const i=pi*4;
+      const dr=d[i]-tr,dg=d[i+1]-tg,db=d[i+2]-tb;
+      const dist=Math.sqrt(dr*dr+dg*dg+db*db);
+      if(dist>tol) continue;
+      md[i]=255;md[i+1]=255;md[i+2]=255;md[i+3]=255;
+      stack.push(cx-1,cy, cx+1,cy, cx,cy-1, cx,cy+1);
+    }
+    mctx.putImageData(mImg,0,0);
+    setHasPaint(true);
+    render();
   };
 
   const getPos=e=>{
@@ -1963,17 +2003,26 @@ function PhotoCaptureOverlay({onClose,onSave,bmColours,swColours}){
   };
   const stroke=p=>{
     const mctx=maskRef.current.getContext('2d');
-    mctx.globalCompositeOperation=erase?'destination-out':'source-over';
+    mctx.globalCompositeOperation=tool==='erase'?'destination-out':'source-over';
     mctx.strokeStyle='#fff';mctx.fillStyle='#fff';mctx.lineCap='round';mctx.lineJoin='round';mctx.lineWidth=p.bx;
     const last=lastPosRef.current;
     if(last){mctx.beginPath();mctx.moveTo(last.x,last.y);mctx.lineTo(p.x,p.y);mctx.stroke();}
     else{mctx.beginPath();mctx.arc(p.x,p.y,p.bx/2,0,Math.PI*2);mctx.fill();}
     lastPosRef.current=p;
-    if(!erase)setHasPaint(true);
+    if(tool!=='erase')setHasPaint(true);
     render();
   };
-  const onDown=e=>{e.preventDefault();dispRef.current.setPointerCapture?.(e.pointerId);paintingRef.current=true;lastPosRef.current=null;stroke(getPos(e));};
-  const onMove=e=>{if(paintingRef.current){e.preventDefault();stroke(getPos(e));}};
+  const onDown=e=>{
+    e.preventDefault();
+    const p=getPos(e);
+    if(tool==='fill'){
+      floodFill(p.x,p.y);
+      return;
+    }
+    dispRef.current.setPointerCapture?.(e.pointerId);
+    paintingRef.current=true;lastPosRef.current=null;stroke(p);
+  };
+  const onMove=e=>{if(paintingRef.current&&tool!=='fill'){e.preventDefault();stroke(getPos(e));}};
   const onUp=()=>{paintingRef.current=false;lastPosRef.current=null;};
   const clearMask=()=>{
     const mk=maskRef.current;if(!mk)return;
@@ -2005,6 +2054,7 @@ function PhotoCaptureOverlay({onClose,onSave,bmColours,swColours}){
   const selS={width:'100%',fontSize:13,padding:'8px 10px',border:'1px solid #ddd',borderRadius:8,background:'#fff',fontFamily:'inherit',outline:'none',boxSizing:'border-box'};
   const btnS={background:'#C4922A',color:'#fff',border:'none',borderRadius:8,padding:'10px 0',fontSize:14,fontWeight:700,fontFamily:'inherit',cursor:'pointer',width:'100%',marginTop:12};
   const pillS=active=>({fontSize:11,fontWeight:600,padding:'6px 12px',borderRadius:8,border:'1px solid '+(active?'#C4922A':'#ddd'),background:active?'rgba(196,146,42,.1)':'#fff',color:active?'#C4922A':'#666',cursor:'pointer',fontFamily:'inherit'});
+  const cursorStyle=tool==='fill'?'crosshair':tool==='erase'?'pointer':'crosshair';
 
   return (
     <div style={oS} onClick={onClose}>
@@ -2020,21 +2070,36 @@ function PhotoCaptureOverlay({onClose,onSave,bmColours,swColours}){
             <>
               <canvas ref={dispRef}
                 onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerLeave={onUp}
-                style={{width:'100%',borderRadius:8,marginBottom:6,border:'1px solid #eee',display:'block',touchAction:'none',cursor:'crosshair'}}/>
+                style={{width:'100%',borderRadius:8,marginBottom:6,border:'1px solid #eee',display:'block',touchAction:'none',cursor:cursorStyle}}/>
               <p style={{fontSize:11,color:'#888',marginBottom:10,textAlign:'center'}}>
-                {hasPaint?'Brush over the walls to preview the colour.':'\u{1F58C}️ Brush over the walls to paint them with the selected colour.'}
+                {tool==='fill'
+                  ? 'Tap a wall to fill it with the selected colour.'
+                  : tool==='erase'
+                  ? 'Brush over areas to remove colour.'
+                  : 'Brush over the walls to paint them.'}
               </p>
-              <div style={{display:'flex',gap:8,marginBottom:12}}>
-                <button onClick={()=>setErase(false)} style={pillS(!erase)}>Paint</button>
-                <button onClick={()=>setErase(true)} style={pillS(erase)}>Erase</button>
+              <div style={{display:'flex',gap:8,marginBottom:12,flexWrap:'wrap'}}>
+                <button onClick={()=>setTool('fill')} style={pillS(tool==='fill')}>Fill</button>
+                <button onClick={()=>setTool('brush')} style={pillS(tool==='brush')}>Brush</button>
+                <button onClick={()=>setTool('erase')} style={pillS(tool==='erase')}>Erase</button>
                 <button onClick={clearMask} style={{...pillS(false),marginLeft:'auto'}}>Reset</button>
               </div>
-              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
-                <span style={{fontSize:11,color:'#888',flexShrink:0,minWidth:56}}>Brush</span>
-                <input type="range" min="10" max="80" value={brushSize}
-                  onChange={e=>setBrushSize(+e.target.value)} style={{flex:1,accentColor:'#C4922A'}}/>
-                <span style={{fontSize:11,color:'#555',minWidth:32,textAlign:'right'}}>{brushSize}</span>
-              </div>
+              {tool==='fill'&&(
+                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+                  <span style={{fontSize:11,color:'#888',flexShrink:0,minWidth:56}}>Tolerance</span>
+                  <input type="range" min="8" max="80" value={tolerance}
+                    onChange={e=>setTolerance(+e.target.value)} style={{flex:1,accentColor:'#C4922A'}}/>
+                  <span style={{fontSize:11,color:'#555',minWidth:32,textAlign:'right'}}>{tolerance}</span>
+                </div>
+              )}
+              {(tool==='brush'||tool==='erase')&&(
+                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+                  <span style={{fontSize:11,color:'#888',flexShrink:0,minWidth:56}}>Brush</span>
+                  <input type="range" min="10" max="80" value={brushSize}
+                    onChange={e=>setBrushSize(+e.target.value)} style={{flex:1,accentColor:'#C4922A'}}/>
+                  <span style={{fontSize:11,color:'#555',minWidth:32,textAlign:'right'}}>{brushSize}</span>
+                </div>
+              )}
               <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:14}}>
                 <span style={{fontSize:11,color:'#888',flexShrink:0,minWidth:56}}>Intensity</span>
                 <input type="range" min="0" max="100" value={Math.round(intensity*100)}

@@ -1890,7 +1890,7 @@ function PhotoCaptureOverlay({onClose,onSave,bmColours,swColours}){
   const [brand,setBrand]=useState('Benjamin Moore');
   const [colour,setColour]=useState('');
   const [saving,setSaving]=useState(false);
-  const [intensity,setIntensity]=useState(0.7);
+  const [intensity,setIntensity]=useState(1.0);
   const [brushSize,setBrushSize]=useState(32);
   const [tool,setTool]=useState('fill'); // 'fill' | 'brush' | 'erase'
   const [tolerance,setTolerance]=useState(32);
@@ -1904,7 +1904,7 @@ function PhotoCaptureOverlay({onClose,onSave,bmColours,swColours}){
   const paintingRef=useRef(false);
   const lastPosRef=useRef(null);
   const hexRef=useRef('');
-  const intensityRef=useRef(0.7);
+  const intensityRef=useRef(1.0);
   const toleranceRef=useRef(32);
 
   const colours=brand==='Benjamin Moore'?bmColours:swColours;
@@ -1938,24 +1938,39 @@ function PhotoCaptureOverlay({onClose,onSave,bmColours,swColours}){
     img.src=photoData;
   },[photoData]);
 
+  const buildMaskedTint=(hex)=>{
+    const mk=maskRef.current,tn=tintRef.current;
+    const tctx=tn.getContext('2d');
+    tctx.globalCompositeOperation='source-over';tctx.globalAlpha=1;
+    tctx.clearRect(0,0,tn.width,tn.height);
+    tctx.fillStyle=hex;tctx.fillRect(0,0,tn.width,tn.height);
+    tctx.globalCompositeOperation='destination-in';
+    tctx.drawImage(mk,0,0);
+    tctx.globalCompositeOperation='source-over';
+  };
+
   const render=()=>{
     const cv=dispRef.current,img=baseImgRef.current,mk=maskRef.current,tn=tintRef.current;
     if(!cv||!img||!mk||!tn) return;
     const dctx=cv.getContext('2d');
+    const a=intensityRef.current;
     dctx.globalCompositeOperation='source-over';dctx.globalAlpha=1;
     dctx.clearRect(0,0,cv.width,cv.height);
     dctx.drawImage(img,0,0);
     const hex=hexRef.current;
     if(hex){
-      const tctx=tn.getContext('2d');
-      tctx.globalCompositeOperation='source-over';tctx.globalAlpha=1;
-      tctx.clearRect(0,0,tn.width,tn.height);
-      tctx.fillStyle=hex;tctx.fillRect(0,0,tn.width,tn.height);
-      tctx.globalCompositeOperation='destination-in';
-      tctx.drawImage(mk,0,0);
-      tctx.globalCompositeOperation='source-over';
+      buildMaskedTint(hex);
+      // Pass 1: solid colour overlay — covers the wall with the actual paint colour
+      dctx.globalCompositeOperation='source-over';
+      dctx.globalAlpha=a*0.6;
+      dctx.drawImage(tn,0,0);
+      // Pass 2: 'color' blend — shifts remaining original pixels to correct hue/sat
       dctx.globalCompositeOperation='color';
-      dctx.globalAlpha=intensityRef.current;
+      dctx.globalAlpha=a;
+      dctx.drawImage(tn,0,0);
+      // Pass 3: 'multiply' blend — deepens dark colours and adds shadow depth
+      dctx.globalCompositeOperation='multiply';
+      dctx.globalAlpha=a*0.35;
       dctx.drawImage(tn,0,0);
       dctx.globalCompositeOperation='source-over';
       dctx.globalAlpha=1;

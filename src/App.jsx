@@ -10,7 +10,7 @@ import {
   MapPin, Star, CalendarDays, StickyNote, CheckSquare, DollarSign,
   TrendingUp, Percent, Layers, ArrowRight, ArrowLeft,
   ChevronRight, ChevronDown, Archive as ArchiveIcon, Receipt, BarChart2,
-  Save, Loader2, GripVertical, Printer, Download, Eye,
+  Save, Loader2, GripVertical, Printer, Download, Eye, Camera,
 } from "lucide-react";
 
 // ─── Theme / CSS variables ───────────────────────────────────────────────────
@@ -1853,6 +1853,110 @@ async function autoCreateScheduledTask(deal, contacts){
   }catch(e){console.warn('autoCreateScheduledTask error:',e);}
 }
 
+async function loadPaintColours(){
+  try{
+    if(!_session?.user?.id) return {bm:DEFAULT_COLOURS,sw:DEFAULT_SW_COLOURS};
+    const rows=await supaFetch(`/rest/v1/paint_settings?user_id=eq.${_session.user.id}&select=data`);
+    if(rows&&rows.length){
+      const d=rows[0].data||{};
+      return {bm:d.colours?.length?d.colours:DEFAULT_COLOURS,sw:d.swColours?.length?d.swColours:DEFAULT_SW_COLOURS};
+    }
+  }catch(e){}
+  return {bm:DEFAULT_COLOURS,sw:DEFAULT_SW_COLOURS};
+}
+
+function compressImage(file,maxW=1200){
+  return new Promise(resolve=>{
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const img=new Image();
+      img.onload=()=>{
+        const canvas=document.createElement('canvas');
+        let w=img.width,h=img.height;
+        if(w>maxW){h=Math.round(h*(maxW/w));w=maxW;}
+        canvas.width=w;canvas.height=h;
+        const ctx=canvas.getContext('2d');
+        ctx.drawImage(img,0,0,w,h);
+        resolve(canvas.toDataURL('image/jpeg',0.7));
+      };
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function PhotoCaptureOverlay({onClose,onSave,bmColours,swColours}){
+  const [photoData,setPhotoData]=useState(null);
+  const [brand,setBrand]=useState('Benjamin Moore');
+  const [colour,setColour]=useState('');
+  const [saving,setSaving]=useState(false);
+  const fileRef=useRef(null);
+
+  const colours=brand==='Benjamin Moore'?bmColours:swColours;
+  const selColour=colours.find(c=>c.n===colour);
+
+  useEffect(()=>{setColour(colours[0]?.n||'');},[brand]);
+  useEffect(()=>{if(!photoData) fileRef.current?.click();},[]);
+
+  const handleFile=async e=>{
+    const file=e.target.files?.[0];
+    if(!file){onClose();return;}
+    const data=await compressImage(file);
+    setPhotoData(data);
+  };
+
+  const handleSave=async()=>{
+    if(!photoData)return;
+    setSaving(true);
+    await onSave({data:photoData,brand,colour,colourHex:selColour?.h||'',takenAt:new Date().toISOString()});
+    setSaving(false);
+    onClose();
+  };
+
+  const oS={position:'fixed',inset:0,background:'rgba(0,0,0,.65)',zIndex:99999,display:'flex',alignItems:'center',justifyContent:'center',padding:16};
+  const cS={background:'#fff',borderRadius:14,maxWidth:420,width:'100%',maxHeight:'90vh',overflowY:'auto',boxShadow:'0 8px 40px rgba(0,0,0,.3)'};
+  const hS={padding:'16px 20px',borderBottom:'1px solid #eee',display:'flex',alignItems:'center',justifyContent:'space-between'};
+  const bS={padding:'16px 20px'};
+  const selS={width:'100%',fontSize:13,padding:'8px 10px',border:'1px solid #ddd',borderRadius:8,background:'#fff',fontFamily:'inherit',outline:'none',boxSizing:'border-box'};
+  const btnS={background:'#C4922A',color:'#fff',border:'none',borderRadius:8,padding:'10px 0',fontSize:14,fontWeight:700,fontFamily:'inherit',cursor:'pointer',width:'100%',marginTop:12};
+
+  return (
+    <div style={oS} onClick={onClose}>
+      <div style={cS} onClick={e=>e.stopPropagation()}>
+        <div style={hS}>
+          <span style={{fontSize:15,fontWeight:700,color:'#1a1714'}}>Tag Photo</span>
+          <button onClick={onClose} style={{background:'none',border:'none',fontSize:20,cursor:'pointer',color:'#999',lineHeight:1}}>&times;</button>
+        </div>
+        <div style={bS}>
+          <input ref={fileRef} type="file" accept="image/*" capture="environment" style={{display:'none'}} onChange={handleFile}/>
+          {!photoData&&<button onClick={()=>fileRef.current?.click()} style={{...btnS,background:'#262E4B',marginTop:0}}>Open Camera</button>}
+          {photoData&&(
+            <>
+              <img src={photoData} alt="Captured" style={{width:'100%',borderRadius:8,marginBottom:14,border:'1px solid #eee'}}/>
+              <label style={{display:'block',fontSize:12,fontWeight:600,color:'#888',marginBottom:4}}>Paint Brand</label>
+              <select value={brand} onChange={e=>setBrand(e.target.value)} style={{...selS,marginBottom:12}}>
+                <option>Benjamin Moore</option>
+                <option>Sherwin Williams</option>
+              </select>
+              <label style={{display:'block',fontSize:12,fontWeight:600,color:'#888',marginBottom:4}}>Colour</label>
+              <select value={colour} onChange={e=>setColour(e.target.value)} style={selS}>
+                {colours.map(c=><option key={c.n} value={c.n}>{c.n}</option>)}
+              </select>
+              {selColour&&(
+                <div style={{display:'flex',alignItems:'center',gap:8,marginTop:8}}>
+                  <div style={{width:24,height:24,borderRadius:6,background:selColour.h,border:'1px solid #ccc',flexShrink:0}}/>
+                  <span style={{fontSize:12,color:'#555'}}>{selColour.n}</span>
+                </div>
+              )}
+              <button onClick={handleSave} disabled={saving} style={{...btnS,opacity:saving?.5:1}}>{saving?'Saving...':'Save Photo'}</button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Pipeline({showToast}){
   const [deals,setDeals]=useState(()=>api.getDeals());
   const [contacts,setContacts]=useState(()=>api.getContacts());
@@ -1863,11 +1967,15 @@ function Pipeline({showToast}){
   const [dragId,setDragId]=useState(null);
   const [dragOver,setDragOver]=useState(null);
   const [showArchive,setShowArchive]=useState(false);
+  const [cameraDeal,setCameraDeal]=useState(null);
+  const [bmColours,setBmColours]=useState(DEFAULT_COLOURS);
+  const [swColours,setSwColours]=useState(DEFAULT_SW_COLOURS);
 
   const load=()=>{setDeals(api.getDeals());setContacts(api.getContacts());};
   useEffect(()=>{
     api.loadDeals().then(()=>load());
     api.loadContacts().then(()=>setContacts(api.getContacts()));
+    loadPaintColours().then(c=>{setBmColours(c.bm);setSwColours(c.sw);});
   },[]);
   const contactName=deal=>{const cid=Array.isArray(deal.contact)?deal.contact[0]:deal.contact;return contacts.find(c=>c.id===cid)?.fullName||deal.contactFreeText||'';};
   const refName=deal=>{if(!deal.referralName)return '';return contacts.find(c=>c.id===deal.referralName)?.fullName||'';};
@@ -1881,6 +1989,14 @@ function Pipeline({showToast}){
       showToast(`Moved to ${newStage}`);
       load();
     }
+  };
+
+  const savePhoto=async(dealId,photo)=>{
+    const deal=deals.find(d=>d.id===dealId);
+    const photos=[...(deal?.photos||[]),{id:Date.now().toString(36),...photo}];
+    await api.saveDeal({photos},dealId);
+    load();
+    showToast('Photo saved');
   };
 
   const removeDay=async(deal,date)=>{
@@ -1972,14 +2088,21 @@ function Pipeline({showToast}){
                           {deal.leadSource&&<span style={{fontSize:11,fontWeight:700,padding:'2px 9px',borderRadius:20,background:(LEAD_COLORS[deal.leadSource]||{bg:'#f3f4f6'}).bg,color:(LEAD_COLORS[deal.leadSource]||{color:'#374151'}).color,letterSpacing:'0.01em'}}>{deal.leadSource}</span>}
                         </div>
                       )}
-                      {/* Title + delete */}
+                      {/* Title + actions */}
                       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:6,marginBottom:8}}>
                         <p style={{fontSize:15,fontWeight:600,lineHeight:1.35,color:'var(--fg)'}}>{deal.dealName}</p>
-                        <button onClick={e=>{e.stopPropagation();setConfirm({id:deal.id,name:deal.dealName,deal});}}
-                          style={{background:'none',border:'none',cursor:'pointer',padding:4,borderRadius:6,color:'var(--destructive)',flexShrink:0,opacity:0.4}}
-                          onMouseEnter={e=>e.currentTarget.style.opacity=1} onMouseLeave={e=>e.currentTarget.style.opacity=0.4}>
-                          <Trash2 size={13}/>
-                        </button>
+                        <div style={{display:'flex',gap:2,flexShrink:0}}>
+                          <button onClick={e=>{e.stopPropagation();setCameraDeal(deal.id);}}
+                            style={{background:'none',border:'none',cursor:'pointer',padding:4,borderRadius:6,color:'var(--muted-fg)',opacity:0.5}}
+                            onMouseEnter={e=>{e.currentTarget.style.opacity=1;e.currentTarget.style.color='var(--primary)';}} onMouseLeave={e=>{e.currentTarget.style.opacity=0.5;e.currentTarget.style.color='var(--muted-fg)';}}>
+                            <Camera size={13}/>
+                          </button>
+                          <button onClick={e=>{e.stopPropagation();setConfirm({id:deal.id,name:deal.dealName,deal});}}
+                            style={{background:'none',border:'none',cursor:'pointer',padding:4,borderRadius:6,color:'var(--destructive)',flexShrink:0,opacity:0.4}}
+                            onMouseEnter={e=>e.currentTarget.style.opacity=1} onMouseLeave={e=>e.currentTarget.style.opacity=0.4}>
+                            <Trash2 size={13}/>
+                          </button>
+                        </div>
                       </div>
                       {/* Contact */}
                       {(contactName(deal)||deal.contactFreeText)&&(
@@ -2069,6 +2192,7 @@ function Pipeline({showToast}){
         if(confirm?.deal?.projectCalEventId) await gcalDeleteEvent(confirm.deal.projectCalEventId);
         await api.deleteDeal(confirm.id);load();showToast('Project deleted');
       }} title='Delete Project' desc={`Delete "${confirm?.name}"? This will also remove all calendar events.`}/>
+      {cameraDeal&&<PhotoCaptureOverlay onClose={()=>setCameraDeal(null)} onSave={photo=>savePhoto(cameraDeal,photo)} bmColours={bmColours} swColours={swColours}/>}
     </div>
   );
 }
@@ -4684,7 +4808,20 @@ function exportBidPDF(client,rooms,settings,totals,paints,ceilPaints,primers,col
 // ─── LAYOUT + APP ─────────────────────────────────────────────────────────────
 // ─── Financials Page ─────────────────────────────────────────────────────────
 const LOGO_PNG = "data:image/png;base64,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";
-function generateInvoicePDF(deal, contactName, contactAddr){
+async function generateInvoicePDF(deal, contactName, contactAddr){
+  let invNum = deal.invoice_number;
+  if(!invNum && deal.id){
+    try{
+      const res = await supaFetch('/rest/v1/rpc/next_invoice_number','POST',{});
+      invNum = typeof res === 'number' ? res : 1001;
+    }catch(e){ invNum = 1001; }
+    deal.invoice_number = invNum;
+    const d = DB.deals.find(x=>x.id===deal.id);
+    if(d) d.invoice_number = invNum;
+    supaFetch(`/rest/v1/deals?id=eq.${deal.id}`,'PATCH',{invoice_number:invNum}).catch(()=>{});
+  }
+  const invLabel = 'KGDM-' + (invNum || 1001);
+
   const revenue     = parseFloat(deal.value)||0;
   const paid        = parseFloat(deal.invoicePaid)||0;
   const outstanding = Math.max(0, revenue - paid);
@@ -4729,6 +4866,7 @@ function generateInvoicePDF(deal, contactName, contactAddr){
     +(addr&&addr!=='\u2014'?'<div><strong>Address</strong> '+esc(addr)+'</div>':'')
     +'<div><strong>Date</strong> '+esc(today)+'</div>'
     +'<div><strong>HST #</strong> 71164 5556 RT0001</div>'
+    +'<div><strong>Invoice #</strong> '+esc(invLabel)+'</div>'
     +'</div></div>'
     +'<div class="project-title">'+esc(deal.dealName||'Painting Services')+(deal.description?' \u2014 '+esc(deal.description):'')+'</div>'
     +'<div class="inv-wrap"><table class="inv-table">'
@@ -5344,6 +5482,9 @@ const PORTAL_STYLES = `
   .cp-btn-save-sig:disabled{opacity:.5;cursor:not-allowed}
   .cp-sig-status{font-size:12px;font-weight:600}
   .cp-toast{position:fixed;bottom:28px;right:28px;background:#262E4B;color:#fff;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,.3);z-index:99999;max-width:340px}
+  .cp-cam{position:absolute;top:14px;right:52px;background:none;border:none;cursor:pointer;padding:4px;border-radius:50%;transition:background .15s}
+  .cp-cam:hover{background:rgba(196,146,42,.12)}
+  .cp-cam:hover svg{stroke:#C4922A}
   .cp-bell{position:absolute;top:14px;right:16px;background:none;border:none;cursor:pointer;padding:4px;border-radius:50%;transition:background .15s}
   .cp-bell:hover{background:rgba(196,146,42,.12)}
   .cp-bell.subscribed svg{fill:#C4922A;stroke:#C4922A}
@@ -5380,6 +5521,9 @@ function ClientPortal({session}){
   const [notifSubs, setNotifSubs] = useState({});
   const [shakingBell, setShakingBell] = useState(null);
   const [bellPopup, setBellPopup] = useState(null);
+  const [cameraDeal, setCameraDeal] = useState(null);
+  const [bmColours, setBmColours] = useState(DEFAULT_COLOURS);
+  const [swColours, setSwColours] = useState(DEFAULT_SW_COLOURS);
   const sigCanvasRef = useRef(null);
   const sigDrawingRef = useRef(false);
   const frameRef = useRef(null);
@@ -5401,6 +5545,7 @@ function ClientPortal({session}){
 
   useEffect(()=>{
     if(email) loadProjects();
+    loadPaintColours().then(c=>{setBmColours(c.bm);setSwColours(c.sw);});
   },[email, loadProjects]);
 
   useEffect(()=>{
@@ -5436,6 +5581,16 @@ function ClientPortal({session}){
         showToast('Could not enable notifications. Please try again.');
       }
     }
+  };
+
+  const savePhoto = async(dealId, photo)=>{
+    try{
+      const deal = deals.find(d=>d.id===dealId);
+      const photos = [...(deal?.photos||[]),{id:Date.now().toString(36),...photo}];
+      await supaFetch(`/rest/v1/deals?id=eq.${dealId}`,'PATCH',{photos});
+      setDeals(prev=>prev.map(d=>d.id===dealId?{...d,photos}:d));
+      showToast('Photo saved');
+    }catch(e){ showToast('Could not save photo'); }
   };
 
   const wrapDocHtml = (html)=>{
@@ -5593,6 +5748,13 @@ body{font-family:'Montserrat',Georgia,sans-serif;background:#fff;color:#1a1714;p
     return (
       <div key={d.id} className="cp-card" style={{position:'relative'}}>
         <div className="cp-card-head">
+          <button className="cp-cam"
+            onClick={e=>{e.stopPropagation();setCameraDeal(d.id);}}
+            title="Take a photo">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
+            </svg>
+          </button>
           <button
             className={`cp-bell${notifSubs[d.id]?' subscribed':''}${shakingBell===d.id?' shaking':''}`}
             onClick={e=>{e.stopPropagation();toggleBellNotification(d.id);}}
@@ -5688,6 +5850,8 @@ body{font-family:'Montserrat',Georgia,sans-serif;background:#fff;color:#1a1714;p
           </div>
         </div>
       )}
+
+      {cameraDeal&&<PhotoCaptureOverlay onClose={()=>setCameraDeal(null)} onSave={photo=>savePhoto(cameraDeal,photo)} bmColours={bmColours} swColours={swColours}/>}
 
       {toast&&<div className="cp-toast">{toast}</div>}
     </>

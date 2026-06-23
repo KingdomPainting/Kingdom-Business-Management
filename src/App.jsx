@@ -4732,11 +4732,22 @@ function MasterEstimate(){
         scopeLines.forEach(l=>{chtml+=`<p>${l}</p>`;});
         chtml+='</div>';
       });
+      let totSqft=0,totLF=0,totDoors=0,totWindows=0;
+      rooms.forEach(r=>{
+        const c=calcRoom(r,settings);
+        if(r.walls?.enabled) totSqft+=c.wallSqft;
+        if(r.ceiling?.enabled) totSqft+=c.ceilSqft;
+        if(r.baseboards?.enabled) totLF+=c.perimLF;
+        if(r.crown?.enabled) totLF+=c.perimLF;
+        totDoors+=roomDoorCount(r);
+        if(r.windows?.enabled) totWindows+=(r.windows.dims?.length||0);
+      });
       chtml+=`<div style="margin-top:16px;padding-top:10px;border-top:1px solid #e5ddd0;font-size:11px;color:#444;line-height:1.8">`;
-      chtml+=`<p><strong>Subtotal:</strong> ${fmtC(totals.discounted)}</p>`;
-      chtml+=`<p><strong>HST (13%):</strong> ${fmtC(totals.taxAmt)}</p>`;
-      if(totals.materialCost>0) chtml+=`<p><strong>Materials:</strong> ${fmtC(totals.materialCost)}</p>`;
-      chtml+=`<p style="font-weight:700;color:${gold}"><strong>Total:</strong> ${fmtC(totals.total)}</p></div>`;
+      chtml+=`<p><strong>Total Square Feet:</strong> ${fmtN(totSqft)}</p>`;
+      if(totLF) chtml+=`<p><strong>Total Linear Feet:</strong> ${fmtN(totLF)}</p>`;
+      if(totDoors) chtml+=`<p><strong>Total Doors:</strong> ${totDoors}</p>`;
+      if(totWindows) chtml+=`<p><strong>Total Windows:</strong> ${totWindows}</p>`;
+      chtml+=`</div>`;
       chtml+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">3. Payment Terms</p>`;
       chtml+=`<div style="font-size:11px;line-height:1.7;color:#444"><p style="margin-bottom:8px">The total cost for the Services shall be <strong>${fmtC(totals.total)}</strong>, which includes labour, materials, and any applicable taxes. A different payment plan can be discussed.</p>`;
       chtml+=`<p>30% Deposit: ${fmtC(totals.deposit)} · 35% Balance: ${fmtC(totals.midway)} · 35% Final Balance: ${fmtC(totals.balance)}</p></div>`;

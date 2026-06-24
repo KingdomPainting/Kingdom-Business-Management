@@ -5080,18 +5080,43 @@ function exportBidPDF(client,rooms,settings,totals,paints,ceilPaints,primers,col
   html+='<table><thead><tr><th>Room</th><th>Description</th></tr></thead><tbody>';
   rooms.forEach(r=>{
     const c=calcRoom(r,settings);
-    const surfaces=[],prepItems=[];
-    if(r.walls?.enabled) surfaces.push(`${r.walls.coats} coat${r.walls.coats>1?'s':''} on walls — ${fmtN(c.wallSqft)} square feet`);
-    if(r.ceiling?.enabled) surfaces.push(`${r.ceiling.coats} coat${r.ceiling.coats>1?'s':''} on ceiling — ${fmtN(c.ceilSqft)} square feet`);
-    if(r.baseboards?.enabled) surfaces.push(`Baseboards`);
-    if(r.crown?.enabled) surfaces.push(`Crown moulding`);
-    const dc=roomDoorCount(r);if(dc>0) surfaces.push(`${dc} door${dc>1?'s':''}`);
-    const wc=r.windows?.dims?.length||0;if(r.windows?.enabled&&wc>0) surfaces.push(`${wc} window${wc>1?'s':''}`);
+    const lines=[],prepItems=[];
+    if(r.ceiling?.enabled && r.ceiling.removeStucco && c.ceilSqft) lines.push(`Removing ${fmtN(c.ceilSqft)} square feet of stucco ceiling`);
+    if(r.walls?.enabled && c.wallSqft) lines.push(`Painting ${r.walls.coats} coat${r.walls.coats>1?'s':''} on ${fmtN(c.wallSqft)} square feet of walls`);
+    if(r.ceiling?.enabled && c.ceilSqft) lines.push(`Painting ${r.ceiling.coats} coat${r.ceiling.coats>1?'s':''} on ${fmtN(c.ceilSqft)} square feet of ceilings`);
+    if(r.baseboards?.enabled && c.perimLF) lines.push(`Painting ${r.baseboards.coats} coat${r.baseboards.coats>1?'s':''} on ${fmtN(c.perimLF)} linear feet of baseboards`);
+    if(r.crown?.enabled && c.perimLF) lines.push(`Painting ${r.crown.coats} coat${r.crown.coats>1?'s':''} on ${fmtN(c.perimLF)} linear feet of crown moulding`);
+    if(r.doors?.enabled){
+      const fl=r.doors.flat||{};const sp=r.doors.sixPanel||{};const cu=r.doors.custom||{};
+      if(fl.count>0) lines.push(`Painting ${fl.coats||2} coat${(fl.coats||2)>1?'s':''} on ${fl.count} flat door${fl.count>1?'s':''}`);
+      if(sp.count>0) lines.push(`Painting ${sp.coats||2} coat${(sp.coats||2)>1?'s':''} on ${sp.count} six-panel door${sp.count>1?'s':''}`);
+      if(cu.count>0) lines.push(`Painting ${cu.coats||2} coat${(cu.coats||2)>1?'s':''} on ${cu.count} custom door${cu.count>1?'s':''}`);
+    } else if(r.doors?.count>0){
+      lines.push(`Painting ${r.doors.coats||2} coat${(r.doors.coats||2)>1?'s':''} on ${r.doors.count} door${r.doors.count>1?'s':''}`);
+    }
+    const wc=r.windows?.dims?.length||0;
+    if(r.windows?.enabled && wc>0) lines.push(`Painting ${r.windows.coats||2} coat${(r.windows.coats||2)>1?'s':''} on ${wc} window${wc>1?'s':''}`);
+    if(r.doorFrames?.enabled && c.perimLF) lines.push(`Painting ${r.doorFrames.coats||2} coat${(r.doorFrames.coats||2)>1?'s':''} on door frames`);
     Object.entries(prepLabelsMap).forEach(([k,v])=>{if(r.prep?.[k])prepItems.push(v);});
     if(r.prep?.custom) prepItems.push(r.prep.custom);
+    const materials=[];
+    if(r.walls?.enabled&&r.paint?.wallProduct){
+      const hex=getHex(r.paint.wallColour);
+      materials.push({label:`Walls: ${r.paint.wallProduct}`,colour:r.paint.wallColour,sheen:r.paint.wallSheen,hex});
+    }
+    if(r.ceiling?.enabled&&r.paint?.ceilProduct){
+      const hex=getHex(r.paint.ceilColour);
+      materials.push({label:`Ceiling: ${r.paint.ceilProduct}`,colour:r.paint.ceilColour,sheen:r.paint.ceilSheen,hex});
+    }
+    if((r.baseboards?.enabled||r.doors?.enabled||roomDoorCount(r)>0||r.crown?.enabled)&&r.paint?.trimProduct){
+      const hex=getHex(r.paint.trimColour);
+      materials.push({label:`Trim: ${r.paint.trimProduct}`,colour:r.paint.trimColour,sheen:r.paint.trimSheen,hex});
+    }
     html+=`<tr><td style="font-weight:600;white-space:nowrap">${r.name}</td><td>`;
     if(prepItems.length) html+=`<p style="margin-bottom:4px"><strong>Prep:</strong> ${prepItems.join(', ')}</p>`;
-    html+=`<p>${surfaces.join('<br>')}</p></td></tr>`;
+    html+=`<p>${lines.join('<br>')}</p>`;
+    if(materials.length) materials.forEach(m=>{html+=`<p style="font-size:10px;color:#666;margin-top:4px">${m.label} — ${m.colour}${m.hex?`<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${m.hex};border:1px solid #ccc;margin:0 3px;vertical-align:middle"></span>`:''} (${m.sheen})</p>`;});
+    html+=`</td></tr>`;
   });
   html+='</tbody></table>';
   html+=`<div style="margin-top:24px;padding-top:16px" class="border-gold"><table style="width:auto;margin-left:auto"><tr><td style="text-align:right;padding:4px 16px;color:#888">Subtotal</td><td style="text-align:right;padding:4px 0;font-weight:600">${fmtC(totals.discounted)}</td></tr>`;
@@ -5109,18 +5134,49 @@ function exportBidPDF(client,rooms,settings,totals,paints,ceilPaints,primers,col
   if(client.email) html+=`<p>${client.email}</p>`;
   html+='</div><div><p style="font-weight:600;margin-bottom:4px">Contractor</p><p>David Truong</p><p>25 Fieldview Crescent</p><p>Markham ON L3R 3H6</p><p>(647) 449-6611</p><p>info@kingdompainting.ca</p></div></div>';
   html+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">2. Scope of Work</p>`;
-  html+='<table style="font-size:11px"><thead><tr><th>Room</th><th>Surfaces</th></tr></thead><tbody>';
   rooms.forEach(r=>{
-    const parts=[];
-    if(r.walls?.enabled) parts.push('Walls');
-    if(r.ceiling?.enabled) parts.push('Ceiling');
-    if(r.baseboards?.enabled) parts.push('Baseboards');
-    if(r.crown?.enabled) parts.push('Crown');
-    const dc=roomDoorCount(r);if(dc>0) parts.push(`${dc} Door${dc>1?'s':''}`);
-    const wc=r.windows?.dims?.length||0;if(r.windows?.enabled&&wc>0) parts.push(`${wc} Window${wc>1?'s':''}`);
-    html+=`<tr><td style="padding:6px 8px;font-weight:500">${r.name}</td><td style="padding:6px 8px;color:#555">${parts.join(', ')||'—'}</td></tr>`;
+    const c=calcRoom(r,settings);
+    const scopeLines=[];const scopePrep=[];
+    Object.entries(prepLabelsMap).forEach(([k,v])=>{if(r.prep?.[k])scopePrep.push(v);});
+    if(r.prep?.custom) scopePrep.push(r.prep.custom);
+    if(r.ceiling?.enabled && r.ceiling.removeStucco && c.ceilSqft) scopeLines.push(`Removing ${fmtN(c.ceilSqft)} square feet of stucco ceiling`);
+    if(r.walls?.enabled && c.wallSqft) scopeLines.push(`Painting ${r.walls.coats} coat${r.walls.coats>1?'s':''} on ${fmtN(c.wallSqft)} square feet of walls`);
+    if(r.ceiling?.enabled && c.ceilSqft) scopeLines.push(`Painting ${r.ceiling.coats} coat${r.ceiling.coats>1?'s':''} on ${fmtN(c.ceilSqft)} square feet of ceilings`);
+    if(r.baseboards?.enabled && c.perimLF) scopeLines.push(`Painting ${r.baseboards.coats} coat${r.baseboards.coats>1?'s':''} on ${fmtN(c.perimLF)} linear feet of baseboards`);
+    if(r.crown?.enabled && c.perimLF) scopeLines.push(`Painting ${r.crown.coats} coat${r.crown.coats>1?'s':''} on ${fmtN(c.perimLF)} linear feet of crown moulding`);
+    if(r.doors?.enabled){
+      const fl=r.doors.flat||{};const sp=r.doors.sixPanel||{};const cu=r.doors.custom||{};
+      if(fl.count>0) scopeLines.push(`Painting ${fl.coats||2} coat${(fl.coats||2)>1?'s':''} on ${fl.count} flat door${fl.count>1?'s':''}`);
+      if(sp.count>0) scopeLines.push(`Painting ${sp.coats||2} coat${(sp.coats||2)>1?'s':''} on ${sp.count} six-panel door${sp.count>1?'s':''}`);
+      if(cu.count>0) scopeLines.push(`Painting ${cu.coats||2} coat${(cu.coats||2)>1?'s':''} on ${cu.count} custom door${cu.count>1?'s':''}`);
+    } else if(r.doors?.count>0){
+      scopeLines.push(`Painting ${r.doors.coats||2} coat${(r.doors.coats||2)>1?'s':''} on ${r.doors.count} door${r.doors.count>1?'s':''}`);
+    }
+    const wc=r.windows?.dims?.length||0;
+    if(r.windows?.enabled && wc>0) scopeLines.push(`Painting ${r.windows.coats||2} coat${(r.windows.coats||2)>1?'s':''} on ${wc} window${wc>1?'s':''}`);
+    if(r.doorFrames?.enabled && c.perimLF) scopeLines.push(`Painting ${r.doorFrames.coats||2} coat${(r.doorFrames.coats||2)>1?'s':''} on door frames`);
+    html+=`<p style="font-size:12px;font-weight:600;color:#1a1a1a;margin-top:14px;margin-bottom:6px">${r.name}</p>`;
+    html+='<div style="font-size:11px;color:#444;line-height:1.8;padding-left:10px;border-left:2px solid #e5ddd0;margin-bottom:6px">';
+    if(scopePrep.length) html+=`<p><strong>Prep:</strong> ${scopePrep.join(', ')}</p>`;
+    scopeLines.forEach(l=>{html+=`<p>${l}</p>`;});
+    html+='</div>';
   });
-  html+='</tbody></table>';
+  let totSqft=0,totLF=0,totDoors=0,totWindows=0;
+  rooms.forEach(r=>{
+    const c=calcRoom(r,settings);
+    if(r.walls?.enabled) totSqft+=c.wallSqft;
+    if(r.ceiling?.enabled) totSqft+=c.ceilSqft;
+    if(r.baseboards?.enabled) totLF+=c.perimLF;
+    if(r.crown?.enabled) totLF+=c.perimLF;
+    totDoors+=roomDoorCount(r);
+    if(r.windows?.enabled) totWindows+=(r.windows.dims?.length||0);
+  });
+  html+=`<div style="margin-top:16px;padding-top:10px;border-top:1px solid #e5ddd0;font-size:11px;color:#444;line-height:1.8">`;
+  html+=`<p><strong>Total Square Feet:</strong> ${fmtN(totSqft)}</p>`;
+  if(totLF) html+=`<p><strong>Total Linear Feet:</strong> ${fmtN(totLF)}</p>`;
+  if(totDoors) html+=`<p><strong>Total Doors:</strong> ${totDoors}</p>`;
+  if(totWindows) html+=`<p><strong>Total Windows:</strong> ${totWindows}</p>`;
+  html+=`</div>`;
   html+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">3. Payment Terms</p>`;
   html+=`<div style="font-size:11px;line-height:1.7;color:#444"><p style="margin-bottom:8px">The total cost for the Services shall be <strong>${fmtC(totals.total)}</strong>, which includes labour, materials, and any applicable taxes. A different payment plan can be discussed.</p>`;
   html+=`<p>30% Deposit: ${fmtC(totals.deposit)} · 35% Balance: ${fmtC(totals.midway)} · 35% Final Balance: ${fmtC(totals.balance)}</p></div>`;

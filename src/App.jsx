@@ -11,6 +11,7 @@ import {
   TrendingUp, Percent, Layers, ArrowRight, ArrowLeft,
   ChevronRight, ChevronDown, Archive as ArchiveIcon, Receipt, BarChart2,
   Save, Loader2, GripVertical, Printer, Download, Eye, Camera,
+  BookOpen,
 } from "lucide-react";
 
 // ─── Theme / CSS variables ───────────────────────────────────────────────────
@@ -130,7 +131,19 @@ function buildDemoSeed(){
   const estimates=[
     {id:'de1',user_id:'demo-user',title:'Patel Whole Home Interior - Priya Patel',client_name:'Priya Patel',client_email:'priya.patel@example.com',client_phone:'(905) 555-0119',addr1:'45 Sunnybrook Rd, Richmond Hill, ON',updated_at:'2026-06-12T10:00:00Z',state:estimateState},
   ];
-  return { contacts, deals, activities, estimates, paint_settings:[], project_notifications:[], _invoiceSeq:1000 };
+  const bookkeeping=[
+    {id:'bk1',date:'2026-06-01',type:'income',category:'Income',description:'Mitchell Exterior Trim — final payment',amount:5600,vendor:''},
+    {id:'bk2',date:'2026-06-03',type:'income',category:'Income',description:'Patel Office Accent Walls — deposit',amount:2000,vendor:''},
+    {id:'bk3',date:'2026-05-28',type:'expense',category:'Materials',description:'Benjamin Moore paint — Patel job',amount:480,vendor:'Home Depot'},
+    {id:'bk4',date:'2026-05-25',type:'expense',category:'Materials',description:'Primer + caulking — Mitchell exterior',amount:320,vendor:'Dulux Store'},
+    {id:'bk5',date:'2026-06-10',type:'expense',category:'Subcontractor',description:'Helper — Rodriguez kitchen prep',amount:650,vendor:'Mike Santos'},
+    {id:'bk6',date:'2026-06-05',type:'expense',category:'Gas / Mileage',description:'Site visits — Markham & Richmond Hill',amount:85,vendor:'Petro Canada'},
+    {id:'bk7',date:'2026-06-12',type:'expense',category:'Supplies',description:'Drop cloths, tape, rollers',amount:145,vendor:'Home Depot'},
+    {id:'bk8',date:'2026-06-01',type:'expense',category:'Insurance',description:'Monthly liability insurance',amount:210,vendor:'Aviva'},
+    {id:'bk9',date:'2026-05-15',type:'expense',category:'Gas / Mileage',description:'Fuel — week of May 12',amount:72,vendor:'Shell'},
+    {id:'bk10',date:'2026-06-15',type:'expense',category:'Marketing',description:'Google Ads — June first half',amount:350,vendor:'Google'},
+  ];
+  return { contacts, deals, activities, estimates, bookkeeping, paint_settings:[], project_notifications:[], _invoiceSeq:1000 };
 }
 
 async function demoFetch(path, method='GET', body=null){
@@ -5080,18 +5093,43 @@ function exportBidPDF(client,rooms,settings,totals,paints,ceilPaints,primers,col
   html+='<table><thead><tr><th>Room</th><th>Description</th></tr></thead><tbody>';
   rooms.forEach(r=>{
     const c=calcRoom(r,settings);
-    const surfaces=[],prepItems=[];
-    if(r.walls?.enabled) surfaces.push(`${r.walls.coats} coat${r.walls.coats>1?'s':''} on walls — ${fmtN(c.wallSqft)} square feet`);
-    if(r.ceiling?.enabled) surfaces.push(`${r.ceiling.coats} coat${r.ceiling.coats>1?'s':''} on ceiling — ${fmtN(c.ceilSqft)} square feet`);
-    if(r.baseboards?.enabled) surfaces.push(`Baseboards`);
-    if(r.crown?.enabled) surfaces.push(`Crown moulding`);
-    const dc=roomDoorCount(r);if(dc>0) surfaces.push(`${dc} door${dc>1?'s':''}`);
-    const wc=r.windows?.dims?.length||0;if(r.windows?.enabled&&wc>0) surfaces.push(`${wc} window${wc>1?'s':''}`);
+    const lines=[],prepItems=[];
+    if(r.ceiling?.enabled && r.ceiling.removeStucco && c.ceilSqft) lines.push(`Removing ${fmtN(c.ceilSqft)} square feet of stucco ceiling`);
+    if(r.walls?.enabled && c.wallSqft) lines.push(`Painting ${r.walls.coats} coat${r.walls.coats>1?'s':''} on ${fmtN(c.wallSqft)} square feet of walls`);
+    if(r.ceiling?.enabled && c.ceilSqft) lines.push(`Painting ${r.ceiling.coats} coat${r.ceiling.coats>1?'s':''} on ${fmtN(c.ceilSqft)} square feet of ceilings`);
+    if(r.baseboards?.enabled && c.perimLF) lines.push(`Painting ${r.baseboards.coats} coat${r.baseboards.coats>1?'s':''} on ${fmtN(c.perimLF)} linear feet of baseboards`);
+    if(r.crown?.enabled && c.perimLF) lines.push(`Painting ${r.crown.coats} coat${r.crown.coats>1?'s':''} on ${fmtN(c.perimLF)} linear feet of crown moulding`);
+    if(r.doors?.enabled){
+      const fl=r.doors.flat||{};const sp=r.doors.sixPanel||{};const cu=r.doors.custom||{};
+      if(fl.count>0) lines.push(`Painting ${fl.coats||2} coat${(fl.coats||2)>1?'s':''} on ${fl.count} flat door${fl.count>1?'s':''}`);
+      if(sp.count>0) lines.push(`Painting ${sp.coats||2} coat${(sp.coats||2)>1?'s':''} on ${sp.count} six-panel door${sp.count>1?'s':''}`);
+      if(cu.count>0) lines.push(`Painting ${cu.coats||2} coat${(cu.coats||2)>1?'s':''} on ${cu.count} custom door${cu.count>1?'s':''}`);
+    } else if(r.doors?.count>0){
+      lines.push(`Painting ${r.doors.coats||2} coat${(r.doors.coats||2)>1?'s':''} on ${r.doors.count} door${r.doors.count>1?'s':''}`);
+    }
+    const wc=r.windows?.dims?.length||0;
+    if(r.windows?.enabled && wc>0) lines.push(`Painting ${r.windows.coats||2} coat${(r.windows.coats||2)>1?'s':''} on ${wc} window${wc>1?'s':''}`);
+    if(r.doorFrames?.enabled && c.perimLF) lines.push(`Painting ${r.doorFrames.coats||2} coat${(r.doorFrames.coats||2)>1?'s':''} on door frames`);
     Object.entries(prepLabelsMap).forEach(([k,v])=>{if(r.prep?.[k])prepItems.push(v);});
     if(r.prep?.custom) prepItems.push(r.prep.custom);
+    const materials=[];
+    if(r.walls?.enabled&&r.paint?.wallProduct){
+      const hex=getHex(r.paint.wallColour);
+      materials.push({label:`Walls: ${r.paint.wallProduct}`,colour:r.paint.wallColour,sheen:r.paint.wallSheen,hex});
+    }
+    if(r.ceiling?.enabled&&r.paint?.ceilProduct){
+      const hex=getHex(r.paint.ceilColour);
+      materials.push({label:`Ceiling: ${r.paint.ceilProduct}`,colour:r.paint.ceilColour,sheen:r.paint.ceilSheen,hex});
+    }
+    if((r.baseboards?.enabled||r.doors?.enabled||roomDoorCount(r)>0||r.crown?.enabled)&&r.paint?.trimProduct){
+      const hex=getHex(r.paint.trimColour);
+      materials.push({label:`Trim: ${r.paint.trimProduct}`,colour:r.paint.trimColour,sheen:r.paint.trimSheen,hex});
+    }
     html+=`<tr><td style="font-weight:600;white-space:nowrap">${r.name}</td><td>`;
     if(prepItems.length) html+=`<p style="margin-bottom:4px"><strong>Prep:</strong> ${prepItems.join(', ')}</p>`;
-    html+=`<p>${surfaces.join('<br>')}</p></td></tr>`;
+    html+=`<p>${lines.join('<br>')}</p>`;
+    if(materials.length) materials.forEach(m=>{html+=`<p style="font-size:10px;color:#666;margin-top:4px">${m.label} — ${m.colour}${m.hex?`<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${m.hex};border:1px solid #ccc;margin:0 3px;vertical-align:middle"></span>`:''} (${m.sheen})</p>`;});
+    html+=`</td></tr>`;
   });
   html+='</tbody></table>';
   html+=`<div style="margin-top:24px;padding-top:16px" class="border-gold"><table style="width:auto;margin-left:auto"><tr><td style="text-align:right;padding:4px 16px;color:#888">Subtotal</td><td style="text-align:right;padding:4px 0;font-weight:600">${fmtC(totals.discounted)}</td></tr>`;
@@ -5109,18 +5147,49 @@ function exportBidPDF(client,rooms,settings,totals,paints,ceilPaints,primers,col
   if(client.email) html+=`<p>${client.email}</p>`;
   html+='</div><div><p style="font-weight:600;margin-bottom:4px">Contractor</p><p>David Truong</p><p>25 Fieldview Crescent</p><p>Markham ON L3R 3H6</p><p>(647) 449-6611</p><p>info@kingdompainting.ca</p></div></div>';
   html+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">2. Scope of Work</p>`;
-  html+='<table style="font-size:11px"><thead><tr><th>Room</th><th>Surfaces</th></tr></thead><tbody>';
   rooms.forEach(r=>{
-    const parts=[];
-    if(r.walls?.enabled) parts.push('Walls');
-    if(r.ceiling?.enabled) parts.push('Ceiling');
-    if(r.baseboards?.enabled) parts.push('Baseboards');
-    if(r.crown?.enabled) parts.push('Crown');
-    const dc=roomDoorCount(r);if(dc>0) parts.push(`${dc} Door${dc>1?'s':''}`);
-    const wc=r.windows?.dims?.length||0;if(r.windows?.enabled&&wc>0) parts.push(`${wc} Window${wc>1?'s':''}`);
-    html+=`<tr><td style="padding:6px 8px;font-weight:500">${r.name}</td><td style="padding:6px 8px;color:#555">${parts.join(', ')||'—'}</td></tr>`;
+    const c=calcRoom(r,settings);
+    const scopeLines=[];const scopePrep=[];
+    Object.entries(prepLabelsMap).forEach(([k,v])=>{if(r.prep?.[k])scopePrep.push(v);});
+    if(r.prep?.custom) scopePrep.push(r.prep.custom);
+    if(r.ceiling?.enabled && r.ceiling.removeStucco && c.ceilSqft) scopeLines.push(`Removing ${fmtN(c.ceilSqft)} square feet of stucco ceiling`);
+    if(r.walls?.enabled && c.wallSqft) scopeLines.push(`Painting ${r.walls.coats} coat${r.walls.coats>1?'s':''} on ${fmtN(c.wallSqft)} square feet of walls`);
+    if(r.ceiling?.enabled && c.ceilSqft) scopeLines.push(`Painting ${r.ceiling.coats} coat${r.ceiling.coats>1?'s':''} on ${fmtN(c.ceilSqft)} square feet of ceilings`);
+    if(r.baseboards?.enabled && c.perimLF) scopeLines.push(`Painting ${r.baseboards.coats} coat${r.baseboards.coats>1?'s':''} on ${fmtN(c.perimLF)} linear feet of baseboards`);
+    if(r.crown?.enabled && c.perimLF) scopeLines.push(`Painting ${r.crown.coats} coat${r.crown.coats>1?'s':''} on ${fmtN(c.perimLF)} linear feet of crown moulding`);
+    if(r.doors?.enabled){
+      const fl=r.doors.flat||{};const sp=r.doors.sixPanel||{};const cu=r.doors.custom||{};
+      if(fl.count>0) scopeLines.push(`Painting ${fl.coats||2} coat${(fl.coats||2)>1?'s':''} on ${fl.count} flat door${fl.count>1?'s':''}`);
+      if(sp.count>0) scopeLines.push(`Painting ${sp.coats||2} coat${(sp.coats||2)>1?'s':''} on ${sp.count} six-panel door${sp.count>1?'s':''}`);
+      if(cu.count>0) scopeLines.push(`Painting ${cu.coats||2} coat${(cu.coats||2)>1?'s':''} on ${cu.count} custom door${cu.count>1?'s':''}`);
+    } else if(r.doors?.count>0){
+      scopeLines.push(`Painting ${r.doors.coats||2} coat${(r.doors.coats||2)>1?'s':''} on ${r.doors.count} door${r.doors.count>1?'s':''}`);
+    }
+    const wc=r.windows?.dims?.length||0;
+    if(r.windows?.enabled && wc>0) scopeLines.push(`Painting ${r.windows.coats||2} coat${(r.windows.coats||2)>1?'s':''} on ${wc} window${wc>1?'s':''}`);
+    if(r.doorFrames?.enabled && c.perimLF) scopeLines.push(`Painting ${r.doorFrames.coats||2} coat${(r.doorFrames.coats||2)>1?'s':''} on door frames`);
+    html+=`<p style="font-size:12px;font-weight:600;color:#1a1a1a;margin-top:14px;margin-bottom:6px">${r.name}</p>`;
+    html+='<div style="font-size:11px;color:#444;line-height:1.8;padding-left:10px;border-left:2px solid #e5ddd0;margin-bottom:6px">';
+    if(scopePrep.length) html+=`<p><strong>Prep:</strong> ${scopePrep.join(', ')}</p>`;
+    scopeLines.forEach(l=>{html+=`<p>${l}</p>`;});
+    html+='</div>';
   });
-  html+='</tbody></table>';
+  let totSqft=0,totLF=0,totDoors=0,totWindows=0;
+  rooms.forEach(r=>{
+    const c=calcRoom(r,settings);
+    if(r.walls?.enabled) totSqft+=c.wallSqft;
+    if(r.ceiling?.enabled) totSqft+=c.ceilSqft;
+    if(r.baseboards?.enabled) totLF+=c.perimLF;
+    if(r.crown?.enabled) totLF+=c.perimLF;
+    totDoors+=roomDoorCount(r);
+    if(r.windows?.enabled) totWindows+=(r.windows.dims?.length||0);
+  });
+  html+=`<div style="margin-top:16px;padding-top:10px;border-top:1px solid #e5ddd0;font-size:11px;color:#444;line-height:1.8">`;
+  html+=`<p><strong>Total Square Feet:</strong> ${fmtN(totSqft)}</p>`;
+  if(totLF) html+=`<p><strong>Total Linear Feet:</strong> ${fmtN(totLF)}</p>`;
+  if(totDoors) html+=`<p><strong>Total Doors:</strong> ${totDoors}</p>`;
+  if(totWindows) html+=`<p><strong>Total Windows:</strong> ${totWindows}</p>`;
+  html+=`</div>`;
   html+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">3. Payment Terms</p>`;
   html+=`<div style="font-size:11px;line-height:1.7;color:#444"><p style="margin-bottom:8px">The total cost for the Services shall be <strong>${fmtC(totals.total)}</strong>, which includes labour, materials, and any applicable taxes. A different payment plan can be discussed.</p>`;
   html+=`<p>30% Deposit: ${fmtC(totals.deposit)} · 35% Balance: ${fmtC(totals.midway)} · 35% Final Balance: ${fmtC(totals.balance)}</p></div>`;
@@ -5759,12 +5828,280 @@ function Financials({showToast}){
   );
 }
 
+// ─── Bookkeeping Page ─────────────────────────────────────────────────────────
+const BK_CATEGORIES=['Materials','Subcontractor','Gas / Mileage','Supplies','Insurance','Office','Marketing','Equipment','Other'];
+
+function Bookkeeping({showToast}){
+  const [entries,setEntries]=useState([]);
+  const [form,setForm]=useState({date:new Date().toISOString().slice(0,10),type:'expense',category:'Materials',description:'',amount:'',vendor:''});
+  const [filterType,setFilterType]=useState('all');
+  const [filterCat,setFilterCat]=useState('all');
+  const [filterMonth,setFilterMonth]=useState('all');
+  const [sortKey,setSortKey]=useState('date');
+  const [sortDir,setSortDir]=useState('desc');
+  const [editing,setEditing]=useState(null);
+  const [loading,setLoading]=useState(true);
+
+  useEffect(()=>{
+    (async()=>{
+      try{
+        const rows=await supaFetch('/rest/v1/bookkeeping?order=date.desc');
+        setEntries(Array.isArray(rows)?rows:[]);
+      }catch(e){console.warn('bookkeeping load:',e);}
+      setLoading(false);
+    })();
+  },[]);
+
+  const save=async(entry)=>{
+    try{
+      if(entry.id){
+        await supaFetch(`/rest/v1/bookkeeping?id=eq.${entry.id}`,'PATCH',entry);
+        setEntries(prev=>prev.map(e=>e.id===entry.id?{...e,...entry}:e));
+      }else{
+        const res=await supaFetch('/rest/v1/bookkeeping','POST',entry);
+        const created=Array.isArray(res)?res[0]:res;
+        if(created?.id) setEntries(prev=>[created,...prev]);
+        else{const rows=await supaFetch('/rest/v1/bookkeeping?order=date.desc');setEntries(Array.isArray(rows)?rows:[]);}
+      }
+      if(showToast) showToast('Saved','success');
+    }catch(e){console.warn('bookkeeping save:',e);if(showToast) showToast('Save failed','error');}
+  };
+
+  const remove=async(id)=>{
+    if(!confirm('Delete this entry?')) return;
+    try{
+      await supaFetch(`/rest/v1/bookkeeping?id=eq.${id}`,'DELETE');
+      setEntries(prev=>prev.filter(e=>e.id!==id));
+      if(showToast) showToast('Deleted','success');
+    }catch(e){console.warn('bookkeeping delete:',e);if(showToast) showToast('Delete failed','error');}
+  };
+
+  const handleAdd=()=>{
+    const amt=parseFloat(form.amount);
+    if(!amt||!form.description.trim()){if(showToast) showToast('Amount & description required','error');return;}
+    const entry={date:form.date,type:form.type,category:form.type==='income'?'Income':form.category,description:form.description.trim(),amount:amt,vendor:form.vendor.trim()};
+    save(entry);
+    setForm({date:new Date().toISOString().slice(0,10),type:'expense',category:'Materials',description:'',amount:'',vendor:''});
+  };
+
+  const handleEdit=(e)=>{
+    setEditing(e.id);
+    setForm({date:e.date||'',type:e.type||'expense',category:e.category||'Materials',description:e.description||'',amount:e.amount||'',vendor:e.vendor||''});
+  };
+
+  const handleUpdate=()=>{
+    const amt=parseFloat(form.amount);
+    if(!amt||!form.description.trim()){if(showToast) showToast('Amount & description required','error');return;}
+    save({id:editing,date:form.date,type:form.type,category:form.type==='income'?'Income':form.category,description:form.description.trim(),amount:amt,vendor:form.vendor.trim()});
+    setEditing(null);
+    setForm({date:new Date().toISOString().slice(0,10),type:'expense',category:'Materials',description:'',amount:'',vendor:''});
+  };
+
+  const cancelEdit=()=>{
+    setEditing(null);
+    setForm({date:new Date().toISOString().slice(0,10),type:'expense',category:'Materials',description:'',amount:'',vendor:''});
+  };
+
+  const months=Array.from(new Set(entries.map(e=>(e.date||'').slice(0,7)))).sort().reverse();
+
+  const filtered=entries.filter(e=>{
+    if(filterType!=='all'&&e.type!==filterType) return false;
+    if(filterCat!=='all'&&e.category!==filterCat) return false;
+    if(filterMonth!=='all'&&!(e.date||'').startsWith(filterMonth)) return false;
+    return true;
+  });
+
+  const sorted=[...filtered].sort((a,b)=>{
+    let av,bv;
+    switch(sortKey){
+      case 'date': av=a.date||''; bv=b.date||''; break;
+      case 'amount': av=parseFloat(a.amount)||0; bv=parseFloat(b.amount)||0; break;
+      case 'category': av=(a.category||'').toLowerCase(); bv=(b.category||'').toLowerCase(); break;
+      case 'description': av=(a.description||'').toLowerCase(); bv=(b.description||'').toLowerCase(); break;
+      default: av=0; bv=0;
+    }
+    if(av<bv) return sortDir==='asc'?-1:1;
+    if(av>bv) return sortDir==='asc'?1:-1;
+    return 0;
+  });
+
+  const handleSort=key=>{
+    if(sortKey===key) setSortDir(d=>d==='asc'?'desc':'asc');
+    else{setSortKey(key);setSortDir(key==='date'?'desc':'asc');}
+  };
+
+  const totalIncome=filtered.filter(e=>e.type==='income').reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
+  const totalExpenses=filtered.filter(e=>e.type==='expense').reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
+  const netIncome=totalIncome-totalExpenses;
+
+  const expByCat={};
+  filtered.filter(e=>e.type==='expense').forEach(e=>{expByCat[e.category||'Other']=(expByCat[e.category||'Other']||0)+(parseFloat(e.amount)||0);});
+  const catData=Object.entries(expByCat).sort((a,b)=>b[1]-a[1]);
+  const catColors=['#C4922A','#3b82f6','#22c55e','#ef4444','#8b5cf6','#f59e0b','#06b6d4','#ec4899','#6b7280'];
+
+  const thStyle={padding:'8px 10px',fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--muted-fg)',borderBottom:'2px solid var(--border)',whiteSpace:'nowrap',textAlign:'left',cursor:'pointer',userSelect:'none'};
+  const tdStyle={padding:'8px 10px',borderBottom:'1px solid var(--border)',fontSize:12,verticalAlign:'middle'};
+  const inp={background:'var(--muted)',border:'1px solid var(--border)',borderRadius:6,padding:'5px 8px',fontSize:12,color:'var(--fg)'};
+  const btnPrimary={fontSize:11,fontWeight:600,padding:'6px 14px',borderRadius:6,cursor:'pointer',border:'none',background:'var(--primary)',color:'#fff'};
+  const btnSecondary={fontSize:11,fontWeight:600,padding:'6px 14px',borderRadius:6,cursor:'pointer',border:'1px solid var(--border)',background:'var(--card)',color:'var(--fg)'};
+  const selectStyle={...inp,padding:'5px 8px',minWidth:100};
+
+  const SortTh=({col,label,right})=>(
+    <th style={{...thStyle,textAlign:right?'right':'left'}} onClick={()=>handleSort(col)}>
+      <span style={{display:'inline-flex',alignItems:'center',gap:4,justifyContent:right?'flex-end':'flex-start'}}>
+        {label}
+        <span style={{fontSize:10,color:sortKey===col?'var(--primary)':'var(--border)'}}>{sortKey===col?(sortDir==='asc'?'▲':'▼'):'⇅'}</span>
+      </span>
+    </th>
+  );
+
+  if(loading) return <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%',color:'var(--muted-fg)',fontSize:13}}>Loading…</div>;
+
+  return (
+    <div style={{padding:'20px 24px',overflowY:'auto',height:'100%',display:'flex',flexDirection:'column',gap:20}}>
+      <h1 style={{fontSize:22,fontWeight:700}}>Bookkeeping</h1>
+
+      {/* Summary cards */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:14,flexShrink:0}}>
+        <Card style={{padding:'14px 18px'}}>
+          <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',marginBottom:4}}>Total Income</p>
+          <p style={{fontSize:28,fontWeight:700,color:'#22c55e',lineHeight:1}}>{fmtUSD(totalIncome)}</p>
+        </Card>
+        <Card style={{padding:'14px 18px'}}>
+          <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',marginBottom:4}}>Total Expenses</p>
+          <p style={{fontSize:28,fontWeight:700,color:'#ef4444',lineHeight:1}}>{fmtUSD(totalExpenses)}</p>
+        </Card>
+        <Card style={{padding:'14px 18px'}}>
+          <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',marginBottom:4}}>Net Income</p>
+          <p style={{fontSize:28,fontWeight:700,color:netIncome>=0?'#22c55e':'#ef4444',lineHeight:1}}>{fmtUSD(netIncome)}</p>
+        </Card>
+      </div>
+
+      {/* Expense breakdown + add form */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
+        {/* Expense by category */}
+        <Card style={{padding:'14px 18px'}}>
+          <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',marginBottom:10}}>Expenses by Category</p>
+          {catData.length===0&&<p style={{fontSize:12,color:'var(--muted-fg)'}}>No expenses yet.</p>}
+          <div style={{display:'flex',flexDirection:'column',gap:7}}>
+            {catData.map(([cat,amt],i)=>{
+              const pct=totalExpenses>0?Math.round(amt/totalExpenses*100):0;
+              return (
+                <div key={cat} style={{display:'flex',alignItems:'center',gap:8}}>
+                  <span style={{fontSize:10,fontWeight:600,width:90,flexShrink:0,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{cat}</span>
+                  <div style={{flex:1,height:7,background:'var(--muted)',borderRadius:9,overflow:'hidden'}}>
+                    <div style={{height:'100%',background:catColors[i%catColors.length],borderRadius:9,width:`${pct}%`,transition:'width .4s'}}/>
+                  </div>
+                  <span style={{fontSize:11,fontWeight:700,width:70,textAlign:'right'}}>{fmtUSD(amt)}</span>
+                  <span style={{fontSize:10,color:'var(--muted-fg)',width:30,textAlign:'right'}}>{pct}%</span>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+
+        {/* Add / Edit form */}
+        <Card style={{padding:'14px 18px'}}>
+          <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',marginBottom:10}}>{editing?'Edit Entry':'Add Entry'}</p>
+          <div style={{display:'flex',flexDirection:'column',gap:8}}>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+              <input type="date" value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))} style={inp}/>
+              <select value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))} style={selectStyle}>
+                <option value="expense">Expense</option>
+                <option value="income">Income</option>
+              </select>
+            </div>
+            {form.type==='expense'&&(
+              <select value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))} style={selectStyle}>
+                {BK_CATEGORIES.map(c=><option key={c} value={c}>{c}</option>)}
+              </select>
+            )}
+            <input type="text" placeholder="Description" value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} style={{...inp,width:'100%'}}/>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+              <input type="number" placeholder="Amount" value={form.amount} onChange={e=>setForm(f=>({...f,amount:e.target.value}))} style={{...inp,textAlign:'right'}} min="0" step="0.01"/>
+              <input type="text" placeholder="Vendor (optional)" value={form.vendor} onChange={e=>setForm(f=>({...f,vendor:e.target.value}))} style={inp}/>
+            </div>
+            <div style={{display:'flex',gap:8,marginTop:4}}>
+              {editing
+                ?<><button onClick={handleUpdate} style={btnPrimary}>Update</button><button onClick={cancelEdit} style={btnSecondary}>Cancel</button></>
+                :<button onClick={handleAdd} style={btnPrimary}>Add Entry</button>
+              }
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Filters */}
+      <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+        <span style={{fontSize:11,fontWeight:600,color:'var(--muted-fg)'}}>Filter:</span>
+        <select value={filterType} onChange={e=>setFilterType(e.target.value)} style={selectStyle}>
+          <option value="all">All Types</option>
+          <option value="income">Income</option>
+          <option value="expense">Expense</option>
+        </select>
+        <select value={filterCat} onChange={e=>setFilterCat(e.target.value)} style={selectStyle}>
+          <option value="all">All Categories</option>
+          <option value="Income">Income</option>
+          {BK_CATEGORIES.map(c=><option key={c} value={c}>{c}</option>)}
+        </select>
+        <select value={filterMonth} onChange={e=>setFilterMonth(e.target.value)} style={selectStyle}>
+          <option value="all">All Months</option>
+          {months.map(m=><option key={m} value={m}>{m}</option>)}
+        </select>
+        <span style={{flex:1}}/>
+        <span style={{fontSize:11,color:'var(--muted-fg)'}}>{sorted.length} entries</span>
+      </div>
+
+      {/* Entries table */}
+      <Card style={{flex:1,overflow:'hidden',display:'flex',flexDirection:'column'}}>
+        <div style={{flex:1,overflowY:'auto'}}>
+          <table style={{width:'100%',borderCollapse:'collapse'}}>
+            <thead>
+              <tr style={{background:'var(--muted)'}}>
+                <SortTh col="date" label="Date"/>
+                <th style={thStyle}>Type</th>
+                <SortTh col="category" label="Category"/>
+                <SortTh col="description" label="Description"/>
+                <th style={thStyle}>Vendor</th>
+                <SortTh col="amount" label="Amount" right/>
+                <th style={{...thStyle,width:70,textAlign:'center'}}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.length===0&&<tr><td colSpan={7} style={{...tdStyle,textAlign:'center',color:'var(--muted-fg)',padding:24}}>No entries yet. Add your first one above.</td></tr>}
+              {sorted.map(e=>(
+                <tr key={e.id} style={{transition:'background .1s'}} onMouseEnter={ev=>ev.currentTarget.style.background='var(--muted)'} onMouseLeave={ev=>ev.currentTarget.style.background='transparent'}>
+                  <td style={{...tdStyle,whiteSpace:'nowrap'}}>{e.date||'—'}</td>
+                  <td style={tdStyle}>
+                    <span style={{fontSize:10,fontWeight:700,textTransform:'uppercase',padding:'2px 8px',borderRadius:20,background:e.type==='income'?'#dcfce7':'#fef2f2',color:e.type==='income'?'#15803d':'#dc2626'}}>{e.type}</span>
+                  </td>
+                  <td style={tdStyle}>{e.category||'—'}</td>
+                  <td style={tdStyle}>{e.description||'—'}</td>
+                  <td style={{...tdStyle,color:'var(--muted-fg)'}}>{e.vendor||'—'}</td>
+                  <td style={{...tdStyle,textAlign:'right',fontWeight:600,color:e.type==='income'?'#22c55e':'#ef4444'}}>{e.type==='income'?'+':'-'}{fmtUSD(parseFloat(e.amount)||0)}</td>
+                  <td style={{...tdStyle,textAlign:'center'}}>
+                    <div style={{display:'flex',gap:4,justifyContent:'center'}}>
+                      <button onClick={()=>handleEdit(e)} style={{background:'none',border:'none',cursor:'pointer',color:'var(--muted-fg)',padding:2}} title="Edit"><Pencil size={13}/></button>
+                      <button onClick={()=>remove(e.id)} style={{background:'none',border:'none',cursor:'pointer',color:'#ef4444',padding:2}} title="Delete"><Trash2 size={13}/></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 const NAV=[
   {id:'dashboard',Icon:LayoutDashboard,label:'Dashboard'},
   {id:'pipeline',Icon:Kanban,label:'Pipeline'},
   {id:'estimates',Icon:FileText,label:'Estimates'},
   {id:'contacts',Icon:UserRound,label:'Contacts'},
   {id:'invoice',Icon:Receipt,label:'Invoice'},
+  {id:'bookkeeping',Icon:BookOpen,label:'Bookkeeping'},
   {id:'financials',Icon:DollarSign,label:'Financials'},
 ];
 
@@ -6334,6 +6671,7 @@ export default function App(){
               {page==='estimates'&&<MasterEstimate/>}
               {page==='invoice'&&<InvoicePage showToast={showToast}/>}
               {page==='contacts'&&<Contacts showToast={showToast}/>}
+              {page==='bookkeeping'&&<Bookkeeping showToast={showToast}/>}
               {page==='financials'&&<Financials showToast={showToast}/>}
             </>
           }

@@ -11,6 +11,7 @@ import {
   TrendingUp, Percent, Layers, ArrowRight, ArrowLeft,
   ChevronRight, ChevronDown, Archive as ArchiveIcon, Receipt, BarChart2,
   Save, Loader2, GripVertical, Printer, Download, Eye, Camera,
+  BookOpen,
 } from "lucide-react";
 
 // ─── Theme / CSS variables ───────────────────────────────────────────────────
@@ -130,7 +131,19 @@ function buildDemoSeed(){
   const estimates=[
     {id:'de1',user_id:'demo-user',title:'Patel Whole Home Interior - Priya Patel',client_name:'Priya Patel',client_email:'priya.patel@example.com',client_phone:'(905) 555-0119',addr1:'45 Sunnybrook Rd, Richmond Hill, ON',updated_at:'2026-06-12T10:00:00Z',state:estimateState},
   ];
-  return { contacts, deals, activities, estimates, paint_settings:[], project_notifications:[], _invoiceSeq:1000 };
+  const bookkeeping=[
+    {id:'bk1',date:'2026-06-01',type:'income',category:'Income',description:'Mitchell Exterior Trim — final payment',amount:5600,vendor:''},
+    {id:'bk2',date:'2026-06-03',type:'income',category:'Income',description:'Patel Office Accent Walls — deposit',amount:2000,vendor:''},
+    {id:'bk3',date:'2026-05-28',type:'expense',category:'Materials',description:'Benjamin Moore paint — Patel job',amount:480,vendor:'Home Depot'},
+    {id:'bk4',date:'2026-05-25',type:'expense',category:'Materials',description:'Primer + caulking — Mitchell exterior',amount:320,vendor:'Dulux Store'},
+    {id:'bk5',date:'2026-06-10',type:'expense',category:'Subcontractor',description:'Helper — Rodriguez kitchen prep',amount:650,vendor:'Mike Santos'},
+    {id:'bk6',date:'2026-06-05',type:'expense',category:'Gas / Mileage',description:'Site visits — Markham & Richmond Hill',amount:85,vendor:'Petro Canada'},
+    {id:'bk7',date:'2026-06-12',type:'expense',category:'Supplies',description:'Drop cloths, tape, rollers',amount:145,vendor:'Home Depot'},
+    {id:'bk8',date:'2026-06-01',type:'expense',category:'Insurance',description:'Monthly liability insurance',amount:210,vendor:'Aviva'},
+    {id:'bk9',date:'2026-05-15',type:'expense',category:'Gas / Mileage',description:'Fuel — week of May 12',amount:72,vendor:'Shell'},
+    {id:'bk10',date:'2026-06-15',type:'expense',category:'Marketing',description:'Google Ads — June first half',amount:350,vendor:'Google'},
+  ];
+  return { contacts, deals, activities, estimates, bookkeeping, paint_settings:[], project_notifications:[], _invoiceSeq:1000 };
 }
 
 async function demoFetch(path, method='GET', body=null){
@@ -5815,12 +5828,280 @@ function Financials({showToast}){
   );
 }
 
+// ─── Bookkeeping Page ─────────────────────────────────────────────────────────
+const BK_CATEGORIES=['Materials','Subcontractor','Gas / Mileage','Supplies','Insurance','Office','Marketing','Equipment','Other'];
+
+function Bookkeeping({showToast}){
+  const [entries,setEntries]=useState([]);
+  const [form,setForm]=useState({date:new Date().toISOString().slice(0,10),type:'expense',category:'Materials',description:'',amount:'',vendor:''});
+  const [filterType,setFilterType]=useState('all');
+  const [filterCat,setFilterCat]=useState('all');
+  const [filterMonth,setFilterMonth]=useState('all');
+  const [sortKey,setSortKey]=useState('date');
+  const [sortDir,setSortDir]=useState('desc');
+  const [editing,setEditing]=useState(null);
+  const [loading,setLoading]=useState(true);
+
+  useEffect(()=>{
+    (async()=>{
+      try{
+        const rows=await supaFetch('/rest/v1/bookkeeping?order=date.desc');
+        setEntries(Array.isArray(rows)?rows:[]);
+      }catch(e){console.warn('bookkeeping load:',e);}
+      setLoading(false);
+    })();
+  },[]);
+
+  const save=async(entry)=>{
+    try{
+      if(entry.id){
+        await supaFetch(`/rest/v1/bookkeeping?id=eq.${entry.id}`,'PATCH',entry);
+        setEntries(prev=>prev.map(e=>e.id===entry.id?{...e,...entry}:e));
+      }else{
+        const res=await supaFetch('/rest/v1/bookkeeping','POST',entry);
+        const created=Array.isArray(res)?res[0]:res;
+        if(created?.id) setEntries(prev=>[created,...prev]);
+        else{const rows=await supaFetch('/rest/v1/bookkeeping?order=date.desc');setEntries(Array.isArray(rows)?rows:[]);}
+      }
+      if(showToast) showToast('Saved','success');
+    }catch(e){console.warn('bookkeeping save:',e);if(showToast) showToast('Save failed','error');}
+  };
+
+  const remove=async(id)=>{
+    if(!confirm('Delete this entry?')) return;
+    try{
+      await supaFetch(`/rest/v1/bookkeeping?id=eq.${id}`,'DELETE');
+      setEntries(prev=>prev.filter(e=>e.id!==id));
+      if(showToast) showToast('Deleted','success');
+    }catch(e){console.warn('bookkeeping delete:',e);if(showToast) showToast('Delete failed','error');}
+  };
+
+  const handleAdd=()=>{
+    const amt=parseFloat(form.amount);
+    if(!amt||!form.description.trim()){if(showToast) showToast('Amount & description required','error');return;}
+    const entry={date:form.date,type:form.type,category:form.type==='income'?'Income':form.category,description:form.description.trim(),amount:amt,vendor:form.vendor.trim()};
+    save(entry);
+    setForm({date:new Date().toISOString().slice(0,10),type:'expense',category:'Materials',description:'',amount:'',vendor:''});
+  };
+
+  const handleEdit=(e)=>{
+    setEditing(e.id);
+    setForm({date:e.date||'',type:e.type||'expense',category:e.category||'Materials',description:e.description||'',amount:e.amount||'',vendor:e.vendor||''});
+  };
+
+  const handleUpdate=()=>{
+    const amt=parseFloat(form.amount);
+    if(!amt||!form.description.trim()){if(showToast) showToast('Amount & description required','error');return;}
+    save({id:editing,date:form.date,type:form.type,category:form.type==='income'?'Income':form.category,description:form.description.trim(),amount:amt,vendor:form.vendor.trim()});
+    setEditing(null);
+    setForm({date:new Date().toISOString().slice(0,10),type:'expense',category:'Materials',description:'',amount:'',vendor:''});
+  };
+
+  const cancelEdit=()=>{
+    setEditing(null);
+    setForm({date:new Date().toISOString().slice(0,10),type:'expense',category:'Materials',description:'',amount:'',vendor:''});
+  };
+
+  const months=Array.from(new Set(entries.map(e=>(e.date||'').slice(0,7)))).sort().reverse();
+
+  const filtered=entries.filter(e=>{
+    if(filterType!=='all'&&e.type!==filterType) return false;
+    if(filterCat!=='all'&&e.category!==filterCat) return false;
+    if(filterMonth!=='all'&&!(e.date||'').startsWith(filterMonth)) return false;
+    return true;
+  });
+
+  const sorted=[...filtered].sort((a,b)=>{
+    let av,bv;
+    switch(sortKey){
+      case 'date': av=a.date||''; bv=b.date||''; break;
+      case 'amount': av=parseFloat(a.amount)||0; bv=parseFloat(b.amount)||0; break;
+      case 'category': av=(a.category||'').toLowerCase(); bv=(b.category||'').toLowerCase(); break;
+      case 'description': av=(a.description||'').toLowerCase(); bv=(b.description||'').toLowerCase(); break;
+      default: av=0; bv=0;
+    }
+    if(av<bv) return sortDir==='asc'?-1:1;
+    if(av>bv) return sortDir==='asc'?1:-1;
+    return 0;
+  });
+
+  const handleSort=key=>{
+    if(sortKey===key) setSortDir(d=>d==='asc'?'desc':'asc');
+    else{setSortKey(key);setSortDir(key==='date'?'desc':'asc');}
+  };
+
+  const totalIncome=filtered.filter(e=>e.type==='income').reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
+  const totalExpenses=filtered.filter(e=>e.type==='expense').reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
+  const netIncome=totalIncome-totalExpenses;
+
+  const expByCat={};
+  filtered.filter(e=>e.type==='expense').forEach(e=>{expByCat[e.category||'Other']=(expByCat[e.category||'Other']||0)+(parseFloat(e.amount)||0);});
+  const catData=Object.entries(expByCat).sort((a,b)=>b[1]-a[1]);
+  const catColors=['#C4922A','#3b82f6','#22c55e','#ef4444','#8b5cf6','#f59e0b','#06b6d4','#ec4899','#6b7280'];
+
+  const thStyle={padding:'8px 10px',fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--muted-fg)',borderBottom:'2px solid var(--border)',whiteSpace:'nowrap',textAlign:'left',cursor:'pointer',userSelect:'none'};
+  const tdStyle={padding:'8px 10px',borderBottom:'1px solid var(--border)',fontSize:12,verticalAlign:'middle'};
+  const inp={background:'var(--muted)',border:'1px solid var(--border)',borderRadius:6,padding:'5px 8px',fontSize:12,color:'var(--fg)'};
+  const btnPrimary={fontSize:11,fontWeight:600,padding:'6px 14px',borderRadius:6,cursor:'pointer',border:'none',background:'var(--primary)',color:'#fff'};
+  const btnSecondary={fontSize:11,fontWeight:600,padding:'6px 14px',borderRadius:6,cursor:'pointer',border:'1px solid var(--border)',background:'var(--card)',color:'var(--fg)'};
+  const selectStyle={...inp,padding:'5px 8px',minWidth:100};
+
+  const SortTh=({col,label,right})=>(
+    <th style={{...thStyle,textAlign:right?'right':'left'}} onClick={()=>handleSort(col)}>
+      <span style={{display:'inline-flex',alignItems:'center',gap:4,justifyContent:right?'flex-end':'flex-start'}}>
+        {label}
+        <span style={{fontSize:10,color:sortKey===col?'var(--primary)':'var(--border)'}}>{sortKey===col?(sortDir==='asc'?'▲':'▼'):'⇅'}</span>
+      </span>
+    </th>
+  );
+
+  if(loading) return <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%',color:'var(--muted-fg)',fontSize:13}}>Loading…</div>;
+
+  return (
+    <div style={{padding:'20px 24px',overflowY:'auto',height:'100%',display:'flex',flexDirection:'column',gap:20}}>
+      <h1 style={{fontSize:22,fontWeight:700}}>Bookkeeping</h1>
+
+      {/* Summary cards */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:14,flexShrink:0}}>
+        <Card style={{padding:'14px 18px'}}>
+          <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',marginBottom:4}}>Total Income</p>
+          <p style={{fontSize:28,fontWeight:700,color:'#22c55e',lineHeight:1}}>{fmtUSD(totalIncome)}</p>
+        </Card>
+        <Card style={{padding:'14px 18px'}}>
+          <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',marginBottom:4}}>Total Expenses</p>
+          <p style={{fontSize:28,fontWeight:700,color:'#ef4444',lineHeight:1}}>{fmtUSD(totalExpenses)}</p>
+        </Card>
+        <Card style={{padding:'14px 18px'}}>
+          <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',marginBottom:4}}>Net Income</p>
+          <p style={{fontSize:28,fontWeight:700,color:netIncome>=0?'#22c55e':'#ef4444',lineHeight:1}}>{fmtUSD(netIncome)}</p>
+        </Card>
+      </div>
+
+      {/* Expense breakdown + add form */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
+        {/* Expense by category */}
+        <Card style={{padding:'14px 18px'}}>
+          <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',marginBottom:10}}>Expenses by Category</p>
+          {catData.length===0&&<p style={{fontSize:12,color:'var(--muted-fg)'}}>No expenses yet.</p>}
+          <div style={{display:'flex',flexDirection:'column',gap:7}}>
+            {catData.map(([cat,amt],i)=>{
+              const pct=totalExpenses>0?Math.round(amt/totalExpenses*100):0;
+              return (
+                <div key={cat} style={{display:'flex',alignItems:'center',gap:8}}>
+                  <span style={{fontSize:10,fontWeight:600,width:90,flexShrink:0,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{cat}</span>
+                  <div style={{flex:1,height:7,background:'var(--muted)',borderRadius:9,overflow:'hidden'}}>
+                    <div style={{height:'100%',background:catColors[i%catColors.length],borderRadius:9,width:`${pct}%`,transition:'width .4s'}}/>
+                  </div>
+                  <span style={{fontSize:11,fontWeight:700,width:70,textAlign:'right'}}>{fmtUSD(amt)}</span>
+                  <span style={{fontSize:10,color:'var(--muted-fg)',width:30,textAlign:'right'}}>{pct}%</span>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+
+        {/* Add / Edit form */}
+        <Card style={{padding:'14px 18px'}}>
+          <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',marginBottom:10}}>{editing?'Edit Entry':'Add Entry'}</p>
+          <div style={{display:'flex',flexDirection:'column',gap:8}}>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+              <input type="date" value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))} style={inp}/>
+              <select value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))} style={selectStyle}>
+                <option value="expense">Expense</option>
+                <option value="income">Income</option>
+              </select>
+            </div>
+            {form.type==='expense'&&(
+              <select value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))} style={selectStyle}>
+                {BK_CATEGORIES.map(c=><option key={c} value={c}>{c}</option>)}
+              </select>
+            )}
+            <input type="text" placeholder="Description" value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} style={{...inp,width:'100%'}}/>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+              <input type="number" placeholder="Amount" value={form.amount} onChange={e=>setForm(f=>({...f,amount:e.target.value}))} style={{...inp,textAlign:'right'}} min="0" step="0.01"/>
+              <input type="text" placeholder="Vendor (optional)" value={form.vendor} onChange={e=>setForm(f=>({...f,vendor:e.target.value}))} style={inp}/>
+            </div>
+            <div style={{display:'flex',gap:8,marginTop:4}}>
+              {editing
+                ?<><button onClick={handleUpdate} style={btnPrimary}>Update</button><button onClick={cancelEdit} style={btnSecondary}>Cancel</button></>
+                :<button onClick={handleAdd} style={btnPrimary}>Add Entry</button>
+              }
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Filters */}
+      <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+        <span style={{fontSize:11,fontWeight:600,color:'var(--muted-fg)'}}>Filter:</span>
+        <select value={filterType} onChange={e=>setFilterType(e.target.value)} style={selectStyle}>
+          <option value="all">All Types</option>
+          <option value="income">Income</option>
+          <option value="expense">Expense</option>
+        </select>
+        <select value={filterCat} onChange={e=>setFilterCat(e.target.value)} style={selectStyle}>
+          <option value="all">All Categories</option>
+          <option value="Income">Income</option>
+          {BK_CATEGORIES.map(c=><option key={c} value={c}>{c}</option>)}
+        </select>
+        <select value={filterMonth} onChange={e=>setFilterMonth(e.target.value)} style={selectStyle}>
+          <option value="all">All Months</option>
+          {months.map(m=><option key={m} value={m}>{m}</option>)}
+        </select>
+        <span style={{flex:1}}/>
+        <span style={{fontSize:11,color:'var(--muted-fg)'}}>{sorted.length} entries</span>
+      </div>
+
+      {/* Entries table */}
+      <Card style={{flex:1,overflow:'hidden',display:'flex',flexDirection:'column'}}>
+        <div style={{flex:1,overflowY:'auto'}}>
+          <table style={{width:'100%',borderCollapse:'collapse'}}>
+            <thead>
+              <tr style={{background:'var(--muted)'}}>
+                <SortTh col="date" label="Date"/>
+                <th style={thStyle}>Type</th>
+                <SortTh col="category" label="Category"/>
+                <SortTh col="description" label="Description"/>
+                <th style={thStyle}>Vendor</th>
+                <SortTh col="amount" label="Amount" right/>
+                <th style={{...thStyle,width:70,textAlign:'center'}}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.length===0&&<tr><td colSpan={7} style={{...tdStyle,textAlign:'center',color:'var(--muted-fg)',padding:24}}>No entries yet. Add your first one above.</td></tr>}
+              {sorted.map(e=>(
+                <tr key={e.id} style={{transition:'background .1s'}} onMouseEnter={ev=>ev.currentTarget.style.background='var(--muted)'} onMouseLeave={ev=>ev.currentTarget.style.background='transparent'}>
+                  <td style={{...tdStyle,whiteSpace:'nowrap'}}>{e.date||'—'}</td>
+                  <td style={tdStyle}>
+                    <span style={{fontSize:10,fontWeight:700,textTransform:'uppercase',padding:'2px 8px',borderRadius:20,background:e.type==='income'?'#dcfce7':'#fef2f2',color:e.type==='income'?'#15803d':'#dc2626'}}>{e.type}</span>
+                  </td>
+                  <td style={tdStyle}>{e.category||'—'}</td>
+                  <td style={tdStyle}>{e.description||'—'}</td>
+                  <td style={{...tdStyle,color:'var(--muted-fg)'}}>{e.vendor||'—'}</td>
+                  <td style={{...tdStyle,textAlign:'right',fontWeight:600,color:e.type==='income'?'#22c55e':'#ef4444'}}>{e.type==='income'?'+':'-'}{fmtUSD(parseFloat(e.amount)||0)}</td>
+                  <td style={{...tdStyle,textAlign:'center'}}>
+                    <div style={{display:'flex',gap:4,justifyContent:'center'}}>
+                      <button onClick={()=>handleEdit(e)} style={{background:'none',border:'none',cursor:'pointer',color:'var(--muted-fg)',padding:2}} title="Edit"><Pencil size={13}/></button>
+                      <button onClick={()=>remove(e.id)} style={{background:'none',border:'none',cursor:'pointer',color:'#ef4444',padding:2}} title="Delete"><Trash2 size={13}/></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 const NAV=[
   {id:'dashboard',Icon:LayoutDashboard,label:'Dashboard'},
   {id:'pipeline',Icon:Kanban,label:'Pipeline'},
   {id:'estimates',Icon:FileText,label:'Estimates'},
   {id:'contacts',Icon:UserRound,label:'Contacts'},
   {id:'invoice',Icon:Receipt,label:'Invoice'},
+  {id:'bookkeeping',Icon:BookOpen,label:'Bookkeeping'},
   {id:'financials',Icon:DollarSign,label:'Financials'},
 ];
 
@@ -6390,6 +6671,7 @@ export default function App(){
               {page==='estimates'&&<MasterEstimate/>}
               {page==='invoice'&&<InvoicePage showToast={showToast}/>}
               {page==='contacts'&&<Contacts showToast={showToast}/>}
+              {page==='bookkeeping'&&<Bookkeeping showToast={showToast}/>}
               {page==='financials'&&<Financials showToast={showToast}/>}
             </>
           }

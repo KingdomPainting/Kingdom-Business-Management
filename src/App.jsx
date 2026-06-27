@@ -111,8 +111,8 @@ function buildDemoSeed(){
     {id:'dd2',dealName:'Chen Hallway & Stairwell',contact:'dc2',value:2450,stage:'Lead',leadSource:'Site',labels:[],progress:0,rooms:[{name:'Hallway',done:false},{name:'Stairwell',done:false}],created_at:'2026-06-15T10:00:00Z'},
     {id:'dd3',dealName:'Patel Whole Home Interior',contact:'dc3',value:14800,stage:'Proposal',leadSource:'Referral',labels:[],progress:0,quote_date:'2026-06-12',rooms:[{name:'Living Room',done:false},{name:'Kitchen',done:false},{name:'Master Bedroom',done:false},{name:'Bedroom 2',done:false},{name:'Bedroom 3',done:false},{name:'Bathrooms',done:false}],created_at:'2026-05-28T10:00:00Z'},
     {id:'dd4',dealName:'Thompson Basement Finishing',contact:'dc4',value:8900,stage:'Proposal',leadSource:'Home Depot',labels:[],progress:0,quote_date:'2026-06-08',rooms:[{name:'Rec Room',done:false},{name:'Office',done:false},{name:'Bathroom',done:false}],created_at:'2026-05-20T10:00:00Z'},
-    {id:'dd5',dealName:'Rodriguez Kitchen & Living',contact:'dc5',value:6750,stage:'Scheduled',leadSource:'Repeat',labels:[],progress:40,startDate:'2026-06-25',startTime:'08:30',endDate:'2026-06-27',endTime:'17:00',rooms:[{name:'Kitchen',done:true},{name:'Living Room',done:false},{name:'Dining Room',done:false}],created_at:'2026-05-15T10:00:00Z'},
-    {id:'dd6',dealName:'Davidson Unit 204 Turnover',contact:'dc6',value:4300,stage:'Scheduled',leadSource:'MBT',labels:[],progress:0,startDate:'2026-07-02',startTime:'09:00',endDate:'2026-07-03',endTime:'17:00',rooms:[{name:'Bedroom',done:false},{name:'Living Area',done:false},{name:'Bathroom',done:false}],created_at:'2026-06-01T10:00:00Z'},
+    {id:'dd5',dealName:'Rodriguez Kitchen & Living',contact:'dc5',value:6750,stage:'Scheduled',leadSource:'Referral',referralName:'dc1',labels:[],progress:40,startDate:'2026-06-25',startTime:'08:30',endDate:'2026-06-27',endTime:'17:00',rooms:[{name:'Kitchen',done:true},{name:'Living Room',done:false},{name:'Dining Room',done:false}],created_at:'2026-05-15T10:00:00Z'},
+    {id:'dd6',dealName:'Davidson Unit 204 Turnover',contact:'dc6',value:4300,stage:'Scheduled',leadSource:'Referral',referralName:'dc1',labels:[],progress:0,startDate:'2026-07-02',startTime:'09:00',endDate:'2026-07-03',endTime:'17:00',rooms:[{name:'Bedroom',done:false},{name:'Living Area',done:false},{name:'Bathroom',done:false}],created_at:'2026-06-01T10:00:00Z'},
     {id:'dd7',dealName:'Mitchell Exterior Trim',contact:'dc1',value:5600,stage:'Completed',leadSource:'Referral',labels:[],progress:100,invoicePaid:5600,materials:920,wages:2100,rooms:[{name:'Front Trim',done:true},{name:'Garage Door',done:true},{name:'Rear Fascia',done:true}],created_at:'2026-05-12T10:00:00Z'},
     {id:'dd8',dealName:'Patel Office Accent Walls',contact:'dc3',value:3950,stage:'Completed',leadSource:'Repeat',labels:[],progress:100,invoicePaid:2000,materials:480,wages:1300,rooms:[{name:'Office',done:true},{name:'Reception',done:true}],created_at:'2026-06-03T10:00:00Z'},
     {id:'dd9',dealName:'Chen Garage Repaint',contact:'dc2',value:1800,stage:'Archive',leadSource:'Site',labels:['Lost'],progress:0,rooms:[{name:'Garage',done:false}],created_at:'2026-04-18T10:00:00Z'},
@@ -132,8 +132,8 @@ function buildDemoSeed(){
     {id:'de1',user_id:'demo-user',title:'Patel Whole Home Interior - Priya Patel',client_name:'Priya Patel',client_email:'priya.patel@example.com',client_phone:'(905) 555-0119',addr1:'45 Sunnybrook Rd, Richmond Hill, ON',updated_at:'2026-06-12T10:00:00Z',state:estimateState},
   ];
   const bookkeeping=[
-    {id:'bk1',date:'2026-06-01',type:'income',category:'Income',description:'Mitchell Exterior Trim — final payment',amount:5600,vendor:''},
-    {id:'bk2',date:'2026-06-03',type:'income',category:'Income',description:'Patel Office Accent Walls — deposit',amount:2000,vendor:''},
+    {id:'bk1',date:'2026-06-01',type:'income',category:'Income',description:'Mitchell Exterior Trim — final payment',amount:5600,vendor:'',contact_id:'dc1'},
+    {id:'bk2',date:'2026-06-03',type:'income',category:'Income',description:'Patel Office Accent Walls — deposit',amount:2000,vendor:'',contact_id:'dc3'},
     {id:'bk3',date:'2026-05-28',type:'expense',category:'Materials',description:'Benjamin Moore paint — Patel job',amount:480,vendor:'Home Depot'},
     {id:'bk4',date:'2026-05-25',type:'expense',category:'Materials',description:'Primer + caulking — Mitchell exterior',amount:320,vendor:'Dulux Store'},
     {id:'bk5',date:'2026-06-10',type:'expense',category:'Subcontractor',description:'Helper — Rodriguez kitchen prep',amount:650,vendor:'Mike Santos'},
@@ -654,11 +654,17 @@ function ContactModal({open,onClose,contact,clients,onSaved,allDeals,allContacts
   const deals=allDeals||[];
   const contacts=allContacts||[];
   const referralDeals=contact?deals.filter(d=>(d.referralName||d.referralContactId)===contact.id):[];
-  // For each referral deal, get the client contact name
-  const referralItems=referralDeals.map(d=>{
-    const c=contacts.find(x=>x.id===(d.contact||d.contactId));
-    return {dealName:d.dealName||'Unnamed project',clientName:c?.fullName||d.contactFreeText||'—'};
+  // Group referral deals by the referred contact — a list of the contacts this person referred
+  const referredMap={};
+  referralDeals.forEach(d=>{
+    const cid=d.contact||d.contactId;
+    const c=contacts.find(x=>x.id===cid);
+    const name=c?.fullName||d.contactFreeText||'One-time client';
+    const key=cid||name;
+    if(!referredMap[key]) referredMap[key]={name,deals:[]};
+    referredMap[key].deals.push(d.dealName||'Unnamed project');
   });
+  const referredContacts=Object.values(referredMap);
   // All deals for this contact (any stage, for display)
   const allContactDeals=contact?allDeals.filter(d=>
     (d.contact||d.contactId)===contact.id
@@ -700,33 +706,35 @@ function ContactModal({open,onClose,contact,clients,onSaved,allDeals,allContacts
         <div><Label>Company</Label><input value={f.client} onChange={e=>setF(x=>({...x,client:e.target.value}))} placeholder='Company name' style={{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%',outline:'none',boxSizing:'border-box'}}/></div>
       </div>
 
-      {/* All Projects */}
-      {allContactDeals.length>0&&(
+      {/* All Projects + Repeats & Referrals */}
+      {(allContactDeals.length>0||repeatDeals.length>0||referredContacts.length>0)&&(
         <div style={{marginBottom:12,padding:'10px 12px',background:'var(--muted)',borderRadius:8,border:'1px solid var(--border)'}}>
-          <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--fg)',marginBottom:8,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-            <span>Projects ({allContactDeals.length})</span>
-          </p>
-          <div style={{display:'flex',flexDirection:'column',gap:4}}>
-            {allContactDeals.map((d,i)=>{
-              const pill=STAGE_PILL[d.stage]||{bg:'#f0f0f0',color:'#555'};
-              const val=d.value?'$'+parseFloat(d.value).toLocaleString('en-CA',{minimumFractionDigits:0,maximumFractionDigits:0}):'';
-              return(
-                <div key={i} style={{display:'flex',alignItems:'center',justifyContent:'space-between',fontSize:12,padding:'5px 8px',background:'var(--card)',borderRadius:6,gap:8}}>
-                  <span style={{fontWeight:500,flex:1,minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{d.dealName||'Unnamed'}</span>
-                  <div style={{display:'flex',alignItems:'center',gap:6,flexShrink:0}}>
-                    {val&&<span style={{color:'var(--primary)',fontWeight:600,fontSize:11}}>{val}</span>}
-                    <span style={{fontSize:9,fontWeight:700,padding:'2px 6px',borderRadius:10,background:pill.bg,color:pill.color,textTransform:'uppercase',letterSpacing:'0.05em'}}>{d.stage}</span>
+          {allContactDeals.length>0&&(<>
+            <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--fg)',marginBottom:8,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+              <span>Projects ({allContactDeals.length})</span>
+            </p>
+            <div style={{display:'flex',flexDirection:'column',gap:4}}>
+              {allContactDeals.map((d,i)=>{
+                const pill=STAGE_PILL[d.stage]||{bg:'#f0f0f0',color:'#555'};
+                const val=d.value?'$'+parseFloat(d.value).toLocaleString('en-CA',{minimumFractionDigits:0,maximumFractionDigits:0}):'';
+                return(
+                  <div key={i} style={{display:'flex',alignItems:'center',justifyContent:'space-between',fontSize:12,padding:'5px 8px',background:'var(--card)',borderRadius:6,gap:8}}>
+                    <span style={{fontWeight:500,flex:1,minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{d.dealName||'Unnamed'}</span>
+                    <div style={{display:'flex',alignItems:'center',gap:6,flexShrink:0}}>
+                      {val&&<span style={{color:'var(--primary)',fontWeight:600,fontSize:11}}>{val}</span>}
+                      <span style={{fontSize:9,fontWeight:700,padding:'2px 6px',borderRadius:10,background:pill.bg,color:pill.color,textTransform:'uppercase',letterSpacing:'0.05em'}}>{d.stage}</span>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          </>)}
 
           {/* Repeats & Referrals below */}
-          {(repeatDeals.length>0||referralItems.length>0)&&(
-            <div style={{marginTop:10,paddingTop:10,borderTop:'1px solid var(--border)'}}>
+          {(repeatDeals.length>0||referredContacts.length>0)&&(
+            <div style={allContactDeals.length>0?{marginTop:10,paddingTop:10,borderTop:'1px solid var(--border)'}:undefined}>
               {repeatDeals.length>0&&(
-                <div style={{marginBottom:referralItems.length>0?8:0}}>
+                <div style={{marginBottom:referredContacts.length>0?8:0}}>
                   <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.05em',color:'#6366f1',marginBottom:5,display:'flex',alignItems:'center',gap:4}}>↩ Repeats ({repeatDeals.length})</p>
                   <div style={{display:'flex',flexDirection:'column',gap:3}}>
                     {repeatDeals.map((d,i)=>(
@@ -737,14 +745,14 @@ function ContactModal({open,onClose,contact,clients,onSaved,allDeals,allContacts
                   </div>
                 </div>
               )}
-              {referralItems.length>0&&(
+              {referredContacts.length>0&&(
                 <div>
-                  <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--primary)',marginBottom:5,display:'flex',alignItems:'center',gap:4}}><Star size={10}/>Referrals ({referralItems.length})</p>
+                  <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--primary)',marginBottom:5,display:'flex',alignItems:'center',gap:4}}><Star size={10}/>Referrals ({referredContacts.length})</p>
                   <div style={{display:'flex',flexDirection:'column',gap:3}}>
-                    {referralItems.map((r,i)=>(
-                      <div key={i} style={{display:'flex',justifyContent:'space-between',fontSize:11,padding:'3px 8px',background:'rgba(212,169,106,0.08)',borderRadius:5}}>
-                        <span style={{fontWeight:500}}>{r.clientName}</span>
-                        <span style={{color:'var(--muted-fg)'}}>{r.dealName}</span>
+                    {referredContacts.map((r,i)=>(
+                      <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:11,padding:'3px 8px',background:'rgba(212,169,106,0.08)',borderRadius:5,gap:8}}>
+                        <span style={{fontWeight:500,flex:1,minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.name}</span>
+                        <span style={{color:'var(--muted-fg)',flexShrink:0}}>{r.deals.length} project{r.deals.length>1?'s':''}</span>
                       </div>
                     ))}
                   </div>
@@ -5066,8 +5074,9 @@ function exportBidPDF(client,rooms,settings,totals,paints,ceilPaints,primers,col
   const prepLabelsMap={furniture:'Move furniture',plastic:'Cover w/ plastic',outlets:'Remove outlets',drywall:'Drywall repairs',caulking:'Caulking',cleanup:'Clean up'};
   const docTitle=projectName?`Bid Proposal - ${projectName}`:'Bid Proposal';
   let html='<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+docTitle+'</title>';
-  html+='<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,sans-serif;color:#1a1a1a;font-size:12px}';
-  html+='.page{page-break-after:always;padding:40px 48px;max-width:900px;margin:0 auto}.page:last-child{page-break-after:auto}';
+  html+='<style>*{margin:0;padding:0;box-sizing:border-box}html,body{height:auto;overflow:visible}body{font-family:-apple-system,sans-serif;color:#1a1a1a;font-size:12px}';
+  html+='.page{page-break-after:always;break-after:page;padding:40px 48px;max-width:900px;margin:0 auto}.page:last-child{page-break-after:auto;break-after:auto}';
+  html+='.section{page-break-inside:avoid;break-inside:avoid}.scope-room{page-break-inside:avoid;break-inside:avoid}.sec-head{page-break-after:avoid;break-after:avoid}';
   html+=`.gold{color:${gold}}.border-gold{border-bottom:2px solid ${gold}}`;
   html+='table{width:100%;border-collapse:collapse}th{text-align:left;padding:8px 10px;border-bottom:2px solid #e5e5e5;color:#888;font-size:11px;font-weight:600}td{padding:8px 10px;border-bottom:1px solid #eee;font-size:12px;vertical-align:top}';
   html+='@media print{body{padding:0}.page{padding:32px 40px}}</style></head><body>';
@@ -5168,11 +5177,12 @@ function exportBidPDF(client,rooms,settings,totals,paints,ceilPaints,primers,col
     const wc=r.windows?.dims?.length||0;
     if(r.windows?.enabled && wc>0) scopeLines.push(`Painting ${r.windows.coats||2} coat${(r.windows.coats||2)>1?'s':''} on ${wc} window${wc>1?'s':''}`);
     if(r.doorFrames?.enabled && c.perimLF) scopeLines.push(`Painting ${r.doorFrames.coats||2} coat${(r.doorFrames.coats||2)>1?'s':''} on door frames`);
+    html+='<div class="scope-room">';
     html+=`<p style="font-size:12px;font-weight:600;color:#1a1a1a;margin-top:14px;margin-bottom:6px">${r.name}</p>`;
     html+='<div style="font-size:11px;color:#444;line-height:1.8;padding-left:10px;border-left:2px solid #e5ddd0;margin-bottom:6px">';
     if(scopePrep.length) html+=`<p><strong>Prep:</strong> ${scopePrep.join(', ')}</p>`;
     scopeLines.forEach(l=>{html+=`<p>${l}</p>`;});
-    html+='</div>';
+    html+='</div></div>';
   });
   let totSqft=0,totLF=0,totDoors=0,totWindows=0;
   rooms.forEach(r=>{
@@ -5184,19 +5194,21 @@ function exportBidPDF(client,rooms,settings,totals,paints,ceilPaints,primers,col
     totDoors+=roomDoorCount(r);
     if(r.windows?.enabled) totWindows+=(r.windows.dims?.length||0);
   });
-  html+=`<div style="margin-top:16px;padding-top:10px;border-top:1px solid #e5ddd0;font-size:11px;color:#444;line-height:1.8">`;
+  html+=`<div class="section" style="margin-top:16px;padding-top:10px;border-top:1px solid #e5ddd0;font-size:11px;color:#444;line-height:1.8">`;
   html+=`<p><strong>Total Square Feet:</strong> ${fmtN(totSqft)}</p>`;
   if(totLF) html+=`<p><strong>Total Linear Feet:</strong> ${fmtN(totLF)}</p>`;
   if(totDoors) html+=`<p><strong>Total Doors:</strong> ${totDoors}</p>`;
   if(totWindows) html+=`<p><strong>Total Windows:</strong> ${totWindows}</p>`;
   html+=`</div>`;
+  html+='<div class="section">';
   html+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">3. Payment Terms</p>`;
   html+=`<div style="font-size:11px;line-height:1.7;color:#444"><p style="margin-bottom:8px">The total cost for the Services shall be <strong>${fmtC(totals.total)}</strong>, which includes labour, materials, and any applicable taxes. A different payment plan can be discussed.</p>`;
-  html+=`<p>30% Deposit: ${fmtC(totals.deposit)} · 35% Balance: ${fmtC(totals.midway)} · 35% Final Balance: ${fmtC(totals.balance)}</p></div>`;
+  html+=`<p>30% Deposit: ${fmtC(totals.deposit)} · 35% Balance: ${fmtC(totals.midway)} · 35% Final Balance: ${fmtC(totals.balance)}</p></div></div>`;
+  html+='<div class="section">';
   html+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">4. Signatures</p>`;
   html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:24px;font-size:11px">';
   html+='<div><div style="border-bottom:1px solid #ccc;height:60px;margin-bottom:8px"></div><p style="color:#888">Client Signature</p></div>';
-  html+='<div><div style="border-bottom:1px solid #ccc;height:60px;margin-bottom:8px"></div><p style="color:#888">Contractor Signature</p></div></div>';
+  html+='<div><div style="border-bottom:1px solid #ccc;height:60px;margin-bottom:8px"></div><p style="color:#888">Contractor Signature</p></div></div></div>';
   html+='</div>';
   html+='<script>window.onload=function(){window.print();}<\/script></body></html>';
   const win=window.open('','_blank','width=860,height=900');
@@ -5832,8 +5844,10 @@ function Financials({showToast}){
 const BK_CATEGORIES=['Materials','Subcontractor','Gas / Mileage','Supplies','Insurance','Office','Marketing','Equipment','Other'];
 
 function Bookkeeping({showToast}){
+  const blankForm={date:new Date().toISOString().slice(0,10),type:'expense',category:'Materials',description:'',amount:'',vendor:'',contact_id:''};
   const [entries,setEntries]=useState([]);
-  const [form,setForm]=useState({date:new Date().toISOString().slice(0,10),type:'expense',category:'Materials',description:'',amount:'',vendor:''});
+  const [contacts,setContacts]=useState(()=>api.getContacts());
+  const [form,setForm]=useState(blankForm);
   const [filterType,setFilterType]=useState('all');
   const [filterCat,setFilterCat]=useState('all');
   const [filterMonth,setFilterMonth]=useState('all');
@@ -5848,9 +5862,12 @@ function Bookkeeping({showToast}){
         const rows=await supaFetch('/rest/v1/bookkeeping?order=date.desc');
         setEntries(Array.isArray(rows)?rows:[]);
       }catch(e){console.warn('bookkeeping load:',e);}
+      try{ await api.loadContacts?.(); setContacts(api.getContacts()); }catch(e){ setContacts(api.getContacts()); }
       setLoading(false);
     })();
   },[]);
+
+  const contactName=id=>{const c=contacts.find(x=>x.id===id);return c?.fullName||'';};
 
   const save=async(entry)=>{
     try{
@@ -5876,30 +5893,39 @@ function Bookkeeping({showToast}){
     }catch(e){console.warn('bookkeeping delete:',e);if(showToast) showToast('Delete failed','error');}
   };
 
+  const buildEntry=()=>({
+    date:form.date,
+    type:form.type,
+    category:form.type==='income'?'Income':form.category,
+    description:form.description.trim(),
+    amount:parseFloat(form.amount),
+    vendor:form.type==='income'?'':form.vendor.trim(),
+    contact_id:form.type==='income'?(form.contact_id||null):null,
+  });
+
   const handleAdd=()=>{
     const amt=parseFloat(form.amount);
     if(!amt||!form.description.trim()){if(showToast) showToast('Amount & description required','error');return;}
-    const entry={date:form.date,type:form.type,category:form.type==='income'?'Income':form.category,description:form.description.trim(),amount:amt,vendor:form.vendor.trim()};
-    save(entry);
-    setForm({date:new Date().toISOString().slice(0,10),type:'expense',category:'Materials',description:'',amount:'',vendor:''});
+    save(buildEntry());
+    setForm(blankForm);
   };
 
   const handleEdit=(e)=>{
     setEditing(e.id);
-    setForm({date:e.date||'',type:e.type||'expense',category:e.category||'Materials',description:e.description||'',amount:e.amount||'',vendor:e.vendor||''});
+    setForm({date:e.date||'',type:e.type||'expense',category:e.category||'Materials',description:e.description||'',amount:e.amount||'',vendor:e.vendor||'',contact_id:e.contact_id||''});
   };
 
   const handleUpdate=()=>{
     const amt=parseFloat(form.amount);
     if(!amt||!form.description.trim()){if(showToast) showToast('Amount & description required','error');return;}
-    save({id:editing,date:form.date,type:form.type,category:form.type==='income'?'Income':form.category,description:form.description.trim(),amount:amt,vendor:form.vendor.trim()});
+    save({id:editing,...buildEntry()});
     setEditing(null);
-    setForm({date:new Date().toISOString().slice(0,10),type:'expense',category:'Materials',description:'',amount:'',vendor:''});
+    setForm(blankForm);
   };
 
   const cancelEdit=()=>{
     setEditing(null);
-    setForm({date:new Date().toISOString().slice(0,10),type:'expense',category:'Materials',description:'',amount:'',vendor:''});
+    setForm(blankForm);
   };
 
   const months=Array.from(new Set(entries.map(e=>(e.date||'').slice(0,7)))).sort().reverse();
@@ -6016,10 +6042,16 @@ function Bookkeeping({showToast}){
                 {BK_CATEGORIES.map(c=><option key={c} value={c}>{c}</option>)}
               </select>
             )}
+            {form.type==='income'&&(
+              <select value={form.contact_id} onChange={e=>setForm(f=>({...f,contact_id:e.target.value}))} style={{...selectStyle,width:'100%'}}>
+                <option value="">Link a contact (optional)…</option>
+                {[...contacts].sort((a,b)=>(a.fullName||'').localeCompare(b.fullName||'')).map(c=><option key={c.id} value={c.id}>{c.fullName}</option>)}
+              </select>
+            )}
             <input type="text" placeholder="Description" value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} style={{...inp,width:'100%'}}/>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
               <input type="number" placeholder="Amount" value={form.amount} onChange={e=>setForm(f=>({...f,amount:e.target.value}))} style={{...inp,textAlign:'right'}} min="0" step="0.01"/>
-              <input type="text" placeholder="Vendor (optional)" value={form.vendor} onChange={e=>setForm(f=>({...f,vendor:e.target.value}))} style={inp}/>
+              {form.type==='expense'&&<input type="text" placeholder="Vendor (optional)" value={form.vendor} onChange={e=>setForm(f=>({...f,vendor:e.target.value}))} style={inp}/>}
             </div>
             <div style={{display:'flex',gap:8,marginTop:4}}>
               {editing
@@ -6062,7 +6094,7 @@ function Bookkeeping({showToast}){
                 <th style={thStyle}>Type</th>
                 <SortTh col="category" label="Category"/>
                 <SortTh col="description" label="Description"/>
-                <th style={thStyle}>Vendor</th>
+                <th style={thStyle}>Vendor / Contact</th>
                 <SortTh col="amount" label="Amount" right/>
                 <th style={{...thStyle,width:70,textAlign:'center'}}>Actions</th>
               </tr>
@@ -6077,7 +6109,7 @@ function Bookkeeping({showToast}){
                   </td>
                   <td style={tdStyle}>{e.category||'—'}</td>
                   <td style={tdStyle}>{e.description||'—'}</td>
-                  <td style={{...tdStyle,color:'var(--muted-fg)'}}>{e.vendor||'—'}</td>
+                  <td style={{...tdStyle,color:'var(--muted-fg)'}}>{e.type==='income'?(contactName(e.contact_id)||'—'):(e.vendor||'—')}</td>
                   <td style={{...tdStyle,textAlign:'right',fontWeight:600,color:e.type==='income'?'#22c55e':'#ef4444'}}>{e.type==='income'?'+':'-'}{fmtUSD(parseFloat(e.amount)||0)}</td>
                   <td style={{...tdStyle,textAlign:'center'}}>
                     <div style={{display:'flex',gap:4,justifyContent:'center'}}>

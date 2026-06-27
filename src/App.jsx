@@ -132,8 +132,6 @@ function buildDemoSeed(){
     {id:'de1',user_id:'demo-user',title:'Patel Whole Home Interior - Priya Patel',client_name:'Priya Patel',client_email:'priya.patel@example.com',client_phone:'(905) 555-0119',addr1:'45 Sunnybrook Rd, Richmond Hill, ON',updated_at:'2026-06-12T10:00:00Z',state:estimateState},
   ];
   const bookkeeping=[
-    {id:'bk1',date:'2026-06-01',type:'income',category:'Income',description:'Mitchell Exterior Trim — final payment',amount:5600,vendor:'',contact_id:'dc1'},
-    {id:'bk2',date:'2026-06-03',type:'income',category:'Income',description:'Patel Office Accent Walls — deposit',amount:2000,vendor:'',contact_id:'dc3'},
     {id:'bk3',date:'2026-05-28',type:'expense',category:'Materials',description:'Benjamin Moore paint — Patel job',amount:480,vendor:'Home Depot'},
     {id:'bk4',date:'2026-05-25',type:'expense',category:'Materials',description:'Primer + caulking — Mitchell exterior',amount:320,vendor:'Dulux Store'},
     {id:'bk5',date:'2026-06-10',type:'expense',category:'Subcontractor',description:'Helper — Rodriguez kitchen prep',amount:650,vendor:'Mike Santos'},
@@ -5847,6 +5845,7 @@ function Bookkeeping({showToast}){
   const blankForm={date:new Date().toISOString().slice(0,10),type:'expense',category:'Materials',description:'',amount:'',vendor:'',contact_id:''};
   const [entries,setEntries]=useState([]);
   const [contacts,setContacts]=useState(()=>api.getContacts());
+  const [deals,setDeals]=useState(()=>api.getDeals());
   const [form,setForm]=useState(blankForm);
   const [filterType,setFilterType]=useState('all');
   const [filterCat,setFilterCat]=useState('all');
@@ -5863,11 +5862,35 @@ function Bookkeeping({showToast}){
         setEntries(Array.isArray(rows)?rows:[]);
       }catch(e){console.warn('bookkeeping load:',e);}
       try{ await api.loadContacts?.(); setContacts(api.getContacts()); }catch(e){ setContacts(api.getContacts()); }
+      try{ await api.loadDeals?.(); setDeals(api.getDeals()); }catch(e){ setDeals(api.getDeals()); }
       setLoading(false);
     })();
   },[]);
 
   const contactName=id=>{const c=contacts.find(x=>x.id===id);return c?.fullName||'';};
+
+  // Derived income — pulled live from the Financials projects (same deal set as the Financials page)
+  const dealDateISO=d=>{
+    if(d.endDate) return String(d.endDate).slice(0,10);
+    const days=d.scheduleDays||[];
+    if(days.length) return String(days[days.length-1].date).slice(0,10);
+    if(d.created_at) return String(d.created_at).slice(0,10);
+    return '';
+  };
+  const financialsIncome=deals
+    .filter(d=>['Scheduled','Completed','Archive'].includes(d.stage)&&!(d.labels||[]).includes('Lost'))
+    .map(d=>({
+      id:'deal-'+d.id,
+      source:'financials',
+      date:dealDateISO(d),
+      type:'income',
+      category:'Income',
+      description:d.dealName||'Project',
+      amount:parseFloat(d.value)||0,
+      vendor:'',
+      contact_id:d.contact||d.contactId||null,
+      contactFreeText:d.contactFreeText||'',
+    }));
 
   const save=async(entry)=>{
     try{
@@ -5928,9 +5951,11 @@ function Bookkeeping({showToast}){
     setForm(blankForm);
   };
 
-  const months=Array.from(new Set(entries.map(e=>(e.date||'').slice(0,7)))).sort().reverse();
+  const allEntries=[...financialsIncome,...entries];
 
-  const filtered=entries.filter(e=>{
+  const months=Array.from(new Set(allEntries.map(e=>(e.date||'').slice(0,7)).filter(Boolean))).sort().reverse();
+
+  const filtered=allEntries.filter(e=>{
     if(filterType!=='all'&&e.type!==filterType) return false;
     if(filterCat!=='all'&&e.category!==filterCat) return false;
     if(filterMonth!=='all'&&!(e.date||'').startsWith(filterMonth)) return false;
@@ -6101,7 +6126,9 @@ function Bookkeeping({showToast}){
             </thead>
             <tbody>
               {sorted.length===0&&<tr><td colSpan={7} style={{...tdStyle,textAlign:'center',color:'var(--muted-fg)',padding:24}}>No entries yet. Add your first one above.</td></tr>}
-              {sorted.map(e=>(
+              {sorted.map(e=>{
+                const fromFin=e.source==='financials';
+                return (
                 <tr key={e.id} style={{transition:'background .1s'}} onMouseEnter={ev=>ev.currentTarget.style.background='var(--muted)'} onMouseLeave={ev=>ev.currentTarget.style.background='transparent'}>
                   <td style={{...tdStyle,whiteSpace:'nowrap'}}>{e.date||'—'}</td>
                   <td style={tdStyle}>
@@ -6109,16 +6136,20 @@ function Bookkeeping({showToast}){
                   </td>
                   <td style={tdStyle}>{e.category||'—'}</td>
                   <td style={tdStyle}>{e.description||'—'}</td>
-                  <td style={{...tdStyle,color:'var(--muted-fg)'}}>{e.type==='income'?(contactName(e.contact_id)||'—'):(e.vendor||'—')}</td>
+                  <td style={{...tdStyle,color:'var(--muted-fg)'}}>{e.type==='income'?(contactName(e.contact_id)||e.contactFreeText||'—'):(e.vendor||'—')}</td>
                   <td style={{...tdStyle,textAlign:'right',fontWeight:600,color:e.type==='income'?'#22c55e':'#ef4444'}}>{e.type==='income'?'+':'-'}{fmtUSD(parseFloat(e.amount)||0)}</td>
                   <td style={{...tdStyle,textAlign:'center'}}>
-                    <div style={{display:'flex',gap:4,justifyContent:'center'}}>
-                      <button onClick={()=>handleEdit(e)} style={{background:'none',border:'none',cursor:'pointer',color:'var(--muted-fg)',padding:2}} title="Edit"><Pencil size={13}/></button>
-                      <button onClick={()=>remove(e.id)} style={{background:'none',border:'none',cursor:'pointer',color:'#ef4444',padding:2}} title="Delete"><Trash2 size={13}/></button>
-                    </div>
+                    {fromFin
+                      ? <span title="Pulled from Financials" style={{fontSize:9,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.04em',padding:'2px 7px',borderRadius:20,background:'rgba(196,146,42,0.12)',color:'#C4922A',whiteSpace:'nowrap'}}>Financials</span>
+                      : <div style={{display:'flex',gap:4,justifyContent:'center'}}>
+                          <button onClick={()=>handleEdit(e)} style={{background:'none',border:'none',cursor:'pointer',color:'var(--muted-fg)',padding:2}} title="Edit"><Pencil size={13}/></button>
+                          <button onClick={()=>remove(e.id)} style={{background:'none',border:'none',cursor:'pointer',color:'#ef4444',padding:2}} title="Delete"><Trash2 size={13}/></button>
+                        </div>
+                    }
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

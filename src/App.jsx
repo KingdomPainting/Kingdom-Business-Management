@@ -5966,7 +5966,8 @@ function Bookkeeping({showToast}){
     let av,bv;
     switch(sortKey){
       case 'date': av=a.date||''; bv=b.date||''; break;
-      case 'amount': av=parseFloat(a.amount)||0; bv=parseFloat(b.amount)||0; break;
+      case 'debit': av=a.type==='expense'?(parseFloat(a.amount)||0):0; bv=b.type==='expense'?(parseFloat(b.amount)||0):0; break;
+      case 'credit': av=a.type==='income'?(parseFloat(a.amount)||0):0; bv=b.type==='income'?(parseFloat(b.amount)||0):0; break;
       case 'category': av=(a.category||'').toLowerCase(); bv=(b.category||'').toLowerCase(); break;
       case 'description': av=(a.description||'').toLowerCase(); bv=(b.description||'').toLowerCase(); break;
       default: av=0; bv=0;
@@ -6120,12 +6121,13 @@ function Bookkeeping({showToast}){
                 <SortTh col="category" label="Category"/>
                 <SortTh col="description" label="Description"/>
                 <th style={thStyle}>Vendor / Contact</th>
-                <SortTh col="amount" label="Amount" right/>
+                <SortTh col="debit" label="Debit" right/>
+                <SortTh col="credit" label="Credit" right/>
                 <th style={{...thStyle,width:70,textAlign:'center'}}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {sorted.length===0&&<tr><td colSpan={7} style={{...tdStyle,textAlign:'center',color:'var(--muted-fg)',padding:24}}>No entries yet. Add your first one above.</td></tr>}
+              {sorted.length===0&&<tr><td colSpan={8} style={{...tdStyle,textAlign:'center',color:'var(--muted-fg)',padding:24}}>No entries yet. Add your first one above.</td></tr>}
               {sorted.map(e=>{
                 const fromFin=e.source==='financials';
                 return (
@@ -6137,7 +6139,8 @@ function Bookkeeping({showToast}){
                   <td style={tdStyle}>{e.category||'—'}</td>
                   <td style={tdStyle}>{e.description||'—'}</td>
                   <td style={{...tdStyle,color:'var(--muted-fg)'}}>{e.type==='income'?(contactName(e.contact_id)||e.contactFreeText||'—'):(e.vendor||'—')}</td>
-                  <td style={{...tdStyle,textAlign:'right',fontWeight:600,color:e.type==='income'?'#22c55e':'#ef4444'}}>{e.type==='income'?'+':'-'}{fmtUSD(parseFloat(e.amount)||0)}</td>
+                  <td style={{...tdStyle,textAlign:'right',fontWeight:600,color:'#ef4444'}}>{e.type==='expense'?fmtUSD(parseFloat(e.amount)||0):''}</td>
+                  <td style={{...tdStyle,textAlign:'right',fontWeight:600,color:'#22c55e'}}>{e.type==='income'?fmtUSD(parseFloat(e.amount)||0):''}</td>
                   <td style={{...tdStyle,textAlign:'center'}}>
                     {fromFin
                       ? <span title="Pulled from Financials" style={{fontSize:9,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.04em',padding:'2px 7px',borderRadius:20,background:'rgba(196,146,42,0.12)',color:'#C4922A',whiteSpace:'nowrap'}}>Financials</span>
@@ -6151,6 +6154,16 @@ function Bookkeeping({showToast}){
                 );
               })}
             </tbody>
+            {sorted.length>0&&(
+              <tfoot>
+                <tr style={{background:'var(--muted)',borderTop:'2px solid var(--border)'}}>
+                  <td colSpan={5} style={{...tdStyle,fontWeight:700,textTransform:'uppercase',fontSize:10,letterSpacing:'0.05em',color:'var(--muted-fg)'}}>Totals</td>
+                  <td style={{...tdStyle,textAlign:'right',fontWeight:700,color:'#ef4444'}}>{fmtUSD(totalExpenses)}</td>
+                  <td style={{...tdStyle,textAlign:'right',fontWeight:700,color:'#22c55e'}}>{fmtUSD(totalIncome)}</td>
+                  <td style={tdStyle}></td>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       </Card>

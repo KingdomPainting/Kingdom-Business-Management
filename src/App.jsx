@@ -1210,13 +1210,7 @@ function Dashboard({toast}){
           <StatCard label='Outstanding Amount' value={fmtUSD(outstandingAmt)} color='#ef4444'/>
         </div>
 
-        {/* Row 4 — Financials summary */}
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,flexShrink:0}}>
-          <StatCard label='Total Revenue' value={fmtUSD(totalRevenue)}/>
-          <StatCard label='Total Profit' value={fmtUSD(totalProfit)} color={totalProfit>=0?'#22c55e':'#ef4444'}/>
-        </div>
-
-        {/* Row 5 — Quotes/Month + Avg Projects/Month */}
+        {/* Row 4 — Quotes/Month + Avg Projects/Month */}
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,flexShrink:0}}>
           <StatCard label='Quotes / Month (avg)' value={quotesPerMonth.toFixed(1)} color='var(--primary)'/>
           <StatCard label='Projects / Month (avg)' value={projectsPerMonth.toFixed(1)} color='var(--primary)'/>

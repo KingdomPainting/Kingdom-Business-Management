@@ -4802,7 +4802,7 @@ function Financials({showToast}){
 const BK_CATEGORIES=['Materials','Subcontractor','Gas / Mileage','Supplies','Insurance','Office','Marketing','Equipment','Other'];
 
 function Bookkeeping({showToast}){
-  const blankForm={date:new Date().toISOString().slice(0,10),type:'expense',category:'Materials',description:'',amount:'',vendor:'',contact_id:''};
+  const blankForm={date:new Date().toISOString().slice(0,10),type:'expense',category:'Materials',description:'',amount:'',vendor:'',contact_id:'',recurring:false};
   const [entries,setEntries]=useState([]);
   const [contacts,setContacts]=useState(()=>api.getContacts());
   const [deals,setDeals]=useState(()=>api.getDeals());
@@ -4903,10 +4903,39 @@ function Bookkeeping({showToast}){
     contact_id:form.type==='income'?(form.contact_id||null):null,
   });
 
+  // Monthly recurrence: same day-of-month from the start month through December of that year
+  const recurringDates=(startStr)=>{
+    const start=new Date((startStr||'')+'T12:00:00');
+    if(isNaN(start)) return [startStr];
+    const day=start.getDate(), year=start.getFullYear();
+    const out=[];
+    for(let m=start.getMonth();m<=11;m++){
+      const lastDay=new Date(year,m+1,0).getDate();
+      const d=Math.min(day,lastDay);
+      out.push(`${year}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`);
+    }
+    return out;
+  };
+
+  const saveMany=async(rows)=>{
+    try{
+      const res=await supaFetch('/rest/v1/bookkeeping','POST',rows);
+      const created=Array.isArray(res)?res:(res?[res]:[]);
+      if(created.length) setEntries(prev=>[...created,...prev]);
+      else{const all=await supaFetch('/rest/v1/bookkeeping?order=date.desc');setEntries(Array.isArray(all)?all:[]);}
+      if(showToast) showToast(`Added ${rows.length} recurring ${rows.length===1?'entry':'entries'}`,'success');
+    }catch(e){console.warn('bookkeeping recurring save:',e);if(showToast) showToast('Save failed','error');}
+  };
+
   const handleAdd=()=>{
     const amt=parseFloat(form.amount);
     if(!amt||!form.description.trim()){if(showToast) showToast('Amount & description required','error');return;}
-    save(buildEntry());
+    if(form.recurring){
+      const base=buildEntry();
+      saveMany(recurringDates(form.date).map(date=>({...base,date})));
+    }else{
+      save(buildEntry());
+    }
     setForm(blankForm);
   };
 
@@ -4929,6 +4958,50 @@ function Bookkeeping({showToast}){
   };
 
   const allEntries=[...financialsIncome,...financialsExpenses,...entries];
+
+  // Export all entries for the current calendar year to a printable PDF
+  const exportYearPDF=()=>{
+    const year=new Date().getFullYear();
+    const rows=allEntries
+      .filter(e=>(e.date||'').slice(0,4)===String(year))
+      .sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+    if(rows.length===0){ if(showToast) showToast(`No entries for ${year}`,'error'); return; }
+    const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const inc=rows.filter(e=>e.type==='income').reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
+    const exp=rows.filter(e=>e.type==='expense').reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
+    const net=inc-exp;
+    const body=rows.map(e=>{
+      const who=(e.type==='income'||e.source==='financials')?(contactName(e.contact_id)||e.contactFreeText||''):(e.vendor||'');
+      const debit=e.type==='expense'?fmtUSD(parseFloat(e.amount)||0):'';
+      const credit=e.type==='income'?fmtUSD(parseFloat(e.amount)||0):'';
+      return `<tr><td>${esc(e.date||'')}</td><td style="text-transform:capitalize">${esc(e.type||'')}</td><td>${esc(e.category||'')}</td><td>${esc(e.description||'')}</td><td>${esc(who)}</td><td class="r">${debit}</td><td class="r">${credit}</td></tr>`;
+    }).join('');
+    const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Bookkeeping ${year}</title><style>
+      body{font-family:'Montserrat',Arial,sans-serif;padding:28px 32px;color:#2e3557}
+      h1{font-size:18px;margin:0 0 2px}
+      .sub{font-size:12px;color:#777;margin-bottom:18px}
+      table{width:100%;border-collapse:collapse;font-size:11px}
+      th,td{padding:6px 8px;border-bottom:1px solid #ddd;text-align:left;vertical-align:top}
+      th{text-transform:uppercase;font-size:10px;letter-spacing:.05em;color:#777;border-bottom:2px solid #bbb}
+      td.r,th.r{text-align:right;white-space:nowrap}
+      tfoot td{font-weight:700;border-top:2px solid #bbb;border-bottom:none}
+      .logo{height:34px;margin-bottom:10px}
+      @media print{body{padding:18px 22px}}
+    </style></head><body>
+    <img class="logo" src="${LOGO_PNG}"/>
+    <h1>Bookkeeping — ${year}</h1>
+    <div class="sub">Kingdom Painting Inc. &middot; ${rows.length} entries &middot; generated ${esc(new Date().toLocaleDateString('en-CA'))}</div>
+    <table><thead><tr><th>Date</th><th>Type</th><th>Category</th><th>Description</th><th>Vendor / Contact</th><th class="r">Debit</th><th class="r">Credit</th></tr></thead>
+    <tbody>${body}</tbody>
+    <tfoot>
+      <tr><td colspan="5">Totals</td><td class="r">${fmtUSD(exp)}</td><td class="r">${fmtUSD(inc)}</td></tr>
+      <tr><td colspan="6">Net Income</td><td class="r">${fmtUSD(net)}</td></tr>
+    </tfoot>
+    </table>
+    <script>window.onload=function(){window.print();}<\/script></body></html>`;
+    const w=window.open('','_blank','width=900,height=900');
+    if(w){ w.document.write(html); w.document.close(); }
+  };
 
   const months=Array.from(new Set(allEntries.map(e=>(e.date||'').slice(0,7)).filter(Boolean))).sort().reverse();
 
@@ -5056,6 +5129,12 @@ function Bookkeeping({showToast}){
               <input type="number" placeholder="Amount" value={form.amount} onChange={e=>setForm(f=>({...f,amount:e.target.value}))} style={{...inp,textAlign:'right'}} min="0" step="0.01"/>
               {form.type==='expense'&&<input type="text" placeholder="Vendor (optional)" value={form.vendor} onChange={e=>setForm(f=>({...f,vendor:e.target.value}))} style={inp}/>}
             </div>
+            {!editing&&(
+              <label style={{display:'flex',alignItems:'center',gap:7,fontSize:12,color:'var(--fg)',cursor:'pointer',userSelect:'none'}}>
+                <input type="checkbox" checked={form.recurring} onChange={e=>setForm(f=>({...f,recurring:e.target.checked}))} style={{width:14,height:14,cursor:'pointer'}}/>
+                Recurring monthly{form.recurring&&form.date?` (day ${new Date(form.date+'T12:00:00').getDate()}, through Dec)`:''}
+              </label>
+            )}
             <div style={{display:'flex',gap:8,marginTop:4}}>
               {editing
                 ?<><button onClick={handleUpdate} style={btnPrimary}>Update</button><button onClick={cancelEdit} style={btnSecondary}>Cancel</button></>
@@ -5083,6 +5162,9 @@ function Bookkeeping({showToast}){
           <option value="all">All Months</option>
           {months.map(m=><option key={m} value={m}>{m}</option>)}
         </select>
+        <button onClick={exportYearPDF} style={{...btnSecondary,display:'inline-flex',alignItems:'center',gap:6}} title={`Export all ${new Date().getFullYear()} entries to PDF`}>
+          <Download size={13}/> Export {new Date().getFullYear()} PDF
+        </button>
         <span style={{flex:1}}/>
         <span style={{fontSize:11,color:'var(--muted-fg)'}}>{sorted.length} entries</span>
       </div>

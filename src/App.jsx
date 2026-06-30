@@ -4841,20 +4841,37 @@ function Bookkeeping({showToast}){
     if(d.created_at) return String(d.created_at).slice(0,10);
     return '';
   };
-  const financialsIncome=deals
-    .filter(d=>['Scheduled','Completed','Archive'].includes(d.stage)&&!(d.labels||[]).includes('Lost'))
-    .map(d=>({
-      id:'deal-'+d.id,
+  const financialsDeals=deals.filter(d=>['Scheduled','Completed','Archive'].includes(d.stage)&&!(d.labels||[]).includes('Lost'));
+  const financialsIncome=financialsDeals.map(d=>({
+    id:'deal-'+d.id,
+    source:'financials',
+    date:dealDateISO(d),
+    type:'income',
+    category:'Income',
+    description:d.dealName||'Project',
+    amount:parseFloat(d.value)||0,
+    vendor:'',
+    contact_id:d.contact||d.contactId||null,
+    contactFreeText:d.contactFreeText||'',
+  }));
+  // Derived expenses — materials & wages pulled live from the same projects
+  const financialsExpenses=financialsDeals.flatMap(d=>{
+    const rows=[];
+    const base={
       source:'financials',
       date:dealDateISO(d),
-      type:'income',
-      category:'Income',
+      type:'expense',
       description:d.dealName||'Project',
-      amount:parseFloat(d.value)||0,
       vendor:'',
       contact_id:d.contact||d.contactId||null,
       contactFreeText:d.contactFreeText||'',
-    }));
+    };
+    const materials=parseFloat(d.materials)||0;
+    const wages=parseFloat(d.wages)||0;
+    if(materials>0) rows.push({...base,id:'deal-mat-'+d.id,category:'Materials',amount:materials});
+    if(wages>0) rows.push({...base,id:'deal-wage-'+d.id,category:'Subcontractor',amount:wages});
+    return rows;
+  });
 
   const save=async(entry)=>{
     try{
@@ -4915,7 +4932,7 @@ function Bookkeeping({showToast}){
     setForm(blankForm);
   };
 
-  const allEntries=[...financialsIncome,...entries];
+  const allEntries=[...financialsIncome,...financialsExpenses,...entries];
 
   const months=Array.from(new Set(allEntries.map(e=>(e.date||'').slice(0,7)).filter(Boolean))).sort().reverse();
 
@@ -5102,7 +5119,7 @@ function Bookkeeping({showToast}){
                   </td>
                   <td style={tdStyle}>{e.category||'—'}</td>
                   <td style={tdStyle}>{e.description||'—'}</td>
-                  <td style={{...tdStyle,color:'var(--muted-fg)'}}>{e.type==='income'?(contactName(e.contact_id)||e.contactFreeText||'—'):(e.vendor||'—')}</td>
+                  <td style={{...tdStyle,color:'var(--muted-fg)'}}>{(e.type==='income'||fromFin)?(contactName(e.contact_id)||e.contactFreeText||'—'):(e.vendor||'—')}</td>
                   <td style={{...tdStyle,textAlign:'right',fontWeight:600,color:'#ef4444'}}>{e.type==='expense'?fmtUSD(parseFloat(e.amount)||0):''}</td>
                   <td style={{...tdStyle,textAlign:'right',fontWeight:600,color:'#22c55e'}}>{e.type==='income'?fmtUSD(parseFloat(e.amount)||0):''}</td>
                   <td style={{...tdStyle,textAlign:'center'}}>

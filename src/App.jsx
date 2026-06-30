@@ -2833,19 +2833,14 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
         </div>
         <div style={{marginTop:32,paddingTop:20,borderTop:'1px solid #eee'}}>
           <p style={{fontSize:12,fontWeight:700,marginBottom:12,color:gold}}>Payment Terms</p>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12}}>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
             <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:14,textAlign:'center'}}>
-              <p style={{fontSize:10,color:'#888',textTransform:'uppercase',fontWeight:600}}>30% Deposit</p>
+              <p style={{fontSize:10,color:'#888',textTransform:'uppercase',fontWeight:600}}>50% Deposit</p>
               <p style={{fontSize:16,fontWeight:700,marginTop:4}}>{fmtCAD(totals.deposit)}</p>
               <p style={{fontSize:9,color:'#888',marginTop:2}}>Due on first day</p>
             </div>
             <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:14,textAlign:'center'}}>
-              <p style={{fontSize:10,color:'#888',textTransform:'uppercase',fontWeight:600}}>35% Balance</p>
-              <p style={{fontSize:16,fontWeight:700,marginTop:4}}>{fmtCAD(totals.midway)}</p>
-              <p style={{fontSize:9,color:'#888',marginTop:2}}>Due midway through</p>
-            </div>
-            <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:14,textAlign:'center'}}>
-              <p style={{fontSize:10,color:'#888',textTransform:'uppercase',fontWeight:600}}>35% Final Balance</p>
+              <p style={{fontSize:10,color:'#888',textTransform:'uppercase',fontWeight:600}}>50% Upon Completion</p>
               <p style={{fontSize:16,fontWeight:700,marginTop:4}}>{fmtCAD(totals.balance)}</p>
               <p style={{fontSize:9,color:'#888',marginTop:2}}>Due on completion</p>
             </div>
@@ -2976,19 +2971,14 @@ function ContractTab({rooms,settings,client,totals}){
 
         <p style={sectionTitle}>Payment Terms</p>
         <p style={bodyText}>The total cost for the Services shall be <strong>{fmtCAD(totals.total)}</strong>, which includes labour, materials, and any applicable taxes. A different payment plan can be discussed.</p>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:12}}>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:12}}>
           <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:12,textAlign:'center'}}>
-            <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>30% Deposit</p>
+            <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>50% Deposit</p>
             <p style={{fontSize:14,fontWeight:700,marginTop:2}}>{fmtCAD(totals.deposit)}</p>
             <p style={{fontSize:9,color:'#888',marginTop:2}}>Due on first day</p>
           </div>
           <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:12,textAlign:'center'}}>
-            <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>35% Balance</p>
-            <p style={{fontSize:14,fontWeight:700,marginTop:2}}>{fmtCAD(totals.midway)}</p>
-            <p style={{fontSize:9,color:'#888',marginTop:2}}>Due midway through</p>
-          </div>
-          <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:12,textAlign:'center'}}>
-            <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>35% Final Balance</p>
+            <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>50% Upon Completion</p>
             <p style={{fontSize:14,fontWeight:700,marginTop:2}}>{fmtCAD(totals.balance)}</p>
             <p style={{fontSize:9,color:'#888',marginTop:2}}>Due on completion</p>
           </div>
@@ -3714,62 +3704,9 @@ function MasterEstimate(){
 
       const dealRooms=rooms.map(r=>({name:r.name,done:false}));
 
-      let qhtml='<!DOCTYPE html><html><head><meta charset="utf-8"><title>Quote</title><style>'+css+'</style></head><body style="padding:40px 48px;max-width:900px;margin:0 auto">';
-      qhtml+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid ${gold}"><div style="display:flex;gap:12px;align-items:center"><img src="/kingdom-logo-dark.svg" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:2px">QUOTE</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p><p style="font-size:10px;color:#999;margin-top:4px">HST# 71164 5556 RT0001</p></div></div>`;
-      qhtml+='<div style="margin-bottom:24px;font-size:12px"><p style="font-weight:600;color:#888;font-size:10px;text-transform:uppercase;margin-bottom:4px">Prepared For</p>';
-      qhtml+=`<p style="font-weight:600">${client.name||'—'}</p>`;
-      if(clientAddr) qhtml+=`<p style="color:#666">${clientAddr}</p>`;
-      if(client.phone) qhtml+=`<p style="color:#666">${client.phone}</p>`;
-      if(client.email) qhtml+=`<p style="color:#666">${client.email}</p>`;
-      qhtml+='</div><table><thead><tr><th>Item</th><th>Description</th><th style="text-align:right">Amount</th></tr></thead><tbody>';
-      rooms.forEach(r=>{
-        const c=calcRoom(r,settings);
-        const lines=[],prepItems=[];
-        if(r.ceiling?.enabled && r.ceiling.removeStucco && c.ceilSqft) lines.push(`Removing ${fmtN(c.ceilSqft)} square feet of stucco ceiling`);
-        if(r.walls?.enabled && c.wallSqft) lines.push(`Painting ${r.walls.coats} coat${r.walls.coats>1?'s':''} on ${fmtN(c.wallSqft)} square feet of walls`);
-        if(r.ceiling?.enabled && c.ceilSqft) lines.push(`Painting ${r.ceiling.coats} coat${r.ceiling.coats>1?'s':''} on ${fmtN(c.ceilSqft)} square feet of ceilings`);
-        if(r.baseboards?.enabled && c.perimLF) lines.push(`Painting ${r.baseboards.coats} coat${r.baseboards.coats>1?'s':''} on ${fmtN(c.perimLF)} linear feet of baseboards`);
-        if(r.crown?.enabled && c.perimLF) lines.push(`Painting ${r.crown.coats} coat${r.crown.coats>1?'s':''} on ${fmtN(c.perimLF)} linear feet of crown moulding`);
-        if(r.doors?.enabled){
-          const fl=r.doors.flat||{};const sp=r.doors.sixPanel||{};const cu=r.doors.custom||{};
-          if(fl.count>0) lines.push(`Painting ${fl.coats||2} coat${(fl.coats||2)>1?'s':''} on ${fl.count} flat door${fl.count>1?'s':''}`);
-          if(sp.count>0) lines.push(`Painting ${sp.coats||2} coat${(sp.coats||2)>1?'s':''} on ${sp.count} six-panel door${sp.count>1?'s':''}`);
-          if(cu.count>0) lines.push(`Painting ${cu.coats||2} coat${(cu.coats||2)>1?'s':''} on ${cu.count} custom door${cu.count>1?'s':''}`);
-        } else if(r.doors?.count>0){
-          lines.push(`Painting ${r.doors.coats||2} coat${(r.doors.coats||2)>1?'s':''} on ${r.doors.count} door${r.doors.count>1?'s':''}`);
-        }
-        const wc=r.windows?.dims?.length||0;
-        if(r.windows?.enabled && wc>0) lines.push(`Painting ${r.windows.coats||2} coat${(r.windows.coats||2)>1?'s':''} on ${wc} window${wc>1?'s':''}`);
-        if(r.doorFrames?.enabled && c.perimLF) lines.push(`Painting ${r.doorFrames.coats||2} coat${(r.doorFrames.coats||2)>1?'s':''} on door frames`);
-        Object.entries(prepLabelsMap).forEach(([k,v])=>{if(r.prep?.[k])prepItems.push(v);});
-        if(r.prep?.custom) prepItems.push(r.prep.custom);
-        const materials=[];
-        if(r.walls?.enabled&&r.paint?.wallProduct){
-          const hex=getHex(r.paint.wallColour);
-          materials.push({label:`Walls: ${r.paint.wallProduct}`,colour:r.paint.wallColour,sheen:r.paint.wallSheen,hex});
-        }
-        if(r.ceiling?.enabled&&r.paint?.ceilProduct){
-          const hex=getHex(r.paint.ceilColour);
-          materials.push({label:`Ceiling: ${r.paint.ceilProduct}`,colour:r.paint.ceilColour,sheen:r.paint.ceilSheen,hex});
-        }
-        if((r.baseboards?.enabled||r.doors?.enabled||roomDoorCount(r)>0||r.crown?.enabled)&&r.paint?.trimProduct){
-          const hex=getHex(r.paint.trimColour);
-          materials.push({label:`Trim: ${r.paint.trimProduct}`,colour:r.paint.trimColour,sheen:r.paint.trimSheen,hex});
-        }
-        qhtml+=`<tr><td style="font-weight:600;white-space:nowrap">${r.name}</td><td>`;
-        if(prepItems.length) qhtml+=`<p style="margin-bottom:4px"><strong>Prep:</strong> ${prepItems.join(', ')}</p>`;
-        qhtml+=`<p>${lines.join('<br>')}</p>`;
-        if(materials.length) materials.forEach(m=>{qhtml+=`<p style="font-size:10px;color:#666;margin-top:4px">${m.label} — ${m.colour}${m.hex?`<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${m.hex};border:1px solid #ccc;margin:0 3px;vertical-align:middle"></span>`:''} (${m.sheen})</p>`;});
-        qhtml+=`</td><td style="text-align:right;font-weight:600;white-space:nowrap">${fmtC(c.cost)}</td></tr>`;
-      });
-      qhtml+='</tbody></table>';
-      qhtml+=`<div style="margin-top:24px;padding-top:16px;border-bottom:2px solid ${gold}"><table style="width:auto;margin-left:auto">`;
-      if((settings.discount||0)>0) qhtml+=`<tr><td style="text-align:right;padding:4px 16px;color:#888">Discount</td><td style="text-align:right;padding:4px 0;color:#c00">-${fmtC(totals.labourSubtotal-totals.discounted)}</td></tr>`;
-      qhtml+=`<tr><td style="text-align:right;padding:4px 16px;color:#888">Subtotal</td><td style="text-align:right;padding:4px 0">${fmtC(totals.discounted)}</td></tr>`;
-      qhtml+=`<tr><td style="text-align:right;padding:4px 16px;color:#888">HST (13%)</td><td style="text-align:right;padding:4px 0">${fmtC(totals.taxAmt)}</td></tr>`;
-      if(totals.materialCost>0) qhtml+=`<tr><td style="text-align:right;padding:4px 16px;color:#888">Materials</td><td style="text-align:right;padding:4px 0">${fmtC(totals.materialCost)}</td></tr>`;
-      qhtml+=`<tr style="border-top:2px solid ${gold}"><td style="text-align:right;padding:8px 16px;font-weight:700;font-size:14px;color:${gold}">Total</td><td style="text-align:right;padding:8px 0;font-weight:700;font-size:14px;color:${gold}">${fmtC(totals.total)}</td></tr></table></div>`;
-      qhtml+='</body></html>';
+      const __projName=deals.find(d=>d.id===selectedDealId)?.dealName||'';
+      // Client-portal quote = the exact Bid Proposal PDF generated by the Export Bid button
+      const qhtml=buildBidProposalHtml(client,rooms,settings,totals,ps.paints,ps.ceilPaints,ps.primers,ps.colours,ps.swColours,ps.supplies,__projName);
 
       let chtml='<!DOCTYPE html><html><head><meta charset="utf-8"><title>Contract</title><style>'+css+'</style></head><body style="padding:40px 48px;max-width:900px;margin:0 auto">';
       chtml+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid ${gold}"><div style="display:flex;gap:12px;align-items:center"><img src="/kingdom-logo-dark.svg" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:1px">Painting Service Agreement</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p></div></div>`;
@@ -3825,7 +3762,7 @@ function MasterEstimate(){
       chtml+=`</div>`;
       chtml+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">3. Payment Terms</p>`;
       chtml+=`<div style="font-size:11px;line-height:1.7;color:#444"><p style="margin-bottom:8px">The total cost for the Services shall be <strong>${fmtC(totals.total)}</strong>, which includes labour, materials, and any applicable taxes. A different payment plan can be discussed.</p>`;
-      chtml+=`<p>30% Deposit: ${fmtC(totals.deposit)} · 35% Balance: ${fmtC(totals.midway)} · 35% Final Balance: ${fmtC(totals.balance)}</p></div>`;
+      chtml+=`<p>50% Deposit: ${fmtC(totals.deposit)} · 50% Upon Completion: ${fmtC(totals.balance)}</p></div>`;
       chtml+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">4. Signatures</p>`;
       chtml+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:24px;font-size:11px">';
       chtml+='<div><div style="border-bottom:1px solid #ccc;height:60px;margin-bottom:8px"></div><p style="color:#888">Client Signature</p></div>';
@@ -4017,7 +3954,7 @@ function KPLogo({height=32}){
     </svg>
   );
 }
-function exportBidPDF(client,rooms,settings,totals,paints,ceilPaints,primers,colours,swColours,supplies,projectName){
+function buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,primers,colours,swColours,supplies,projectName){
   const fmtN=n=>Math.round(n).toLocaleString('en-CA');
   const fmtC=n=>'$'+n.toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2});
   const today=new Date().toLocaleDateString('en-CA',{year:'numeric',month:'long',day:'numeric'});
@@ -4159,14 +4096,21 @@ function exportBidPDF(client,rooms,settings,totals,paints,ceilPaints,primers,col
   html+='<div class="section">';
   html+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">3. Payment Terms</p>`;
   html+=`<div style="font-size:11px;line-height:1.7;color:#444"><p style="margin-bottom:8px">The total cost for the Services shall be <strong>${fmtC(totals.total)}</strong>, which includes labour, materials, and any applicable taxes. A different payment plan can be discussed.</p>`;
-  html+=`<p>30% Deposit: ${fmtC(totals.deposit)} · 35% Balance: ${fmtC(totals.midway)} · 35% Final Balance: ${fmtC(totals.balance)}</p></div></div>`;
+  html+=`<p>50% Deposit: ${fmtC(totals.deposit)} · 50% Upon Completion: ${fmtC(totals.balance)}</p></div></div>`;
   html+='<div class="section">';
   html+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">4. Signatures</p>`;
   html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:24px;font-size:11px">';
   html+='<div><div style="border-bottom:1px solid #ccc;height:60px;margin-bottom:8px"></div><p style="color:#888">Client Signature</p></div>';
   html+='<div><div style="border-bottom:1px solid #ccc;height:60px;margin-bottom:8px"></div><p style="color:#888">Contractor Signature</p></div></div></div>';
   html+='</div>';
-  html+='<script>window.onload=function(){window.print();}<\/script></body></html>';
+  html+='</body></html>';
+  return html;
+}
+
+function exportBidPDF(client,rooms,settings,totals,paints,ceilPaints,primers,colours,swColours,supplies,projectName){
+  const docTitle=projectName?`Bid Proposal - ${projectName}`:'Bid Proposal';
+  const html=buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,primers,colours,swColours,supplies,projectName)
+    .replace('</body></html>','<script>window.onload=function(){window.print();}<\/script></body></html>');
   const win=window.open('','_blank','width=860,height=900');
   if(win){win.document.write(html);win.document.close();win.document.title=docTitle;}
 }

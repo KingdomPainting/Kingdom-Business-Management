@@ -5223,8 +5223,8 @@ function Bookkeeping({showToast}){
       </div>
 
       {/* Entries table */}
-      <Card style={{flex:1,overflow:'hidden',display:'flex',flexDirection:'column'}}>
-        <div style={{flex:1,overflowY:'auto'}}>
+      <Card>
+        <div style={{overflowX:'auto'}}>
           <table style={{width:'100%',borderCollapse:'collapse'}}>
             <thead>
               <tr style={{background:'var(--muted)'}}>

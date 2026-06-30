@@ -4813,6 +4813,7 @@ function Bookkeeping({showToast}){
   const [sortKey,setSortKey]=useState('date');
   const [sortDir,setSortDir]=useState('desc');
   const [editing,setEditing]=useState(null);
+  const [recurringDlg,setRecurringDlg]=useState(null); // {action,count,apply} for recurring edit/delete choice
   const [loading,setLoading]=useState(true);
 
   useEffect(()=>{
@@ -4884,13 +4885,28 @@ function Bookkeeping({showToast}){
     }catch(e){console.warn('bookkeeping save:',e);if(showToast) showToast('Save failed','error');}
   };
 
-  const remove=async(id)=>{
-    if(!confirm('Delete this entry?')) return;
+  // Recurring entries share every field except the date, so siblings are matched by content.
+  const seriesKey=e=>JSON.stringify([e.type||'',e.category||'',(e.description||'').trim(),parseFloat(e.amount)||0,(e.vendor||'').trim(),e.contact_id||null]);
+  const seriesSiblings=e=>{const k=seriesKey(e);return entries.filter(x=>seriesKey(x)===k);};
+
+  const doDelete=async(ids)=>{
+    const list=Array.isArray(ids)?ids:[ids];
     try{
-      await supaFetch(`/rest/v1/bookkeeping?id=eq.${id}`,'DELETE');
-      setEntries(prev=>prev.filter(e=>e.id!==id));
-      if(showToast) showToast('Deleted','success');
+      for(const id of list){ await supaFetch(`/rest/v1/bookkeeping?id=eq.${id}`,'DELETE'); }
+      setEntries(prev=>prev.filter(e=>!list.includes(e.id)));
+      if(showToast) showToast(list.length>1?`Deleted ${list.length} entries`:'Deleted','success');
     }catch(e){console.warn('bookkeeping delete:',e);if(showToast) showToast('Delete failed','error');}
+  };
+
+  const remove=(id)=>{
+    const target=entries.find(e=>e.id===id);
+    if(!target) return;
+    const sibs=seriesSiblings(target);
+    if(sibs.length>1){
+      setRecurringDlg({action:'delete',count:sibs.length,apply:scope=>doDelete(scope==='all'?sibs.map(s=>s.id):[id])});
+    }else if(confirm('Delete this entry?')){
+      doDelete([id]);
+    }
   };
 
   const buildEntry=()=>({
@@ -4944,12 +4960,35 @@ function Bookkeeping({showToast}){
     setForm({date:e.date||'',type:e.type||'expense',category:e.category||'Materials',description:e.description||'',amount:e.amount||'',vendor:e.vendor||'',contact_id:e.contact_id||''});
   };
 
+  const doUpdate=async(scope)=>{
+    const base=buildEntry();
+    if(scope==='all'){
+      const orig=entries.find(e=>e.id===editing);
+      const sibs=orig?seriesSiblings(orig):[];
+      const {date,...fields}=base; // apply field changes to every occurrence, keep each one's own date
+      try{
+        for(const s of sibs){ await supaFetch(`/rest/v1/bookkeeping?id=eq.${s.id}`,'PATCH',fields); }
+        const ids=sibs.map(s=>s.id);
+        setEntries(prev=>prev.map(e=>ids.includes(e.id)?{...e,...fields}:e));
+        if(showToast) showToast(`Updated ${sibs.length} entries`,'success');
+      }catch(e){console.warn('bookkeeping update-all:',e);if(showToast) showToast('Update failed','error');}
+    }else{
+      save({id:editing,...base});
+    }
+    setEditing(null);
+    setForm(blankForm);
+  };
+
   const handleUpdate=()=>{
     const amt=parseFloat(form.amount);
     if(!amt||!form.description.trim()){if(showToast) showToast('Amount & description required','error');return;}
-    save({id:editing,...buildEntry()});
-    setEditing(null);
-    setForm(blankForm);
+    const orig=entries.find(e=>e.id===editing);
+    const sibs=orig?seriesSiblings(orig):[];
+    if(sibs.length>1){
+      setRecurringDlg({action:'edit',count:sibs.length,apply:scope=>doUpdate(scope)});
+    }else{
+      doUpdate('one');
+    }
   };
 
   const cancelEdit=()=>{
@@ -5062,6 +5101,20 @@ function Bookkeeping({showToast}){
   return (
     <div style={{padding:'20px 24px',overflowY:'auto',height:'100%',display:'flex',flexDirection:'column',gap:20}}>
       <h1 style={{fontSize:22,fontWeight:700}}>Bookkeeping</h1>
+
+      {recurringDlg&&(
+        <div style={{position:'fixed',inset:0,zIndex:300,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,0,0.4)',padding:16}} onClick={()=>setRecurringDlg(null)}>
+          <div style={{background:'var(--card)',borderRadius:12,border:'1px solid var(--border)',padding:24,maxWidth:420,width:'100%'}} onClick={ev=>ev.stopPropagation()}>
+            <p style={{fontWeight:600,marginBottom:8}}>{recurringDlg.action==='delete'?'Delete recurring entry':'Edit recurring entry'}</p>
+            <p style={{fontSize:13,color:'var(--muted-fg)',marginBottom:20}}>This entry is part of a recurring series of {recurringDlg.count}. Apply this {recurringDlg.action==='delete'?'deletion':'change'} to:</p>
+            <div style={{display:'flex',flexDirection:'column',gap:8}}>
+              <button onClick={()=>{recurringDlg.apply('one');setRecurringDlg(null);}} style={{...btnPrimary,padding:'9px 14px',fontSize:13}}>This entry only</button>
+              <button onClick={()=>{recurringDlg.apply('all');setRecurringDlg(null);}} style={{...btnPrimary,padding:'9px 14px',fontSize:13}}>All {recurringDlg.count} recurring entries</button>
+              <button onClick={()=>setRecurringDlg(null)} style={{...btnSecondary,padding:'9px 14px',fontSize:13}}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Summary cards */}
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:14,flexShrink:0}}>

@@ -4746,7 +4746,7 @@ function Financials({showToast}){
 const BK_CATEGORIES=['Materials','Subcontractor','Gas / Mileage','Supplies','Insurance','Office','Marketing','Equipment','Other'];
 
 function Bookkeeping({showToast}){
-  const blankForm={date:new Date().toISOString().slice(0,10),type:'expense',category:'Materials',description:'',amount:'',vendor:'',contact_id:'',recurring:false};
+  const blankForm={date:new Date().toISOString().slice(0,10),type:'expense',category:'Materials',description:'',amount:'',vendor:'',contact_id:'',project_id:'',recurring:false};
   const [entries,setEntries]=useState([]);
   const [contacts,setContacts]=useState(()=>api.getContacts());
   const [deals,setDeals]=useState(()=>api.getDeals());
@@ -4773,6 +4773,7 @@ function Bookkeeping({showToast}){
   },[]);
 
   const contactName=id=>{const c=contacts.find(x=>x.id===id);return c?.fullName||'';};
+  const projectName=id=>{const d=deals.find(x=>x.id===id);return d?.dealName||'';};
 
   // Derived income — pulled live from the Financials projects (same deal set as the Financials page)
   const dealDateISO=d=>{
@@ -4794,6 +4795,7 @@ function Bookkeeping({showToast}){
     vendor:'',
     contact_id:d.contact||d.contactId||null,
     contactFreeText:d.contactFreeText||'',
+    project_id:d.id,
   }));
   // Derived expenses — materials & wages pulled live from the same projects
   const financialsExpenses=financialsDeals.flatMap(d=>{
@@ -4806,6 +4808,7 @@ function Bookkeeping({showToast}){
       vendor:'',
       contact_id:d.contact||d.contactId||null,
       contactFreeText:d.contactFreeText||'',
+      project_id:d.id,
     };
     const materials=parseFloat(d.materials)||0;
     const wages=parseFloat(d.wages)||0;
@@ -4830,7 +4833,7 @@ function Bookkeeping({showToast}){
   };
 
   // Recurring entries share every field except the date, so siblings are matched by content.
-  const seriesKey=e=>JSON.stringify([e.type||'',e.category||'',(e.description||'').trim(),parseFloat(e.amount)||0,(e.vendor||'').trim(),e.contact_id||null]);
+  const seriesKey=e=>JSON.stringify([e.type||'',e.category||'',(e.description||'').trim(),parseFloat(e.amount)||0,(e.vendor||'').trim(),e.contact_id||null,e.project_id||null]);
   const seriesSiblings=e=>{const k=seriesKey(e);return entries.filter(x=>seriesKey(x)===k);};
 
   const doDelete=async(ids)=>{
@@ -4861,6 +4864,7 @@ function Bookkeeping({showToast}){
     amount:parseFloat(form.amount),
     vendor:form.type==='income'?'':form.vendor.trim(),
     contact_id:form.type==='income'?(form.contact_id||null):null,
+    project_id:form.project_id||null,
   });
 
   // Monthly recurrence: same day-of-month from the start month through December of that year
@@ -4901,7 +4905,7 @@ function Bookkeeping({showToast}){
 
   const handleEdit=(e)=>{
     setEditing(e.id);
-    setForm({date:e.date||'',type:e.type||'expense',category:e.category||'Materials',description:e.description||'',amount:e.amount||'',vendor:e.vendor||'',contact_id:e.contact_id||''});
+    setForm({date:e.date||'',type:e.type||'expense',category:e.category||'Materials',description:e.description||'',amount:e.amount||'',vendor:e.vendor||'',contact_id:e.contact_id||'',project_id:e.project_id||''});
   };
 
   const doUpdate=async(scope)=>{
@@ -4957,7 +4961,7 @@ function Bookkeeping({showToast}){
       const who=(e.type==='income'||e.source==='financials')?(contactName(e.contact_id)||e.contactFreeText||''):(e.vendor||'');
       const debit=e.type==='expense'?fmtUSD(parseFloat(e.amount)||0):'';
       const credit=e.type==='income'?fmtUSD(parseFloat(e.amount)||0):'';
-      return `<tr><td>${esc(e.date||'')}</td><td style="text-transform:capitalize">${esc(e.type||'')}</td><td>${esc(e.category||'')}</td><td>${esc(e.description||'')}</td><td>${esc(who)}</td><td class="r">${debit}</td><td class="r">${credit}</td></tr>`;
+      return `<tr><td>${esc(e.date||'')}</td><td style="text-transform:capitalize">${esc(e.type||'')}</td><td>${esc(e.category||'')}</td><td>${esc(projectName(e.project_id))}</td><td>${esc(e.description||'')}</td><td>${esc(who)}</td><td class="r">${debit}</td><td class="r">${credit}</td></tr>`;
     }).join('');
     const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Bookkeeping ${year}</title><style>
       body{font-family:'Montserrat',Arial,sans-serif;padding:28px 32px;color:#2e3557}
@@ -4974,11 +4978,11 @@ function Bookkeeping({showToast}){
     <img class="logo" src="${LOGO_PNG}"/>
     <h1>Bookkeeping — ${year}</h1>
     <div class="sub">Kingdom Painting Inc. &middot; ${rows.length} entries &middot; generated ${esc(new Date().toLocaleDateString('en-CA'))}</div>
-    <table><thead><tr><th>Date</th><th>Type</th><th>Category</th><th>Description</th><th>Vendor / Contact</th><th class="r">Debit</th><th class="r">Credit</th></tr></thead>
+    <table><thead><tr><th>Date</th><th>Type</th><th>Category</th><th>Project</th><th>Description</th><th>Vendor / Contact</th><th class="r">Debit</th><th class="r">Credit</th></tr></thead>
     <tbody>${body}</tbody>
     <tfoot>
-      <tr><td colspan="5">Totals</td><td class="r">${fmtUSD(exp)}</td><td class="r">${fmtUSD(inc)}</td></tr>
-      <tr><td colspan="6">Net Income</td><td class="r">${fmtUSD(net)}</td></tr>
+      <tr><td colspan="6">Totals</td><td class="r">${fmtUSD(exp)}</td><td class="r">${fmtUSD(inc)}</td></tr>
+      <tr><td colspan="7">Net Income</td><td class="r">${fmtUSD(net)}</td></tr>
     </tfoot>
     </table>
     <script>window.onload=function(){window.print();}<\/script></body></html>`;
@@ -5115,6 +5119,10 @@ function Bookkeeping({showToast}){
                 {BK_CATEGORIES.map(c=><option key={c} value={c}>{c}</option>)}
               </select>
             )}
+            <select value={form.project_id} onChange={e=>setForm(f=>({...f,project_id:e.target.value}))} style={{...selectStyle,width:'100%'}}>
+              <option value="">Link a project (optional)…</option>
+              {[...deals].sort((a,b)=>(a.dealName||'').localeCompare(b.dealName||'')).map(d=><option key={d.id} value={d.id}>{d.dealName}</option>)}
+            </select>
             {form.type==='income'&&(
               <select value={form.contact_id} onChange={e=>setForm(f=>({...f,contact_id:e.target.value}))} style={{...selectStyle,width:'100%'}}>
                 <option value="">Link a contact (optional)…</option>
@@ -5175,6 +5183,7 @@ function Bookkeeping({showToast}){
                 <SortTh col="date" label="Date"/>
                 <th style={thStyle}>Type</th>
                 <SortTh col="category" label="Category"/>
+                <th style={thStyle}>Project</th>
                 <SortTh col="description" label="Description"/>
                 <th style={thStyle}>Vendor / Contact</th>
                 <SortTh col="debit" label="Debit" right/>
@@ -5183,7 +5192,7 @@ function Bookkeeping({showToast}){
               </tr>
             </thead>
             <tbody>
-              {sorted.length===0&&<tr><td colSpan={8} style={{...tdStyle,textAlign:'center',color:'var(--muted-fg)',padding:24}}>No entries yet. Add your first one above.</td></tr>}
+              {sorted.length===0&&<tr><td colSpan={9} style={{...tdStyle,textAlign:'center',color:'var(--muted-fg)',padding:24}}>No entries yet. Add your first one above.</td></tr>}
               {sorted.map(e=>{
                 const fromFin=e.source==='financials';
                 return (
@@ -5193,6 +5202,7 @@ function Bookkeeping({showToast}){
                     <span style={{fontSize:10,fontWeight:700,textTransform:'uppercase',padding:'2px 8px',borderRadius:20,background:e.type==='income'?'#dcfce7':'#fef2f2',color:e.type==='income'?'#15803d':'#dc2626'}}>{e.type}</span>
                   </td>
                   <td style={tdStyle}>{e.category||'—'}</td>
+                  <td style={tdStyle}>{projectName(e.project_id)||'—'}</td>
                   <td style={tdStyle}>{e.description||'—'}</td>
                   <td style={{...tdStyle,color:'var(--muted-fg)'}}>{(e.type==='income'||fromFin)?(contactName(e.contact_id)||e.contactFreeText||'—'):(e.vendor||'—')}</td>
                   <td style={{...tdStyle,textAlign:'right',fontWeight:600,color:'#ef4444'}}>{e.type==='expense'?fmtUSD(parseFloat(e.amount)||0):''}</td>
@@ -5213,7 +5223,7 @@ function Bookkeeping({showToast}){
             {sorted.length>0&&(
               <tfoot>
                 <tr style={{background:'var(--muted)',borderTop:'2px solid var(--border)'}}>
-                  <td colSpan={5} style={{...tdStyle,fontWeight:700,textTransform:'uppercase',fontSize:10,letterSpacing:'0.05em',color:'var(--muted-fg)'}}>Totals</td>
+                  <td colSpan={6} style={{...tdStyle,fontWeight:700,textTransform:'uppercase',fontSize:10,letterSpacing:'0.05em',color:'var(--muted-fg)'}}>Totals</td>
                   <td style={{...tdStyle,textAlign:'right',fontWeight:700,color:'#ef4444'}}>{fmtUSD(totalExpenses)}</td>
                   <td style={{...tdStyle,textAlign:'right',fontWeight:700,color:'#22c55e'}}>{fmtUSD(totalIncome)}</td>
                   <td style={tdStyle}></td>

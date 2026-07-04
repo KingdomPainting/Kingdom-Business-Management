@@ -2602,14 +2602,14 @@ function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,swColour
               <table style={{width:'100%',borderCollapse:'collapse'}}>
                 <thead><tr>
                   <th style={thStyle}>Surface</th><th style={thStyle}>Area</th><th style={thStyle}>Coats</th>
-                  <th style={thStyle}>Rate</th><th style={thStyle}>Hours</th><th style={{...thStyle,textAlign:'right'}}>Cost</th>
+                  <th style={thStyle}>Paintable Surface</th><th style={thStyle}>Hours</th><th style={{...thStyle,textAlign:'right'}}>Cost</th>
                 </tr></thead>
                 <tbody>{lines.map((ln,i)=>(
                   <tr key={i}>
                     <td style={tdStyle}>{ln.surface}</td>
                     <td style={tdStyle}>{fmtN(ln.area)} {ln.areaUnit}</td>
                     <td style={tdStyle}>{ln.coats}</td>
-                    <td style={tdStyle}>{ln.rateLabel}</td>
+                    <td style={tdStyle}>{ln.coats>0?`${fmtN(ln.area*ln.coats)} ${ln.areaUnit}`:'—'}</td>
                     <td style={tdStyle}>{ln.hours.toFixed(1)}</td>
                     <td style={{...tdStyle,textAlign:'right'}}>{fmtCAD(ln.cost)}</td>
                   </tr>

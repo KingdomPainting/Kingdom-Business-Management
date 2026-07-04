@@ -295,19 +295,26 @@ export function calcPaintCosts(rooms, allPaints, allCeilPaints, allPrimers, allC
   rooms.forEach(r=>{
     const ws = roomWallSqft(r), cs = roomCeilSqft(r);
     const trimLF = roomTrimLF(r);
+    // Paintable surface = area × number of coats (each coat covers the surface once)
+    const perim = roomPerimLF(r);
+    const trimCoated =
+      (r.baseboards?.enabled ? perim*(r.baseboards.coats||2) : 0) +
+      (r.crown?.enabled ? perim*(r.crown.coats||2) : 0) +
+      (r.doorFrames?.enabled ? perim*(r.doorFrames.coats||2) : 0) +
+      (r.windows?.enabled ? roomWindowLF(r)*(r.windows.coats||2) : 0);
     if(r.walls?.enabled && ws){
       if(r.walls.coats===3 && r.paint?.wallsPrimer){ addCol(r.paint.wallsPrimer,'','','Walls (Primer)',ws); addCol(r.paint.wallProduct,r.paint.wallColour,r.paint.wallSheen,'Walls (2 Coats)',ws*2); }
-      else addCol(r.paint?.wallProduct,r.paint?.wallColour,r.paint?.wallSheen,'Walls',ws);
+      else addCol(r.paint?.wallProduct,r.paint?.wallColour,r.paint?.wallSheen,'Walls',ws*(r.walls.coats||1));
     }
     if(r.ceiling?.enabled && cs){
       if(r.ceiling.coats===3 && r.paint?.ceilingPrimer){ addCol(r.paint.ceilingPrimer,'','','Ceiling (Primer)',cs); addCol(r.paint.ceilProduct,r.paint.ceilColour,r.paint.ceilSheen,'Ceiling (2 Coats)',cs*2); }
-      else addCol(r.paint?.ceilProduct,r.paint?.ceilColour,r.paint?.ceilSheen,'Ceiling',cs);
+      else addCol(r.paint?.ceilProduct,r.paint?.ceilColour,r.paint?.ceilSheen,'Ceiling',cs*(r.ceiling.coats||1));
     }
     const hasTrim = r.baseboards?.enabled || r.crown?.enabled || r.doorFrames?.enabled || r.windows?.enabled || r.doors?.enabled || (r.windows?.count>0) || (r.doors?.count>0);
     if(hasTrim && trimLF){
       const needsPrimer = (r.baseboards?.coats===3||r.crown?.coats===3||r.doorFrames?.coats===3||r.doors?.coats===3||r.windows?.coats===3||r.doors?.flat?.coats===3||r.doors?.sixPanel?.coats===3||r.doors?.custom?.coats===3) && r.paint?.trimPrimer;
       if(needsPrimer){ addCol(r.paint.trimPrimer,'','','Trim (Primer)',trimLF); addCol(r.paint.trimProduct,r.paint.trimColour,r.paint.trimSheen,'Trim (2 Coats)',trimLF*2); }
-      else addCol(r.paint?.trimProduct,r.paint?.trimColour,r.paint?.trimSheen,'Trim',trimLF);
+      else addCol(r.paint?.trimProduct,r.paint?.trimColour,r.paint?.trimSheen,'Trim',trimCoated);
     }
   });
   const allProducts = [...(allPaints||[]),...(allCeilPaints||[]),...(allPrimers||[])];

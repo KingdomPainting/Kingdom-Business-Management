@@ -2726,6 +2726,20 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
   const prepLabelsMap={furniture:'Move furniture',plastic:'Cover w/ plastic',outlets:'Remove outlets',drywall:'Drywall repairs',caulking:'Caulking',cleanup:'Clean up'};
   const allColours=[...(colours||[]),...(swColours||[])];
   const getHex=(name)=>{const c=allColours.find(x=>x.n===name);return c?.h||null;};
+  // Materials, itemised — paint products (per product/colour/surface) plus supplies
+  const matBuffer=settings._standards?.matBuffer||1.15;
+  const paintCosts=calcPaintCosts(rooms,paints||[],ceilPaints||[],primers||[],allColours,matBuffer);
+  const supplyTotal=rooms.reduce((s,r)=>s+calcRoomSupplyCost(r,supplies||[]),0);
+  // Spelled-out quantity: gallons and/or pails (1 pail = 1900 sqft, 1 gallon = 350 sqft)
+  const qtyLabel=(sqft)=>{
+    if(!sqft||sqft<=0) return '';
+    if(sqft<=1900){ const g=Math.ceil(sqft/350); return `${g} gallon${g>1?'s':''}`; }
+    const pails=Math.floor(sqft/1900); const rem=sqft-pails*1900; const eg=rem>0?Math.ceil(rem/350):0;
+    const parts=[];
+    if(pails>0) parts.push(`${pails} pail${pails>1?'s':''}`);
+    if(eg>0) parts.push(`${eg} gallon${eg>1?'s':''}`);
+    return parts.join(' and ');
+  };
   return (
     <div style={{padding:24,overflow:'auto',maxHeight:'100%',background:'#f5f5f0'}}>
       <div style={docStyle}>
@@ -2772,39 +2786,37 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
               } else if(r.doors?.count>0) surfaces.push(`${r.doors.count} door${r.doors.count>1?'s':''} — ${r.doors.coats} coat${r.doors.coats>1?'s':''}`);
               if(r.windows?.enabled&&roomWindowLF(r)>0) surfaces.push(`${r.windows.dims?.length||0} window${(r.windows.dims?.length||0)>1?'s':''} — ${r.windows.coats} coat${r.windows.coats>1?'s':''}`);
               else if(r.windows?.count>0) surfaces.push(`${r.windows.count} window${r.windows.count>1?'s':''} — ${r.windows.coats} coat${r.windows.coats>1?'s':''}`);
-              const materials=[];
-              if(r.walls.enabled&&r.paint.wallProduct){
-                const hex=getHex(r.paint.wallColour);
-                materials.push({label:`Walls: ${r.paint.wallProduct}`,colour:r.paint.wallColour,sheen:r.paint.wallSheen,hex});
-              }
-              if(r.ceiling.enabled&&r.paint.ceilProduct){
-                const hex=getHex(r.paint.ceilColour);
-                materials.push({label:`Ceiling: ${r.paint.ceilProduct}`,colour:r.paint.ceilColour,sheen:r.paint.ceilSheen,hex});
-              }
-              if((r.baseboards.enabled||r.doors?.enabled||roomDoorCount(r)>0||r.crown.enabled)&&r.paint.trimProduct){
-                const hex=getHex(r.paint.trimColour);
-                materials.push({label:`Trim: ${r.paint.trimProduct}`,colour:r.paint.trimColour,sheen:r.paint.trimSheen,hex});
-              }
               return (
                 <tr key={r.id}>
                   <td style={{...tdStyle,fontWeight:600,whiteSpace:'nowrap'}}>{r.name}</td>
                   <td style={tdStyle}>
                     {prepItems.length>0&&<p style={{fontSize:11,marginBottom:4}}><strong>Prep:</strong> {prepItems.join(', ')}</p>}
                     {surfaces.map((s,i)=><p key={i} style={{fontSize:11,color:'#444'}}>{s}</p>)}
-                    {materials.length>0&&(
-                      <div style={{marginTop:6}}>
-                        {materials.map((m,i)=>(
-                          <p key={i} style={{fontSize:10,color:'#666',display:'flex',gap:4,alignItems:'center'}}>
-                            {m.label} — {m.colour}{m.hex&&<span style={{width:8,height:8,borderRadius:2,background:m.hex,border:'1px solid #ccc',display:'inline-block'}}/>} ({m.sheen})
-                          </p>
-                        ))}
-                      </div>
-                    )}
                   </td>
                   <td style={{...tdStyle,textAlign:'right',fontWeight:600,whiteSpace:'nowrap'}}>{fmtCAD(c.cost)}</td>
                 </tr>
               );
             })}
+            {paintCosts.lines.map((m,i)=>(
+              <tr key={'mat-'+i}>
+                <td style={{...tdStyle,fontWeight:600,whiteSpace:'nowrap'}}>Materials</td>
+                <td style={tdStyle}>
+                  <p style={{fontSize:11,color:'#444',display:'flex',gap:4,alignItems:'center',flexWrap:'wrap'}}>
+                    <span>{m.surface}: {m.product}{m.colour?` — ${m.colour}`:''}</span>
+                    {m.hex&&<span style={{width:9,height:9,borderRadius:2,background:m.hex,border:'1px solid #ccc',display:'inline-block'}}/>}
+                    {qtyLabel(m.sqft)&&<span style={{color:'#888'}}>· {qtyLabel(m.sqft)}</span>}
+                  </p>
+                </td>
+                <td style={{...tdStyle,textAlign:'right',fontWeight:600,whiteSpace:'nowrap'}}>{fmtCAD(m.lineCost)}</td>
+              </tr>
+            ))}
+            {supplyTotal>0&&(
+              <tr key='mat-supplies'>
+                <td style={{...tdStyle,fontWeight:600,whiteSpace:'nowrap'}}>Materials</td>
+                <td style={tdStyle}><p style={{fontSize:11,color:'#444'}}>Supplies</p></td>
+                <td style={{...tdStyle,textAlign:'right',fontWeight:600,whiteSpace:'nowrap'}}>{fmtCAD(supplyTotal)}</td>
+              </tr>
+            )}
           </tbody>
         </table>
         <div style={{borderTop:'2px solid #e5e5e5',paddingTop:16,display:'flex',justifyContent:'flex-end'}}>
@@ -2821,11 +2833,6 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
             <div style={{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:6}}>
               <span style={{color:'#888'}}>HST (13%)</span><span>{fmtCAD(totals.taxAmt)}</span>
             </div>
-            {totals.materialCost>0&&(
-              <div style={{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:6}}>
-                <span style={{color:'#888'}}>Materials</span><span>{fmtCAD(totals.materialCost)}</span>
-              </div>
-            )}
             <div style={{display:'flex',justifyContent:'space-between',fontSize:14,fontWeight:700,paddingTop:8,borderTop:'2px solid #1a1a1a'}}>
               <span>Total</span><span style={{color:gold}}>{fmtCAD(totals.total)}</span>
             </div>

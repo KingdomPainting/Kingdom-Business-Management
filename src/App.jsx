@@ -207,11 +207,24 @@ function ContactModal({open,onClose,contact,clients,onSaved,allDeals,allContacts
 }
 
 
-function ContactCombobox({contacts,value,freeText,onChange}){
+function ContactCombobox({contacts,value,freeText,onChange,onAddContact}){
   const selected=contacts.find(c=>c.id===value);
   const [query,setQuery]=useState('');
   const [open,setOpen]=useState(false);
+  const [adding,setAdding]=useState(false);
   const ref=useRef(null);
+
+  const createContact=async()=>{
+    const name=query.trim();
+    if(!name||!onAddContact||adding) return;
+    setAdding(true);
+    try{
+      const id=await onAddContact(name);
+      if(id) onChange(id,'');
+    }catch(e){ console.warn('add contact:',e?.message); }
+    setAdding(false);
+    setOpen(false); setQuery('');
+  };
 
   useEffect(()=>{
     const handler=e=>{if(ref.current&&!ref.current.contains(e.target))setOpen(false);};
@@ -260,6 +273,16 @@ function ContactCombobox({contacts,value,freeText,onChange}){
             onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
             None
           </div>
+          {/* Add a brand-new contact (saved to the Contacts page) */}
+          {onAddContact&&query.trim()&&!contacts.find(c=>(c.fullName||'').toLowerCase()===query.trim().toLowerCase())&&(
+            <div onMouseDown={e=>{e.preventDefault();createContact();}}
+              style={{padding:'8px 12px',fontSize:13,cursor:adding?'default':'pointer',borderBottom:'1px solid var(--border)',
+                color:'var(--primary)',fontWeight:600,display:'flex',alignItems:'center',gap:6}}
+              onMouseEnter={e=>e.currentTarget.style.background='var(--muted)'}
+              onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+              <Plus size={13}/>{adding?'Adding…':`Add "${query.trim()}" as a new contact`}
+            </div>
+          )}
           {/* Free-text option when query doesn't match any contact */}
           {query.trim()&&!contacts.find(c=>(c.fullName||'').toLowerCase()===query.trim().toLowerCase())&&(
             <div onMouseDown={e=>{e.preventDefault();onChange('',query.trim());setOpen(false);setQuery('');}}
@@ -342,7 +365,7 @@ function DrivePickerBtn({onAttach}){
   );
 }
 
-function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead'}){
+function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead',onAddContact}){
   const blank={dealName:'',value:'',description:'',contactId:'',referralContactId:'',labels:[],leadSource:'',
     startDate:'',startTime:'09:00',endDate:'',endTime:'17:00',
     scheduleDays:[], // [{date, startTime, endTime, calEventId}]
@@ -517,7 +540,7 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead'}){
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
         <div><Label>Project Name</Label><input value={f.dealName} onChange={e=>setF(x=>({...x,dealName:e.target.value}))} placeholder='Project name' style={inp}/></div>
         <div><Label>Contact</Label>
-          <ContactCombobox contacts={contacts} value={f.contactId} freeText={f.contactFreeText||''} onChange={(id,txt)=>setF(x=>({...x,contactId:id,contactFreeText:txt||''}))} /></div>
+          <ContactCombobox contacts={contacts} value={f.contactId} freeText={f.contactFreeText||''} onChange={(id,txt)=>setF(x=>({...x,contactId:id,contactFreeText:txt||''}))} onAddContact={onAddContact} /></div>
       </div>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
         <div><Label>Value ($)</Label><input type='number' value={f.value} onChange={e=>setF(x=>({...x,value:e.target.value}))} placeholder='0' style={inp}/></div>
@@ -1766,6 +1789,12 @@ function Pipeline({showToast}){
         })}
       </div>
       <DealModal open={modalOpen} onClose={()=>setModalOpen(false)} deal={editDeal} contacts={contacts}
+        onAddContact={async(name)=>{
+          const id=await api.saveContact({fullName:name}); // persists to the contacts table (shows on Contacts page)
+          setContacts(api.getContacts());
+          showToast('Contact added');
+          return id;
+        }}
         onSaved={async()=>{
           const isNew = !editDeal;
           showToast(editDeal?'Project updated':'Project created');
@@ -4390,6 +4419,8 @@ function Financials({showToast}){
   const [saving,setSaving]=useState({});
   const [sortKey,setSortKey]=useState('date');
   const [sortDir,setSortDir]=useState('desc'); // newest first by default
+  // Bookkeeping expenses linked to a project, summed per project: {dealId:{materials,wages}}
+  const [bkAgg,setBkAgg]=useState({});
 
   // Load deals fresh from Supabase on mount to get latest materials/wages
   useEffect(()=>{
@@ -4397,6 +4428,16 @@ function Financials({showToast}){
       setDeals(api.getDeals().filter(d=>['Scheduled','Completed','Archive'].includes(d.stage)&&!(d.labels||[]).includes('Lost')));
       setContacts(api.getContacts());
     });
+    supaFetch('/rest/v1/bookkeeping?type=eq.expense&select=project_id,category,amount').then(rows=>{
+      const agg={};
+      (rows||[]).forEach(e=>{
+        if(!e.project_id) return;
+        const a=agg[e.project_id]||(agg[e.project_id]={materials:0,wages:0});
+        if(e.category==='Materials') a.materials+=parseFloat(e.amount)||0;
+        else if(e.category==='Subcontractor') a.wages+=parseFloat(e.amount)||0;
+      });
+      setBkAgg(agg);
+    }).catch(e=>console.warn('financials bookkeeping load:',e?.message));
   },[]);
 
   const load=()=>{ setDeals(api.getDeals().filter(d=>['Scheduled','Completed','Archive'].includes(d.stage)&&!(d.labels||[]).includes('Lost'))); setContacts(api.getContacts()); };
@@ -4436,11 +4477,14 @@ function Financials({showToast}){
 
   const getRow=deal=>{
     const quote=parseFloat(deal.value)||0;
-    const materials=parseFloat(deal.materials)||0;
-    const wages=parseFloat(deal.wages)||0;
+    const baseMaterials=parseFloat(deal.materials)||0;
+    const baseWages=parseFloat(deal.wages)||0;
+    const bk=bkAgg[deal.id]||{materials:0,wages:0};
+    const materials=baseMaterials+bk.materials; // manual entry + bookkeeping entries for this project
+    const wages=baseWages+bk.wages;
     const labour=Math.max(0,quote-materials);
     const grossProfit=quote-materials-wages;
-    return {quote,materials,wages,labour,grossProfit};
+    return {quote,materials,wages,labour,grossProfit,baseMaterials,baseWages,bkMaterials:bk.materials,bkWages:bk.wages};
   };
 
   // Sorting
@@ -4700,7 +4744,7 @@ function Financials({showToast}){
                 <tr><td colSpan={8} style={{...tdStyle,textAlign:'center',color:'var(--muted-fg)',padding:'32px 0'}}>No projects yet. Add projects in Pipeline.</td></tr>
               )}
               {sortedDeals.map(deal=>{
-                const {quote,materials,wages,labour,grossProfit}=getRow(deal);
+                const {quote,materials,wages,labour,grossProfit,bkMaterials,bkWages}=getRow(deal);
                 const gpColor=grossProfit>0?'#22c55e':grossProfit<0?'#ef4444':'var(--fg)';
                 return (
                   <tr key={deal.id} style={{transition:'background 0.1s'}}
@@ -4715,11 +4759,13 @@ function Financials({showToast}){
                       <input type='number' min='0' value={deal.materials||''} placeholder='0.00'
                         onChange={ev=>saveRow(deal.id,'materials',ev.target.value)}
                         style={inp}/>
+                      {bkMaterials>0&&<div style={{fontSize:9,color:'var(--muted-fg)',marginTop:2,whiteSpace:'nowrap'}}>+{fmtUSD(bkMaterials)} bkkpg = <strong>{fmtUSD(materials)}</strong></div>}
                     </td>
                     <td style={{...tdStyle,textAlign:'right',padding:'4px 6px'}}>
                       <input type='number' min='0' value={deal.wages||''} placeholder='0.00'
                         onChange={ev=>saveRow(deal.id,'wages',ev.target.value)}
                         style={inp}/>
+                      {bkWages>0&&<div style={{fontSize:9,color:'var(--muted-fg)',marginTop:2,whiteSpace:'nowrap'}}>+{fmtUSD(bkWages)} bkkpg = <strong>{fmtUSD(wages)}</strong></div>}
                     </td>
                     <td style={{...tdStyle,textAlign:'right',fontWeight:700,color:gpColor}}>{fmtUSD(grossProfit)}</td>
                   </tr>

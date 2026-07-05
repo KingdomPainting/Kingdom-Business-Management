@@ -1160,13 +1160,13 @@ function Dashboard({toast}){
       <div style={{flex:1,overflowY:'auto',display:'flex',flexDirection:'column',gap:10,minHeight:0}}>
 
         {/* Row 1 — Calendar + Tasks */}
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,minHeight:280}}>
+        <div className="dash-row" style={{minHeight:280}}>
           <CalendarWeekWidget/>
           <TasksWidget/>
         </div>
 
         {/* Row 2 — Proposals + Scheduled Projects */}
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+        <div className="dash-row">
 
           <Card style={{display:'flex',flexDirection:'column'}}>
             <div style={{padding:'10px 14px 8px',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>

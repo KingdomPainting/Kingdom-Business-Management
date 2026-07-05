@@ -22,8 +22,10 @@ export const STYLE = `
   ::-webkit-scrollbar-track { background: var(--bg); }
   ::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 9px; }
   .est-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+  .dash-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   @media (max-width:768px) {
     .est-grid-2 { grid-template-columns:1fr; }
+    .dash-row { grid-template-columns:1fr; }
     .fin-grid { grid-template-columns:1fr !important; }
     .fin-grid .fin-stat-val { font-size:22px !important; }
     .fin-outer { padding:16px 12px !important; }

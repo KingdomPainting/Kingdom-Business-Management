@@ -4390,6 +4390,8 @@ function Financials({showToast}){
   const [saving,setSaving]=useState({});
   const [sortKey,setSortKey]=useState('date');
   const [sortDir,setSortDir]=useState('desc'); // newest first by default
+  // Bookkeeping expenses linked to a project, summed per project: {dealId:{materials,wages}}
+  const [bkAgg,setBkAgg]=useState({});
 
   // Load deals fresh from Supabase on mount to get latest materials/wages
   useEffect(()=>{
@@ -4397,6 +4399,16 @@ function Financials({showToast}){
       setDeals(api.getDeals().filter(d=>['Scheduled','Completed','Archive'].includes(d.stage)&&!(d.labels||[]).includes('Lost')));
       setContacts(api.getContacts());
     });
+    supaFetch('/rest/v1/bookkeeping?type=eq.expense&select=project_id,category,amount').then(rows=>{
+      const agg={};
+      (rows||[]).forEach(e=>{
+        if(!e.project_id) return;
+        const a=agg[e.project_id]||(agg[e.project_id]={materials:0,wages:0});
+        if(e.category==='Materials') a.materials+=parseFloat(e.amount)||0;
+        else if(e.category==='Subcontractor') a.wages+=parseFloat(e.amount)||0;
+      });
+      setBkAgg(agg);
+    }).catch(e=>console.warn('financials bookkeeping load:',e?.message));
   },[]);
 
   const load=()=>{ setDeals(api.getDeals().filter(d=>['Scheduled','Completed','Archive'].includes(d.stage)&&!(d.labels||[]).includes('Lost'))); setContacts(api.getContacts()); };
@@ -4436,11 +4448,14 @@ function Financials({showToast}){
 
   const getRow=deal=>{
     const quote=parseFloat(deal.value)||0;
-    const materials=parseFloat(deal.materials)||0;
-    const wages=parseFloat(deal.wages)||0;
+    const baseMaterials=parseFloat(deal.materials)||0;
+    const baseWages=parseFloat(deal.wages)||0;
+    const bk=bkAgg[deal.id]||{materials:0,wages:0};
+    const materials=baseMaterials+bk.materials; // manual entry + bookkeeping entries for this project
+    const wages=baseWages+bk.wages;
     const labour=Math.max(0,quote-materials);
     const grossProfit=quote-materials-wages;
-    return {quote,materials,wages,labour,grossProfit};
+    return {quote,materials,wages,labour,grossProfit,baseMaterials,baseWages,bkMaterials:bk.materials,bkWages:bk.wages};
   };
 
   // Sorting
@@ -4700,7 +4715,7 @@ function Financials({showToast}){
                 <tr><td colSpan={8} style={{...tdStyle,textAlign:'center',color:'var(--muted-fg)',padding:'32px 0'}}>No projects yet. Add projects in Pipeline.</td></tr>
               )}
               {sortedDeals.map(deal=>{
-                const {quote,materials,wages,labour,grossProfit}=getRow(deal);
+                const {quote,materials,wages,labour,grossProfit,bkMaterials,bkWages}=getRow(deal);
                 const gpColor=grossProfit>0?'#22c55e':grossProfit<0?'#ef4444':'var(--fg)';
                 return (
                   <tr key={deal.id} style={{transition:'background 0.1s'}}
@@ -4715,11 +4730,13 @@ function Financials({showToast}){
                       <input type='number' min='0' value={deal.materials||''} placeholder='0.00'
                         onChange={ev=>saveRow(deal.id,'materials',ev.target.value)}
                         style={inp}/>
+                      {bkMaterials>0&&<div style={{fontSize:9,color:'var(--muted-fg)',marginTop:2,whiteSpace:'nowrap'}}>+{fmtUSD(bkMaterials)} bkkpg = <strong>{fmtUSD(materials)}</strong></div>}
                     </td>
                     <td style={{...tdStyle,textAlign:'right',padding:'4px 6px'}}>
                       <input type='number' min='0' value={deal.wages||''} placeholder='0.00'
                         onChange={ev=>saveRow(deal.id,'wages',ev.target.value)}
                         style={inp}/>
+                      {bkWages>0&&<div style={{fontSize:9,color:'var(--muted-fg)',marginTop:2,whiteSpace:'nowrap'}}>+{fmtUSD(bkWages)} bkkpg = <strong>{fmtUSD(wages)}</strong></div>}
                     </td>
                     <td style={{...tdStyle,textAlign:'right',fontWeight:700,color:gpColor}}>{fmtUSD(grossProfit)}</td>
                   </tr>

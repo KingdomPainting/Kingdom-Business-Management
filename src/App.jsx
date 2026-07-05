@@ -207,11 +207,24 @@ function ContactModal({open,onClose,contact,clients,onSaved,allDeals,allContacts
 }
 
 
-function ContactCombobox({contacts,value,freeText,onChange}){
+function ContactCombobox({contacts,value,freeText,onChange,onAddContact}){
   const selected=contacts.find(c=>c.id===value);
   const [query,setQuery]=useState('');
   const [open,setOpen]=useState(false);
+  const [adding,setAdding]=useState(false);
   const ref=useRef(null);
+
+  const createContact=async()=>{
+    const name=query.trim();
+    if(!name||!onAddContact||adding) return;
+    setAdding(true);
+    try{
+      const id=await onAddContact(name);
+      if(id) onChange(id,'');
+    }catch(e){ console.warn('add contact:',e?.message); }
+    setAdding(false);
+    setOpen(false); setQuery('');
+  };
 
   useEffect(()=>{
     const handler=e=>{if(ref.current&&!ref.current.contains(e.target))setOpen(false);};
@@ -260,6 +273,16 @@ function ContactCombobox({contacts,value,freeText,onChange}){
             onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
             None
           </div>
+          {/* Add a brand-new contact (saved to the Contacts page) */}
+          {onAddContact&&query.trim()&&!contacts.find(c=>(c.fullName||'').toLowerCase()===query.trim().toLowerCase())&&(
+            <div onMouseDown={e=>{e.preventDefault();createContact();}}
+              style={{padding:'8px 12px',fontSize:13,cursor:adding?'default':'pointer',borderBottom:'1px solid var(--border)',
+                color:'var(--primary)',fontWeight:600,display:'flex',alignItems:'center',gap:6}}
+              onMouseEnter={e=>e.currentTarget.style.background='var(--muted)'}
+              onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+              <Plus size={13}/>{adding?'Adding…':`Add "${query.trim()}" as a new contact`}
+            </div>
+          )}
           {/* Free-text option when query doesn't match any contact */}
           {query.trim()&&!contacts.find(c=>(c.fullName||'').toLowerCase()===query.trim().toLowerCase())&&(
             <div onMouseDown={e=>{e.preventDefault();onChange('',query.trim());setOpen(false);setQuery('');}}
@@ -342,7 +365,7 @@ function DrivePickerBtn({onAttach}){
   );
 }
 
-function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead'}){
+function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead',onAddContact}){
   const blank={dealName:'',value:'',description:'',contactId:'',referralContactId:'',labels:[],leadSource:'',
     startDate:'',startTime:'09:00',endDate:'',endTime:'17:00',
     scheduleDays:[], // [{date, startTime, endTime, calEventId}]
@@ -517,7 +540,7 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead'}){
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
         <div><Label>Project Name</Label><input value={f.dealName} onChange={e=>setF(x=>({...x,dealName:e.target.value}))} placeholder='Project name' style={inp}/></div>
         <div><Label>Contact</Label>
-          <ContactCombobox contacts={contacts} value={f.contactId} freeText={f.contactFreeText||''} onChange={(id,txt)=>setF(x=>({...x,contactId:id,contactFreeText:txt||''}))} /></div>
+          <ContactCombobox contacts={contacts} value={f.contactId} freeText={f.contactFreeText||''} onChange={(id,txt)=>setF(x=>({...x,contactId:id,contactFreeText:txt||''}))} onAddContact={onAddContact} /></div>
       </div>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
         <div><Label>Value ($)</Label><input type='number' value={f.value} onChange={e=>setF(x=>({...x,value:e.target.value}))} placeholder='0' style={inp}/></div>
@@ -1766,6 +1789,12 @@ function Pipeline({showToast}){
         })}
       </div>
       <DealModal open={modalOpen} onClose={()=>setModalOpen(false)} deal={editDeal} contacts={contacts}
+        onAddContact={async(name)=>{
+          const id=await api.saveContact({fullName:name}); // persists to the contacts table (shows on Contacts page)
+          setContacts(api.getContacts());
+          showToast('Contact added');
+          return id;
+        }}
         onSaved={async()=>{
           const isNew = !editDeal;
           showToast(editDeal?'Project updated':'Project created');

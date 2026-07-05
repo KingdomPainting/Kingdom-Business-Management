@@ -4281,25 +4281,6 @@ function InvoicePage({showToast}){
     return new Date(0);
   };
 
-  const saveTimers=useRef({});
-  const savePaid=async(dealId,val)=>{
-    const parsed=Math.max(0,parseFloat(val)||0);
-    // Update UI immediately
-    setDeals(prev=>prev.map(d=>d.id===dealId?{...d,invoicePaid:parsed}:d));
-    DB.deals=DB.deals.map(d=>d.id===dealId?{...d,invoicePaid:parsed}:d);
-    // Debounce Supabase write — wait 600ms after last keystroke
-    clearTimeout(saveTimers.current[dealId]);
-    saveTimers.current[dealId]=setTimeout(async()=>{
-      try{
-        await supaFetch(`/rest/v1/deals?id=eq.${dealId}`,'PATCH',{invoicepaid:parsed});
-        if(showToast) showToast('Saved','success');
-      }catch(e){
-        console.warn('Invoice save:',e.message);
-        if(showToast) showToast('Save failed','error');
-      }
-    },600);
-  };
-
   const handleSort=key=>{
     if(sortKey===key) setSortDir(d=>d==='asc'?'desc':'asc');
     else{ setSortKey(key); setSortDir('asc'); }
@@ -4389,11 +4370,7 @@ function InvoicePage({showToast}){
                     <td style={{...tdStyle,color:'var(--muted-fg)'}}>{contactName(deal)}</td>
                     <td style={{...tdStyle,color:'var(--muted-fg)',whiteSpace:'nowrap'}}>{dateStr||'—'}</td>
                     <td style={{...tdStyle,textAlign:'right',fontWeight:600}}>{fmtUSD(revenue)}</td>
-                    <td style={{...tdStyle,textAlign:'right',padding:'6px 8px'}}>
-                      <input type='number' min='0' value={paid||''} placeholder='0.00'
-                        onChange={ev=>savePaid(deal.id,ev.target.value)}
-                        style={inp}/>
-                    </td>
+                    <td style={{...tdStyle,textAlign:'right',fontWeight:600}} title='Sum of income entries linked to this project in Bookkeeping'>{fmtUSD(paid)}</td>
                     <td style={{...tdStyle,textAlign:'right',fontWeight:700,color:outColor}}>{fmtUSD(outstanding)}</td>
                     <td style={{...tdStyle,textAlign:'center'}}>
                       <button onClick={()=>generateInvoicePDF(deal,contactName(deal),contactAddr(deal))}
@@ -4838,7 +4815,29 @@ function Bookkeeping({showToast}){
   const contactName=id=>{const c=contacts.find(x=>x.id===id);return c?.fullName||'';};
   const projectName=id=>{const d=deals.find(x=>x.id===id);return d?.dealName||'';};
 
-  // Derived income — pulled live from the Financials projects (same deal set as the Financials page)
+  // Keep each project's invoice "Paid" (deal.invoicepaid) in sync with the sum of its
+  // income entries in bookkeeping. Projects with no income entries are left untouched.
+  const paidSyncedRef=useRef(new Map());
+  useEffect(()=>{
+    if(loading) return;
+    const byProj={};
+    entries.forEach(e=>{ if(e.type==='income'&&e.project_id) byProj[e.project_id]=(byProj[e.project_id]||0)+(parseFloat(e.amount)||0); });
+    const prev=paidSyncedRef.current;
+    const affected=new Set([...Object.keys(byProj),...prev.keys()]);
+    affected.forEach(pid=>{
+      const sum=byProj[pid]||0;
+      const deal=deals.find(d=>d.id===pid);
+      if(!deal) return; // deal not loaded yet — handled once deals arrive
+      if(prev.get(pid)===sum) return; // no change since last sync
+      prev.set(pid,sum);
+      if((parseFloat(deal.invoicePaid)||0)===sum) return; // already correct
+      supaFetch(`/rest/v1/deals?id=eq.${pid}`,'PATCH',{invoicepaid:sum})
+        .then(()=>{ DB.deals=DB.deals.map(d=>d.id===pid?{...d,invoicePaid:sum,invoicepaid:sum}:d); })
+        .catch(err=>console.warn('sync invoice paid:',err?.message));
+    });
+  },[entries,deals,loading]);
+
+  // Income is entered manually (and links to a project → drives the invoice Paid column).
   const dealDateISO=d=>{
     if(d.endDate) return String(d.endDate).slice(0,10);
     const days=d.scheduleDays||[];
@@ -4847,19 +4846,6 @@ function Bookkeeping({showToast}){
     return '';
   };
   const financialsDeals=deals.filter(d=>['Scheduled','Completed','Archive'].includes(d.stage)&&!(d.labels||[]).includes('Lost'));
-  const financialsIncome=financialsDeals.map(d=>({
-    id:'deal-'+d.id,
-    source:'financials',
-    date:dealDateISO(d),
-    type:'income',
-    category:'Income',
-    description:d.dealName||'Project',
-    amount:parseFloat(d.value)||0,
-    vendor:'',
-    contact_id:d.contact||d.contactId||null,
-    contactFreeText:d.contactFreeText||'',
-    project_id:d.id,
-  }));
   // Derived expenses — materials & wages pulled live from the same projects
   const financialsExpenses=financialsDeals.flatMap(d=>{
     const rows=[];
@@ -5007,7 +4993,7 @@ function Bookkeeping({showToast}){
     setForm(blankForm);
   };
 
-  const allEntries=[...financialsIncome,...financialsExpenses,...entries];
+  const allEntries=[...financialsExpenses,...entries];
 
   // Export all entries for the current calendar year to a printable PDF
   const exportYearPDF=()=>{
@@ -5305,8 +5291,8 @@ const NAV=[
   {id:'pipeline',Icon:Kanban,label:'Pipeline'},
   {id:'estimates',Icon:FileText,label:'Estimates'},
   {id:'contacts',Icon:UserRound,label:'Contacts'},
-  {id:'invoice',Icon:Receipt,label:'Invoice'},
   {id:'bookkeeping',Icon:BookOpen,label:'Bookkeeping'},
+  {id:'invoice',Icon:Receipt,label:'Invoice'},
   {id:'financials',Icon:DollarSign,label:'Financials'},
 ];
 

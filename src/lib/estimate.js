@@ -322,14 +322,28 @@ export function calcPaintCosts(rooms, allPaints, allCeilPaints, allPrimers, allC
   const lines = Object.values(colMap).map(cm=>{
     const sqft = cm.area;
     const pObj = allProducts.find(p=>p.n===cm.product);
-    let qtyStr = '—', gallons = 0;
+    // Quantity: 1 gallon covers 350 sqft, 1 pail (5 gal) covers 1900 sqft
+    let qtyStr = '—', gallons = 0, pails = 0, extraGallons = 0;
     if(sqft > 0){
       gallons = Math.ceil(sqft/350);
-      if(sqft <= 1900){ qtyStr = gallons + ' gal'; }
-      else { const pails=Math.floor(sqft/1900); const rem=sqft-pails*1900; const eg=rem>0?Math.ceil(rem/350):0; const p2=[]; if(pails>0)p2.push(pails+' pail'+(pails>1?'s':'')); if(eg>0)p2.push(eg+' gal'); qtyStr=p2.join(' + '); }
+      if(sqft <= 1900){
+        extraGallons = gallons;
+        qtyStr = gallons + ' gal';
+      }else{
+        pails = Math.floor(sqft/1900);
+        const rem = sqft - pails*1900;
+        extraGallons = rem>0 ? Math.ceil(rem/350) : 0;
+        const p2=[]; if(pails>0)p2.push(pails+' pail'+(pails>1?'s':'')); if(extraGallons>0)p2.push(extraGallons+' gal');
+        qtyStr = p2.join(' + ');
+      }
     }
-    const unitPrice = pObj ? (sqft>1900 && pObj.p>0 ? pObj.p : pObj.g||pObj.p||0) : 0;
-    const lineCost = unitPrice>0 ? unitPrice*gallons*matBuffer : 0;
+    // Cost: pails at the pail price + remaining gallons at the gallon price
+    const gPrice = pObj?.g||0, pPrice = pObj?.p||0;
+    let lineCost = 0;
+    if(pObj && sqft>0){
+      if(pails>0 && pPrice>0) lineCost = (pails*pPrice + extraGallons*(gPrice||pPrice/5)) * matBuffer;
+      else lineCost = (gPrice||pPrice/5||0) * gallons * matBuffer;
+    }
     total += lineCost;
     const hex = cm.colour ? ((allColours||[]).find(c=>c.n===cm.colour)?.h||'#ccc') : '';
     return { ...cm, sqft, qtyStr, lineCost, hex };

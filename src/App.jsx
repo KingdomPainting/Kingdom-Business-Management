@@ -5250,8 +5250,8 @@ const NAV=[
   {id:'estimates',Icon:FileText,label:'Estimates'},
   {id:'contacts',Icon:UserRound,label:'Contacts'},
   {id:'invoice',Icon:Receipt,label:'Invoice'},
-  {id:'financials',Icon:DollarSign,label:'Financials'},
   {id:'bookkeeping',Icon:BookOpen,label:'Bookkeeping'},
+  {id:'financials',Icon:DollarSign,label:'Financials'},
 ];
 
 // ─── Client Portal (non-admin users) ─────────────────────────────────────────

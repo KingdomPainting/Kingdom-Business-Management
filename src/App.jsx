@@ -3202,11 +3202,17 @@ function LabourRatesTab({labour,setLabour,onSave}){
 
   return (
     <div style={{padding:24,overflowY:'auto',height:'100%'}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'flex-end',gap:12,marginBottom:16}}>
+        {saveMsg&&<span style={{fontSize:12,fontWeight:600,color:saveMsg==='Saved'?'#22c55e':'#ef4444'}}>{saveMsg==='Saved'?'✓ ':''}{saveMsg}</span>}
+        <button onClick={doSave} disabled={saving} style={{padding:'9px 24px',background:'var(--primary)',color:'#fff',border:'none',borderRadius:7,fontSize:13,fontWeight:700,cursor:'pointer'}}>
+          {saving?'Saving…':'Save Settings'}
+        </button>
+      </div>
       <div className='est-grid-2'>
         <Card className='p-5'>
           <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--primary)',marginBottom:12}}>Rate Calculation</p>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:12}}>
-            <div><Label>Billable hours/year</Label><input type='number' value={L.billable||1700} onChange={e=>upd({billable:+e.target.value})} style={numS}/></div>
+            <div><Label>Billable hours</Label><input type='number' value={L.billable||1700} onChange={e=>upd({billable:+e.target.value})} style={numS}/></div>
             <div><Label>Labour buffer</Label><input type='number' step='0.05' value={L.buffer||1.25} onChange={e=>upd({buffer:+e.target.value})} style={numS}/></div>
             <div><Label>Materials buffer</Label><input type='number' step='0.05' value={L.matBuffer||1.25} onChange={e=>upd({matBuffer:+e.target.value})} style={numS}/></div>
           </div>
@@ -3292,13 +3298,6 @@ function LabourRatesTab({labour,setLabour,onSave}){
           </div>
         </div>
       </Card>
-
-      <div style={{display:'flex',alignItems:'center',gap:12}}>
-        <button onClick={doSave} disabled={saving} style={{padding:'9px 24px',background:'var(--primary)',color:'#fff',border:'none',borderRadius:7,fontSize:13,fontWeight:700,cursor:'pointer'}}>
-          {saving?'Saving…':'Save Settings'}
-        </button>
-        {saveMsg&&<span style={{fontSize:12,fontWeight:600,color:saveMsg==='Saved'?'#22c55e':'#ef4444'}}>{saveMsg==='Saved'?'✓ ':''}{saveMsg}</span>}
-      </div>
     </div>
   );
 }
@@ -3375,6 +3374,14 @@ function PaintInputsTab({paints,setPaints,ceilPaints,setCeilPaints,primers,setPr
 
   return (
     <div style={{padding:24,overflowY:'auto',height:'100%'}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'flex-end',gap:12,marginBottom:16}}>
+        {saveMsg
+          ? <span style={{fontSize:12,fontWeight:600,color:saveMsg==='Saved'?'#22c55e':'#ef4444'}}>{saveMsg==='Saved'?'✓ ':''}{saveMsg}</span>
+          : <span style={{fontSize:12,color:'var(--muted-fg)'}}>Changes save automatically</span>}
+        <button onClick={doSave} disabled={saving} style={{padding:'9px 24px',background:'var(--primary)',color:'#fff',border:'none',borderRadius:7,fontSize:13,fontWeight:700,cursor:'pointer'}}>
+          {saving?'Saving…':'Save Settings'}
+        </button>
+      </div>
       <div className='est-grid-2'>
         <Card className='p-5'>
           <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--primary)',marginBottom:12}}>Paints</p>
@@ -3443,15 +3450,6 @@ function PaintInputsTab({paints,setPaints,ceilPaints,setCeilPaints,primers,setPr
             addLabel='Add supply' onAdd={()=>setSupplies(s=>[...s,{n:'',p:0}])}/>
         </Card>
       </div>
-
-      <div style={{display:'flex',alignItems:'center',gap:12}}>
-        <button onClick={doSave} disabled={saving} style={{padding:'9px 24px',background:'var(--primary)',color:'#fff',border:'none',borderRadius:7,fontSize:13,fontWeight:700,cursor:'pointer'}}>
-          {saving?'Saving…':'Save Settings'}
-        </button>
-        {saveMsg
-          ? <span style={{fontSize:12,fontWeight:600,color:saveMsg==='Saved'?'#22c55e':'#ef4444'}}>{saveMsg==='Saved'?'✓ ':''}{saveMsg}</span>
-          : <span style={{fontSize:12,color:'var(--muted-fg)'}}>Changes save automatically</span>}
-      </div>
     </div>
   );
 }
@@ -3504,6 +3502,12 @@ function StandardsTab({standards,setStandards,onSave}){
 
   return (
     <div style={{padding:24,overflowY:'auto',height:'100%'}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'flex-end',gap:12,marginBottom:14}}>
+        {saveMsg&&<span style={{fontSize:12,fontWeight:600,color:saveMsg==='Saved'?'#22c55e':'#ef4444'}}>{saveMsg==='Saved'?'✓ ':''}{saveMsg}</span>}
+        <button onClick={doSave} disabled={saving} style={{padding:'9px 24px',background:'var(--primary)',color:'#fff',border:'none',borderRadius:7,fontSize:13,fontWeight:700,cursor:'pointer'}}>
+          {saving?'Saving…':'Save Settings'}
+        </button>
+      </div>
       <div style={{fontSize:12,color:'var(--muted-fg)',marginBottom:14,padding:'10px 14px',background:'rgba(0,0,0,0.03)',borderRadius:6,borderLeft:'3px solid var(--primary)'}}>
         All values are editable and update labour calculations in real time.
       </div>
@@ -3552,13 +3556,6 @@ function StandardsTab({standards,setStandards,onSave}){
           <div style={{borderTop:'1px solid var(--border)',margin:'12px 0 10px'}}/>
           {coatTable('doorsCustom','Custom')}
         </Card>
-      </div>
-
-      <div style={{display:'flex',alignItems:'center',gap:12}}>
-        <button onClick={doSave} disabled={saving} style={{padding:'9px 24px',background:'var(--primary)',color:'#fff',border:'none',borderRadius:7,fontSize:13,fontWeight:700,cursor:'pointer'}}>
-          {saving?'Saving…':'Save Settings'}
-        </button>
-        {saveMsg&&<span style={{fontSize:12,fontWeight:600,color:saveMsg==='Saved'?'#22c55e':'#ef4444'}}>{saveMsg==='Saved'?'✓ ':''}{saveMsg}</span>}
       </div>
     </div>
   );

@@ -4884,34 +4884,8 @@ function Bookkeeping({showToast}){
     });
   },[entries,deals,loading]);
 
-  // Income is entered manually (and links to a project → drives the invoice Paid column).
-  const dealDateISO=d=>{
-    if(d.endDate) return String(d.endDate).slice(0,10);
-    const days=d.scheduleDays||[];
-    if(days.length) return String(days[days.length-1].date).slice(0,10);
-    if(d.created_at) return String(d.created_at).slice(0,10);
-    return '';
-  };
-  const financialsDeals=deals.filter(d=>['Scheduled','Completed','Archive'].includes(d.stage)&&!(d.labels||[]).includes('Lost'));
-  // Derived expenses — materials & wages pulled live from the same projects
-  const financialsExpenses=financialsDeals.flatMap(d=>{
-    const rows=[];
-    const base={
-      source:'financials',
-      date:dealDateISO(d),
-      type:'expense',
-      description:d.dealName||'Project',
-      vendor:'',
-      contact_id:d.contact||d.contactId||null,
-      contactFreeText:d.contactFreeText||'',
-      project_id:d.id,
-    };
-    const materials=parseFloat(d.materials)||0;
-    const wages=parseFloat(d.wages)||0;
-    if(materials>0) rows.push({...base,id:'deal-mat-'+d.id,category:'Materials',amount:materials});
-    if(wages>0) rows.push({...base,id:'deal-wage-'+d.id,category:'Subcontractor',amount:wages});
-    return rows;
-  });
+  // All entries (income & expenses) are entered manually. Income linked to a project drives
+  // the invoice Paid column; expenses linked to a project feed the Financials materials/wages.
 
   const save=async(entry)=>{
     try{
@@ -5040,7 +5014,7 @@ function Bookkeeping({showToast}){
     setForm(blankForm);
   };
 
-  const allEntries=[...financialsExpenses,...entries];
+  const allEntries=[...entries];
 
   // Export all entries for the current calendar year to a printable PDF
   const exportYearPDF=()=>{

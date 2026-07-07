@@ -2259,6 +2259,15 @@ function usePaintSettings(){
     saveTimer.current = setTimeout(()=>save(overrides), 1200);
   },[save]);
 
+  // Auto-save the Paint Inputs whenever they change (debounced). The first run after the
+  // initial load is skipped so we don't immediately re-write the just-loaded data.
+  const firstAutosave = useRef(true);
+  useEffect(()=>{
+    if(!loaded) return;
+    if(firstAutosave.current){ firstAutosave.current=false; return; }
+    scheduleSave();
+  },[paints,ceilPaints,primers,colours,swColours,supplies,loaded]);
+
   return { paints,setPaints, ceilPaints,setCeilPaints, primers,setPrimers, colours,setColours, swColours,setSWColours, supplies,setSupplies, standards,setStandards, labour,setLabour, loaded, save, scheduleSave };
 }
 
@@ -3439,7 +3448,9 @@ function PaintInputsTab({paints,setPaints,ceilPaints,setCeilPaints,primers,setPr
         <button onClick={doSave} disabled={saving} style={{padding:'9px 24px',background:'var(--primary)',color:'#fff',border:'none',borderRadius:7,fontSize:13,fontWeight:700,cursor:'pointer'}}>
           {saving?'Saving…':'Save Settings'}
         </button>
-        {saveMsg&&<span style={{fontSize:12,fontWeight:600,color:saveMsg==='Saved'?'#22c55e':'#ef4444'}}>{saveMsg==='Saved'?'✓ ':''}{saveMsg}</span>}
+        {saveMsg
+          ? <span style={{fontSize:12,fontWeight:600,color:saveMsg==='Saved'?'#22c55e':'#ef4444'}}>{saveMsg==='Saved'?'✓ ':''}{saveMsg}</span>
+          : <span style={{fontSize:12,color:'var(--muted-fg)'}}>Changes save automatically</span>}
       </div>
     </div>
   );

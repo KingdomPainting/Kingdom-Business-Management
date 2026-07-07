@@ -3188,6 +3188,14 @@ function LabourRatesTab({labour,setLabour,onSave}){
   };
   const addOH = ()=>upd({overheadItems:[...overheadItems,{n:'New item',v:0}]});
   const removeOH = (idx)=>upd({overheadItems:overheadItems.filter((_,i)=>i!==idx)});
+  const sortOH = (mode)=>{
+    if(mode==='none') return;
+    const sorted=[...overheadItems].sort((a,b)=>
+      mode==='high' ? (b.v||0)-(a.v||0)
+      : mode==='low' ? (a.v||0)-(b.v||0)
+      : (a.n||'').localeCompare(b.n||''));
+    upd({overheadItems:sorted});
+  };
 
   const doSave = async()=>{
     setSaving(true);setSaveMsg('');
@@ -3244,7 +3252,17 @@ function LabourRatesTab({labour,setLabour,onSave}){
         </Card>
 
         <Card className='p-5'>
-          <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--primary)',marginBottom:12}}>Overhead Costs</p>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:12}}>
+            <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--primary)'}}>Overhead Costs</p>
+            <select value='none' onChange={e=>{sortOH(e.target.value);e.target.value='none';}}
+              title='Sort overhead items'
+              style={{fontSize:11,padding:'3px 6px',border:'1px solid var(--border)',borderRadius:6,background:'var(--card)',color:'var(--fg)',cursor:'pointer'}}>
+              <option value='none'>Sort…</option>
+              <option value='high'>Highest → Lowest</option>
+              <option value='low'>Lowest → Highest</option>
+              <option value='name'>Name A–Z</option>
+            </select>
+          </div>
           {overheadItems.map((item,i)=>(
             <div key={i} style={{display:'grid',gridTemplateColumns:'1fr 90px 28px',alignItems:'center',gap:6,padding:'4px 0',borderBottom:'1px solid rgba(0,0,0,0.05)'}}>
               <input type='text' value={item.n} onChange={e=>updOH(i,{n:e.target.value})} style={fieldS}/>

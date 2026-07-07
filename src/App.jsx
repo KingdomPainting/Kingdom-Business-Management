@@ -4281,6 +4281,22 @@ function InvoicePage({showToast}){
     return new Date(0);
   };
 
+  // Paid is pulled from Bookkeeping (income entries synced to deal.invoicepaid), but can be
+  // manually overridden here; a later bookkeeping income change will re-sync it.
+  const saveTimers=useRef({});
+  const savePaid=async(dealId,val)=>{
+    const parsed=Math.max(0,parseFloat(val)||0);
+    setDeals(prev=>prev.map(d=>d.id===dealId?{...d,invoicePaid:parsed}:d));
+    DB.deals=DB.deals.map(d=>d.id===dealId?{...d,invoicePaid:parsed,invoicepaid:parsed}:d);
+    clearTimeout(saveTimers.current[dealId]);
+    saveTimers.current[dealId]=setTimeout(async()=>{
+      try{
+        await supaFetch(`/rest/v1/deals?id=eq.${dealId}`,'PATCH',{invoicepaid:parsed});
+        if(showToast) showToast('Saved','success');
+      }catch(e){ console.warn('Invoice save:',e.message); if(showToast) showToast('Save failed','error'); }
+    },600);
+  };
+
   const handleSort=key=>{
     if(sortKey===key) setSortDir(d=>d==='asc'?'desc':'asc');
     else{ setSortKey(key); setSortDir('asc'); }
@@ -4370,7 +4386,12 @@ function InvoicePage({showToast}){
                     <td style={{...tdStyle,color:'var(--muted-fg)'}}>{contactName(deal)}</td>
                     <td style={{...tdStyle,color:'var(--muted-fg)',whiteSpace:'nowrap'}}>{dateStr||'—'}</td>
                     <td style={{...tdStyle,textAlign:'right',fontWeight:600}}>{fmtUSD(revenue)}</td>
-                    <td style={{...tdStyle,textAlign:'right',fontWeight:600}} title='Sum of income entries linked to this project in Bookkeeping'>{fmtUSD(paid)}</td>
+                    <td style={{...tdStyle,textAlign:'right',padding:'6px 8px'}}>
+                      <input type='number' min='0' value={paid||''} placeholder='0.00'
+                        onChange={ev=>savePaid(deal.id,ev.target.value)}
+                        title='Pulled from Bookkeeping income for this project — editable to override'
+                        style={inp}/>
+                    </td>
                     <td style={{...tdStyle,textAlign:'right',fontWeight:700,color:outColor}}>{fmtUSD(outstanding)}</td>
                     <td style={{...tdStyle,textAlign:'center'}}>
                       <button onClick={()=>generateInvoicePDF(deal,contactName(deal),contactAddr(deal))}

@@ -4549,6 +4549,8 @@ function Financials({showToast}){
   const totalRevenue=activeDeals.reduce((s,d)=>s+getRow(d).quote,0);
   const totalGP=activeDeals.reduce((s,d)=>s+getRow(d).grossProfit,0);
   const totalProjects=activeDeals.length;
+  const currentYear=new Date().getFullYear();
+  const projectsThisYear=activeDeals.filter(d=>{const dt=dealDate(d);return dt&&dt.getTime()!==0&&dt.getFullYear()===currentYear;}).length;
 
   // Profit Margin: (gross profit / revenue) * 100
   const profitMarginF = totalRevenue>0 ? (totalGP/totalRevenue)*100 : 0;
@@ -4595,6 +4597,20 @@ function Financials({showToast}){
     <div className="fin-outer" style={{padding:'20px 24px',overflowY:'auto',height:'100%',display:'flex',flexDirection:'column',gap:20}}>
       <div>
         <h1 style={{fontSize:22,fontWeight:700}}>Financials</h1>
+      </div>
+
+      {/* ── Totals (Row 0) ── */}
+      <div className="fin-grid" style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:14,flexShrink:0}}>
+        {[
+          {label:'Total Revenue',value:fmtUSD(totalRevenue),color:'var(--primary)'},
+          {label:'Total Profit',value:fmtUSD(totalGP),color:totalGP>=0?'#22c55e':'#ef4444'},
+          {label:`Total Projects (${currentYear})`,value:projectsThisYear,color:'var(--fg)'},
+        ].map(({label,value,color})=>(
+          <Card key={label} style={{padding:'14px 18px'}}>
+            <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',marginBottom:4}}>{label}</p>
+            <p className="fin-stat-val" style={{fontSize:28,fontWeight:700,color,lineHeight:1}}>{value}</p>
+          </Card>
+        ))}
       </div>
 
       {/* ── Stat cards (Row 1) ── */}

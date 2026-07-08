@@ -3412,11 +3412,6 @@ function PaintInputsTab({paints,setPaints,ceilPaints,setCeilPaints,primers,setPr
           <DragTable items={paints} setItems={setPaints} columns={paintCols}
             renderRow={(item,i)=>paintRow(item,i,paints,setPaints)}
             addLabel='Add paint' onAdd={()=>setPaints(p=>[...p,{n:'',g:0,p:0}])}/>
-
-          <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--primary)',marginTop:20,marginBottom:12}}>Paints (Ceiling)</p>
-          <DragTable items={ceilPaints} setItems={setCeilPaints} columns={paintCols}
-            renderRow={(item,i)=>paintRow(item,i,ceilPaints,setCeilPaints)}
-            addLabel='Add ceiling paint' onAdd={()=>setCeilPaints(p=>[...p,{n:'',g:0,p:0}])}/>
         </Card>
 
         <Card className='p-5'>

@@ -4878,27 +4878,33 @@ function Bookkeeping({showToast}){
   const contactName=id=>{const c=contacts.find(x=>x.id===id);return c?.fullName||'';};
   const projectName=id=>{const d=deals.find(x=>x.id===id);return d?.dealName||'';};
 
-  // Keep each project's invoice "Paid" (deal.invoicepaid) in sync with the sum of its
-  // income entries in bookkeeping. Projects with no income entries are left untouched.
-  const paidSyncedRef=useRef(new Map());
+  // Update a project's invoice "Paid" (deal.invoicepaid) only when its income entries actually
+  // change here — NOT on page load. Otherwise merely opening Bookkeeping would overwrite a Paid
+  // value that was edited by hand on the Invoices page.
+  const paidSyncedRef=useRef(null); // Map<projectId, last-known income sum>; null until baselined
   useEffect(()=>{
     if(loading) return;
     const byProj={};
     entries.forEach(e=>{ if(e.type==='income'&&e.project_id) byProj[e.project_id]=(byProj[e.project_id]||0)+(parseFloat(e.amount)||0); });
+    if(paidSyncedRef.current===null){
+      // First run after load: record the current income sums without writing anything.
+      paidSyncedRef.current=new Map(Object.entries(byProj));
+      return;
+    }
     const prev=paidSyncedRef.current;
     const affected=new Set([...Object.keys(byProj),...prev.keys()]);
     affected.forEach(pid=>{
       const sum=byProj[pid]||0;
-      const deal=deals.find(d=>d.id===pid);
-      if(!deal) return; // deal not loaded yet — handled once deals arrive
-      if(prev.get(pid)===sum) return; // no change since last sync
+      if((prev.has(pid)?prev.get(pid):0)===sum) return; // income sum unchanged for this project
       prev.set(pid,sum);
-      if((parseFloat(deal.invoicePaid)||0)===sum) return; // already correct
       supaFetch(`/rest/v1/deals?id=eq.${pid}`,'PATCH',{invoicepaid:sum})
-        .then(()=>{ DB.deals=DB.deals.map(d=>d.id===pid?{...d,invoicePaid:sum,invoicepaid:sum}:d); })
+        .then(()=>{
+          DB.deals=DB.deals.map(d=>d.id===pid?{...d,invoicePaid:sum,invoicepaid:sum}:d);
+          setDeals(prevD=>prevD.map(d=>d.id===pid?{...d,invoicePaid:sum,invoicepaid:sum}:d));
+        })
         .catch(err=>console.warn('sync invoice paid:',err?.message));
     });
-  },[entries,deals,loading]);
+  },[entries,loading]);
 
   // All entries (income & expenses) are entered manually. Income linked to a project drives
   // the invoice Paid column; expenses linked to a project feed the Financials materials/wages.

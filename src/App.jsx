@@ -2272,6 +2272,33 @@ function usePaintSettings(){
 }
 
 // ─── ROOM CARD ────────────────────────────────────────────────────────────────
+// Defined at module level so their component identity is stable across RoomCard re-renders —
+// otherwise the native <select>s would remount on every render and any open dropdown would close.
+function PaintRow({label,prod,colour,sheen,products,colours,onProd,onColour,onSheen}){
+  return (
+    <div style={{marginBottom:10}}>
+      <p style={{fontSize:11,fontWeight:500,color:'var(--muted-fg)',marginBottom:4}}>{label}</p>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6}}>
+        <select value={prod} onChange={e=>onProd(e.target.value)} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Product —</option>{products.map(p=><option key={p} value={p}>{p}</option>)}</select>
+        <select value={colour} onChange={e=>onColour(e.target.value)} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Colour —</option>{colours.map(c=><option key={c} value={c}>{c}</option>)}</select>
+        <select value={sheen} onChange={e=>onSheen(e.target.value)} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Sheen —</option>{SHEENS.map(s=><option key={s} value={s}>{s}</option>)}</select>
+      </div>
+    </div>
+  );
+}
+function SurfaceToggle({label,field,room,u,cbStyle,surfaceSelectStyle}){
+  return (
+    <div style={{display:'flex',alignItems:'center',padding:'4px 0'}}>
+      <label style={{fontSize:12,display:'flex',gap:6,alignItems:'center',width:140,flexShrink:0}}>
+        <input type='checkbox' checked={room[field].enabled} onChange={e=>u({[field]:{...room[field],enabled:e.target.checked}})} style={cbStyle}/>
+        {label}
+      </label>
+      {room[field].enabled&&<select value={room[field].coats} onChange={e=>u({[field]:{...room[field],coats:+e.target.value}})} style={surfaceSelectStyle}>
+        <option value={1}>1 coat</option><option value={2}>2 coats</option><option value={3}>Primer & 2 coats</option>
+      </select>}
+    </div>
+  );
+}
 function RoomCard({room,settings,onChange,onRemove,primers,paints,ceilPaints,colours,swColours,supplies}){
   const bmNames=(colours||[]).map(c=>c.n);
   const swNames=(swColours||[]).map(c=>c.n);
@@ -2288,28 +2315,7 @@ function RoomCard({room,settings,onChange,onRemove,primers,paints,ceilPaints,col
   const uprep=patch=>u({prep:{...room.prep,...patch}});
   const cbStyle={width:18,height:18,accentColor:'var(--primary)',cursor:'pointer'};
   const surfaceSelectStyle={fontSize:11,padding:'2px 6px',border:'1px solid var(--border)',borderRadius:4,background:'#fff'};
-  const S=({label,field,sub})=>(
-    <div style={{display:'flex',alignItems:'center',padding:'4px 0'}}>
-      <label style={{fontSize:12,display:'flex',gap:6,alignItems:'center',width:140,flexShrink:0}}>
-        <input type='checkbox' checked={room[field].enabled} onChange={e=>u({[field]:{...room[field],enabled:e.target.checked}})} style={cbStyle}/>
-        {label}
-      </label>
-      {room[field].enabled&&<select value={room[field].coats} onChange={e=>u({[field]:{...room[field],coats:+e.target.value}})} style={surfaceSelectStyle}>
-        <option value={1}>1 coat</option><option value={2}>2 coats</option><option value={3}>Primer & 2 coats</option>
-      </select>}
-    </div>
-  );
   const PREP_ITEMS=[{k:'furniture',l:'Move furniture'},{k:'plastic',l:'Cover w/ plastic'},{k:'outlets',l:'Remove outlets'},{k:'drywall',l:'Drywall repairs'},{k:'caulking',l:'Caulking'},{k:'cleanup',l:'Clean up'}];
-  const PaintRow=({label,prod,colour,sheen,products,colours,onProd,onColour,onSheen})=>(
-    <div style={{marginBottom:10}}>
-      <p style={{fontSize:11,fontWeight:500,color:'var(--muted-fg)',marginBottom:4}}>{label}</p>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6}}>
-        <select value={prod} onChange={e=>onProd(e.target.value)} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Product —</option>{products.map(p=><option key={p} value={p}>{p}</option>)}</select>
-        <select value={colour} onChange={e=>onColour(e.target.value)} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Colour —</option>{colours.map(c=><option key={c} value={c}>{c}</option>)}</select>
-        <select value={sheen} onChange={e=>onSheen(e.target.value)} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Sheen —</option>{SHEENS.map(s=><option key={s} value={s}>{s}</option>)}</select>
-      </div>
-    </div>
-  );
   return (
     <div style={{border:'1px solid var(--border)',borderRadius:12,marginBottom:12,overflow:'hidden',background:'var(--card)',boxShadow:'var(--shadow)'}}>
       <div onClick={()=>setOpen(!open)} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'12px 16px',cursor:'pointer',userSelect:'none'}}>
@@ -2369,7 +2375,7 @@ function RoomCard({room,settings,onChange,onRemove,primers,paints,ceilPaints,col
           </div>
           <div style={{padding:'14px 16px',borderBottom:'1px solid rgba(0,0,0,0.05)'}}>
             <p style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--muted-fg)',marginBottom:8}}>Surfaces</p>
-            <S label='Walls' field='walls'/>
+            <SurfaceToggle label='Walls' field='walls' room={room} u={u} cbStyle={cbStyle} surfaceSelectStyle={surfaceSelectStyle}/>
             <div style={{display:'flex',alignItems:'center',padding:'4px 0'}}>
               <label style={{fontSize:12,display:'flex',gap:6,alignItems:'center',width:140,flexShrink:0}}>
                 <input type='checkbox' checked={room.ceiling.enabled} onChange={e=>u({ceiling:{...room.ceiling,enabled:e.target.checked}})} style={cbStyle}/>
@@ -2396,7 +2402,7 @@ function RoomCard({room,settings,onChange,onRemove,primers,paints,ceilPaints,col
                 )}
               </div>
             )}
-            <S label='Baseboards' field='baseboards'/><S label='Crown Moulding' field='crown'/>
+            <SurfaceToggle label='Baseboards' field='baseboards' room={room} u={u} cbStyle={cbStyle} surfaceSelectStyle={surfaceSelectStyle}/><SurfaceToggle label='Crown Moulding' field='crown' room={room} u={u} cbStyle={cbStyle} surfaceSelectStyle={surfaceSelectStyle}/>
             <div style={{padding:'4px 0'}}>
               <label style={{fontSize:12,display:'flex',gap:6,alignItems:'center'}}>
                 <input type='checkbox' checked={room.doors?.enabled||false} onChange={e=>u({doors:{...room.doors,enabled:e.target.checked}})} style={cbStyle}/>
@@ -3406,11 +3412,6 @@ function PaintInputsTab({paints,setPaints,ceilPaints,setCeilPaints,primers,setPr
           <DragTable items={paints} setItems={setPaints} columns={paintCols}
             renderRow={(item,i)=>paintRow(item,i,paints,setPaints)}
             addLabel='Add paint' onAdd={()=>setPaints(p=>[...p,{n:'',g:0,p:0}])}/>
-
-          <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--primary)',marginTop:20,marginBottom:12}}>Paints (Ceiling)</p>
-          <DragTable items={ceilPaints} setItems={setCeilPaints} columns={paintCols}
-            renderRow={(item,i)=>paintRow(item,i,ceilPaints,setCeilPaints)}
-            addLabel='Add ceiling paint' onAdd={()=>setCeilPaints(p=>[...p,{n:'',g:0,p:0}])}/>
         </Card>
 
         <Card className='p-5'>
@@ -4878,27 +4879,33 @@ function Bookkeeping({showToast}){
   const contactName=id=>{const c=contacts.find(x=>x.id===id);return c?.fullName||'';};
   const projectName=id=>{const d=deals.find(x=>x.id===id);return d?.dealName||'';};
 
-  // Keep each project's invoice "Paid" (deal.invoicepaid) in sync with the sum of its
-  // income entries in bookkeeping. Projects with no income entries are left untouched.
-  const paidSyncedRef=useRef(new Map());
+  // Update a project's invoice "Paid" (deal.invoicepaid) only when its income entries actually
+  // change here — NOT on page load. Otherwise merely opening Bookkeeping would overwrite a Paid
+  // value that was edited by hand on the Invoices page.
+  const paidSyncedRef=useRef(null); // Map<projectId, last-known income sum>; null until baselined
   useEffect(()=>{
     if(loading) return;
     const byProj={};
     entries.forEach(e=>{ if(e.type==='income'&&e.project_id) byProj[e.project_id]=(byProj[e.project_id]||0)+(parseFloat(e.amount)||0); });
+    if(paidSyncedRef.current===null){
+      // First run after load: record the current income sums without writing anything.
+      paidSyncedRef.current=new Map(Object.entries(byProj));
+      return;
+    }
     const prev=paidSyncedRef.current;
     const affected=new Set([...Object.keys(byProj),...prev.keys()]);
     affected.forEach(pid=>{
       const sum=byProj[pid]||0;
-      const deal=deals.find(d=>d.id===pid);
-      if(!deal) return; // deal not loaded yet — handled once deals arrive
-      if(prev.get(pid)===sum) return; // no change since last sync
+      if((prev.has(pid)?prev.get(pid):0)===sum) return; // income sum unchanged for this project
       prev.set(pid,sum);
-      if((parseFloat(deal.invoicePaid)||0)===sum) return; // already correct
       supaFetch(`/rest/v1/deals?id=eq.${pid}`,'PATCH',{invoicepaid:sum})
-        .then(()=>{ DB.deals=DB.deals.map(d=>d.id===pid?{...d,invoicePaid:sum,invoicepaid:sum}:d); })
+        .then(()=>{
+          DB.deals=DB.deals.map(d=>d.id===pid?{...d,invoicePaid:sum,invoicepaid:sum}:d);
+          setDeals(prevD=>prevD.map(d=>d.id===pid?{...d,invoicePaid:sum,invoicepaid:sum}:d));
+        })
         .catch(err=>console.warn('sync invoice paid:',err?.message));
     });
-  },[entries,deals,loading]);
+  },[entries,loading]);
 
   // All entries (income & expenses) are entered manually. Income linked to a project drives
   // the invoice Paid column; expenses linked to a project feed the Financials materials/wages.

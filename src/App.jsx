@@ -3661,13 +3661,24 @@ function MasterEstimate(){
     doSave(currentEstimateId,rooms,client,changeItems,changeCounter,roomCounter,selectedDealId);
   };
 
+  // A brand-new estimate with untouched rooms and no client/deal/change-order data —
+  // autosaving this would litter the saved list with blank "Untitled Estimate" rows.
+  const estimateIsBlank=
+    !currentEstimateId&&
+    !selectedDealId&&
+    changeItems.length===0&&
+    !client.name&&!client.email&&!client.phone&&!client.address&&
+    rooms.every(r=>!(+r.length)&&!(+r.width)&&!(+r.height)&&!(+r.irregularSqft)&&
+      !(r.wallSegs||[]).some(s=>+s.l)&&!(r.supplies||[]).length&&!r.notes);
+
   useEffect(()=>{
     if(saveTimerRef.current)clearTimeout(saveTimerRef.current);
+    if(estimateIsBlank) return;
     saveTimerRef.current=setTimeout(()=>{
       doSave(currentEstimateId,rooms,client,changeItems,changeCounter,roomCounter,selectedDealId);
     },1500);
     return ()=>{if(saveTimerRef.current)clearTimeout(saveTimerRef.current);};
-  },[rooms,client,changeItems,roomCounter,changeCounter,currentEstimateId,selectedDealId,doSave]);
+  },[rooms,client,changeItems,roomCounter,changeCounter,currentEstimateId,selectedDealId,doSave,estimateIsBlank]);
 
   const loadEstimates=async()=>{
     if(!_session?.user?.id)return;
@@ -3833,10 +3844,18 @@ function MasterEstimate(){
       if(totDoors) chtml+=`<p><strong>Total Doors:</strong> ${totDoors}</p>`;
       if(totWindows) chtml+=`<p><strong>Total Windows:</strong> ${totWindows}</p>`;
       chtml+=`</div>`;
-      chtml+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">3. Payment Terms</p>`;
+      {
+        const cHrs=rooms.reduce((s,r)=>s+calcRoom(r,settings).totalHrs,0);
+        const nWorkers=Math.max(1,settings._standards?.workers||1);
+        const estDays=cHrs>0?Math.ceil(cHrs/nWorkers/8):0;
+        chtml+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">3. Duration of Work</p>`;
+        chtml+=`<div style="font-size:11px;line-height:1.7;color:#444"><p>The Contractor will commence work on the scheduled date and is expected to complete the work in approximately <strong>${estDays} day${estDays!==1?'(s)':''}</strong>, subject to any unforeseen delays.</p></div>`;
+      }
+      chtml+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">4. Payment Terms</p>`;
       chtml+=`<div style="font-size:11px;line-height:1.7;color:#444"><p style="margin-bottom:8px">The total cost for the Services shall be <strong>${fmtC(totals.total)}</strong>, which includes labour, materials, and any applicable taxes. A different payment plan can be discussed.</p>`;
       chtml+=`<p>50% Deposit: ${fmtC(totals.deposit)} · 50% Upon Completion: ${fmtC(totals.balance)}</p></div>`;
-      chtml+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">4. Signatures</p>`;
+      chtml+=contractClausesHtml(gold,5);
+      chtml+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">12. Signatures</p>`;
       chtml+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:24px;font-size:11px">';
       chtml+='<div><div style="border-bottom:1px solid #ccc;height:60px;margin-bottom:8px"></div><p style="color:#888">Client Signature</p></div>';
       chtml+='<div><div style="border-bottom:1px solid #ccc;height:60px;margin-bottom:8px"></div><p style="color:#888">Contractor Signature</p></div></div>';
@@ -4027,6 +4046,28 @@ function KPLogo({height=32}){
     </svg>
   );
 }
+// Legal clauses shared by the exported bid PDF and the saved portal contract —
+// mirrors the sections shown on the estimate's Contract tab.
+function contractClausesHtml(gold,startNum){
+  const head=(n,t)=>`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">${n}. ${t}</p>`;
+  const body=(paras)=>`<div style="font-size:11px;line-height:1.7;color:#444">${paras.map(p=>`<p style="margin-bottom:8px">${p}</p>`).join('')}</div>`;
+  const sec=(n,t,paras)=>`<div class="section">${head(n,t)}${body(paras)}</div>`;
+  let n=startNum;
+  return [
+    sec(n++,'Changes and Modifications',['Any changes or modifications to the Scope of Work must be agreed upon in writing by both the Client and the Contractor. Additional work or changes may result in additional charges.']),
+    sec(n++,'Warranties',['The Contractor warrants that the Services provided will be performed in a professional manner and in accordance with industry standards. The Contractor also warrants that all materials used are of good quality and fit for the intended purpose.']),
+    sec(n++,'Liability Protection',[
+      '<strong>Insurance:</strong> The Contractor maintains general liability insurance with coverage of $2,000,000 to protect against any claims arising from the performance of the Services.',
+      '<strong>Limitation of Liability:</strong> The Contractor shall not be liable for any indirect, incidental, or consequential damages arising out of or in connection with the performance of the Services. The total liability of the Contractor for any and all claims shall not exceed the total amount paid by the Client under this Agreement.',
+      '<strong>Damage to Property:</strong> The Contractor will take all reasonable precautions to protect the Client&rsquo;s property. However, the Contractor is not liable for any damage to the property that occurs as a result of pre-existing conditions or any conditions outside the Contractor&rsquo;s control.',
+    ]),
+    sec(n++,'Termination',['Either party may terminate this Agreement upon written notice if the other party breaches any material term of this Agreement. In the event of termination, the Client shall pay for all Services rendered up to the date of termination.']),
+    sec(n++,'Indemnification',['The Client agrees to indemnify and hold harmless the Contractor and its employees, agents, and subcontractors from any claims, damages, or expenses arising from the Client&rsquo;s negligence or breach of this Agreement.']),
+    sec(n++,'Governing Law',['This Agreement shall be governed by and construed in accordance with the laws of the Province of Ontario.']),
+    sec(n++,'Entire Agreement',['This Agreement constitutes the entire understanding between the parties and supersedes all prior agreements, whether oral or written.']),
+  ].join('');
+}
+
 function buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,primers,colours,swColours,supplies,projectName){
   const fmtN=n=>Math.round(n).toLocaleString('en-CA');
   const fmtC=n=>'$'+n.toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -4166,12 +4207,21 @@ function buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,pri
   if(totDoors) html+=`<p><strong>Total Doors:</strong> ${totDoors}</p>`;
   if(totWindows) html+=`<p><strong>Total Windows:</strong> ${totWindows}</p>`;
   html+=`</div>`;
+  {
+    const tHrs=roomCalcs.reduce((s,x)=>s+x.calc.totalHrs,0);
+    const nWorkers=Math.max(1,settings._standards?.workers||1);
+    const estDays=tHrs>0?Math.ceil(tHrs/nWorkers/8):0;
+    html+='<div class="section">';
+    html+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">3. Duration of Work</p>`;
+    html+=`<div style="font-size:11px;line-height:1.7;color:#444"><p>The Contractor will commence work on the scheduled date and is expected to complete the work in approximately <strong>${estDays} day${estDays!==1?'(s)':''}</strong>, subject to any unforeseen delays.</p></div></div>`;
+  }
   html+='<div class="section">';
-  html+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">3. Payment Terms</p>`;
+  html+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">4. Payment Terms</p>`;
   html+=`<div style="font-size:11px;line-height:1.7;color:#444"><p style="margin-bottom:8px">The total cost for the Services shall be <strong>${fmtC(totals.total)}</strong>, which includes labour, materials, and any applicable taxes. A different payment plan can be discussed.</p>`;
   html+=`<p>50% Deposit: ${fmtC(totals.deposit)} · 50% Upon Completion: ${fmtC(totals.balance)}</p></div></div>`;
+  html+=contractClausesHtml(gold,5);
   html+='<div class="section">';
-  html+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">4. Signatures</p>`;
+  html+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">12. Signatures</p>`;
   html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:24px;font-size:11px">';
   html+='<div><div style="border-bottom:1px solid #ccc;height:60px;margin-bottom:8px"></div><p style="color:#888">Client Signature</p></div>';
   html+='<div><div style="border-bottom:1px solid #ccc;height:60px;margin-bottom:8px"></div><p style="color:#888">Contractor Signature</p></div></div></div>';

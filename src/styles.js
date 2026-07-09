@@ -23,9 +23,14 @@ export const STYLE = `
   ::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 9px; }
   .est-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
   .dash-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .bk-grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; }
+  .bk-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
   @media (max-width:768px) {
     .est-grid-2 { grid-template-columns:1fr; }
     .dash-row { grid-template-columns:1fr; }
+    .bk-grid-3, .bk-grid-2 { grid-template-columns:1fr; }
+    .bk-grid-3 .bk-stat-val { font-size:22px !important; }
+    .bk-outer { padding:16px 12px !important; }
     .fin-grid { grid-template-columns:1fr !important; }
     .fin-grid .fin-stat-val { font-size:22px !important; }
     .fin-outer { padding:16px 12px !important; }

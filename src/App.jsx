@@ -5190,7 +5190,7 @@ function Bookkeeping({showToast}){
   if(loading) return <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%',color:'var(--muted-fg)',fontSize:13}}>Loading…</div>;
 
   return (
-    <div style={{padding:'20px 24px',overflowY:'auto',height:'100%',display:'flex',flexDirection:'column',gap:20}}>
+    <div className="bk-outer" style={{padding:'20px 24px',overflowY:'auto',height:'100%',display:'flex',flexDirection:'column',gap:20}}>
       <h1 style={{fontSize:22,fontWeight:700}}>Bookkeeping</h1>
 
       {recurringDlg&&(
@@ -5208,23 +5208,23 @@ function Bookkeeping({showToast}){
       )}
 
       {/* Summary cards */}
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:14,flexShrink:0}}>
+      <div className="bk-grid-3" style={{flexShrink:0}}>
         <Card style={{padding:'14px 18px'}}>
           <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',marginBottom:4}}>Total Income</p>
-          <p style={{fontSize:28,fontWeight:700,color:'#22c55e',lineHeight:1}}>{fmtUSD(totalIncome)}</p>
+          <p className="bk-stat-val" style={{fontSize:28,fontWeight:700,color:'#22c55e',lineHeight:1}}>{fmtUSD(totalIncome)}</p>
         </Card>
         <Card style={{padding:'14px 18px'}}>
           <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',marginBottom:4}}>Total Expenses</p>
-          <p style={{fontSize:28,fontWeight:700,color:'#ef4444',lineHeight:1}}>{fmtUSD(totalExpenses)}</p>
+          <p className="bk-stat-val" style={{fontSize:28,fontWeight:700,color:'#ef4444',lineHeight:1}}>{fmtUSD(totalExpenses)}</p>
         </Card>
         <Card style={{padding:'14px 18px'}}>
           <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',marginBottom:4}}>Net Income</p>
-          <p style={{fontSize:28,fontWeight:700,color:netIncome>=0?'#22c55e':'#ef4444',lineHeight:1}}>{fmtUSD(netIncome)}</p>
+          <p className="bk-stat-val" style={{fontSize:28,fontWeight:700,color:netIncome>=0?'#22c55e':'#ef4444',lineHeight:1}}>{fmtUSD(netIncome)}</p>
         </Card>
       </div>
 
       {/* Expense breakdown + add form */}
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
+      <div className="bk-grid-2">
         {/* Expense by category */}
         <Card style={{padding:'14px 18px'}}>
           <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',marginBottom:10}}>Expenses by Category</p>

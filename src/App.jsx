@@ -2770,10 +2770,19 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
   const prepLabelsMap={furniture:'Move furniture',plastic:'Cover w/ plastic',outlets:'Remove outlets',drywall:'Drywall repairs',caulking:'Caulking',cleanup:'Clean up'};
   const allColours=[...(colours||[]),...(swColours||[])];
   const getHex=(name)=>{const c=allColours.find(x=>x.n===name);return c?.h||null;};
-  // Materials, itemised — paint products (per product/colour/surface) plus supplies
+  // Materials are itemised inside each room's line. Costs come from the whole-estimate
+  // aggregation (so a colour shared across rooms is priced once — pails included — and its
+  // cost is split between those rooms in proportion to each room's paintable area).
   const matBuffer=settings._standards?.matBuffer||1.15;
   const paintCosts=calcPaintCosts(rooms,paints||[],ceilPaints||[],primers||[],allColours,matBuffer);
-  const supplyTotal=rooms.reduce((s,r)=>s+calcRoomSupplyCost(r,supplies||[]),0);
+  const roomMaterials=(r)=>{
+    const own=calcPaintCosts([r],paints||[],ceilPaints||[],primers||[],allColours,matBuffer).lines;
+    return own.map(m=>{
+      const g=paintCosts.lines.find(x=>x.product===m.product&&x.colour===m.colour&&x.sheen===m.sheen&&x.surface===m.surface);
+      const share=g&&g.sqft>0?m.sqft/g.sqft:1;
+      return {...m,lineCost:(g?g.lineCost:m.lineCost)*share};
+    });
+  };
   // Spelled-out quantity: gallons and/or pails (1 pail = 1900 sqft, 1 gallon = 350 sqft)
   const qtyLabel=(sqft)=>{
     if(!sqft||sqft<=0) return '';
@@ -2830,37 +2839,37 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
               } else if(r.doors?.count>0) surfaces.push(`${r.doors.count} door${r.doors.count>1?'s':''} — ${r.doors.coats} coat${r.doors.coats>1?'s':''}`);
               if(r.windows?.enabled&&roomWindowLF(r)>0) surfaces.push(`${r.windows.dims?.length||0} window${(r.windows.dims?.length||0)>1?'s':''} — ${r.windows.coats} coat${r.windows.coats>1?'s':''}`);
               else if(r.windows?.count>0) surfaces.push(`${r.windows.count} window${r.windows.count>1?'s':''} — ${r.windows.coats} coat${r.windows.coats>1?'s':''}`);
+              const mats=roomMaterials(r);
+              const supplyCost=calcRoomSupplyCost(r,supplies||[]);
+              const matTotal=mats.reduce((s,m)=>s+m.lineCost,0)+supplyCost;
               return (
                 <tr key={r.id}>
                   <td style={{...tdStyle,fontWeight:600,whiteSpace:'nowrap'}}>{r.name}</td>
                   <td style={tdStyle}>
                     {prepItems.length>0&&<p style={{fontSize:11,marginBottom:4}}><strong>Prep:</strong> {prepItems.join(', ')}</p>}
                     {surfaces.map((s,i)=><p key={i} style={{fontSize:11,color:'#444'}}>{s}</p>)}
+                    {(mats.length>0||supplyCost>0)&&(
+                      <div style={{marginTop:6,paddingTop:6,borderTop:'1px dashed #e5e5e5'}}>
+                        <p style={{fontSize:10,fontWeight:700,color:'#888',textTransform:'uppercase',letterSpacing:'0.04em',marginBottom:2}}>Materials</p>
+                        {mats.map((m,i)=>(
+                          <p key={i} style={{fontSize:11,color:'#444',display:'flex',gap:4,alignItems:'center',flexWrap:'wrap'}}>
+                            <span>{m.surface}: {m.product}{m.colour?` — ${m.colour}`:''}</span>
+                            {m.hex&&<span style={{width:9,height:9,borderRadius:2,background:m.hex,border:'1px solid #ccc',display:'inline-block'}}/>}
+                            {qtyLabel(m.sqft)&&<span style={{color:'#888'}}>· {qtyLabel(m.sqft)}</span>}
+                            <span style={{color:'#888'}}>— {fmtCAD(m.lineCost)}</span>
+                          </p>
+                        ))}
+                        {supplyCost>0&&<p style={{fontSize:11,color:'#444'}}>Supplies <span style={{color:'#888'}}>— {fmtCAD(supplyCost)}</span></p>}
+                      </div>
+                    )}
                   </td>
-                  <td style={{...tdStyle,textAlign:'right',fontWeight:600,whiteSpace:'nowrap'}}>{fmtCAD(c.cost)}</td>
+                  <td style={{...tdStyle,textAlign:'right',fontWeight:600,whiteSpace:'nowrap'}}>
+                    {fmtCAD(c.cost+matTotal)}
+                    {matTotal>0&&<p style={{fontSize:10,fontWeight:400,color:'#888',marginTop:2}}>Labour {fmtCAD(c.cost)}<br/>Materials {fmtCAD(matTotal)}</p>}
+                  </td>
                 </tr>
               );
             })}
-            {paintCosts.lines.map((m,i)=>(
-              <tr key={'mat-'+i}>
-                <td style={{...tdStyle,fontWeight:600,whiteSpace:'nowrap'}}>Materials</td>
-                <td style={tdStyle}>
-                  <p style={{fontSize:11,color:'#444',display:'flex',gap:4,alignItems:'center',flexWrap:'wrap'}}>
-                    <span>{m.surface}: {m.product}{m.colour?` — ${m.colour}`:''}</span>
-                    {m.hex&&<span style={{width:9,height:9,borderRadius:2,background:m.hex,border:'1px solid #ccc',display:'inline-block'}}/>}
-                    {qtyLabel(m.sqft)&&<span style={{color:'#888'}}>· {qtyLabel(m.sqft)}</span>}
-                  </p>
-                </td>
-                <td style={{...tdStyle,textAlign:'right',fontWeight:600,whiteSpace:'nowrap'}}>{fmtCAD(m.lineCost)}</td>
-              </tr>
-            ))}
-            {supplyTotal>0&&(
-              <tr key='mat-supplies'>
-                <td style={{...tdStyle,fontWeight:600,whiteSpace:'nowrap'}}>Materials</td>
-                <td style={tdStyle}><p style={{fontSize:11,color:'#444'}}>Supplies</p></td>
-                <td style={{...tdStyle,textAlign:'right',fontWeight:600,whiteSpace:'nowrap'}}>{fmtCAD(supplyTotal)}</td>
-              </tr>
-            )}
           </tbody>
         </table>
         <div style={{borderTop:'2px solid #e5e5e5',paddingTop:16,display:'flex',justifyContent:'flex-end'}}>

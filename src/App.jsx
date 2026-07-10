@@ -4088,6 +4088,24 @@ function buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,pri
   const allColours=[...(colours||[]),...(swColours||[])];
   const getHex=name=>{const c=allColours.find(x=>x.n===name);return c?.h||null;};
   const prepLabelsMap={furniture:'Move furniture',plastic:'Cover w/ plastic',outlets:'Remove outlets',drywall:'Drywall repairs',caulking:'Caulking',cleanup:'Clean up'};
+  const matBuffer=settings._standards?.matBuffer||1.15;
+  // Each room's materials, priced from the whole-estimate aggregation so a colour shared across
+  // rooms (pails included) has its cost split between them in proportion to each room's area.
+  const roomMaterials=(r)=>{
+    const own=calcPaintCosts([r],paints||[],ceilPaints||[],primers||[],allColours,matBuffer).lines;
+    return own.map(m=>{
+      const g=paintData.lines.find(x=>x.product===m.product&&x.colour===m.colour&&x.sheen===m.sheen&&x.surface===m.surface);
+      const share=g&&g.sqft>0?m.sqft/g.sqft:1;
+      return {...m,lineCost:(g?g.lineCost:m.lineCost)*share};
+    });
+  };
+  const qtyLabel=(sqft)=>{
+    if(!sqft||sqft<=0) return '';
+    if(sqft<=1900){ const g=Math.ceil(sqft/350); return `${g} gallon${g>1?'s':''}`; }
+    const pails=Math.floor(sqft/1900); const rem=sqft-pails*1900; const eg=rem>0?Math.ceil(rem/350):0;
+    const parts=[]; if(pails>0) parts.push(`${pails} pail${pails>1?'s':''}`); if(eg>0) parts.push(`${eg} gallon${eg>1?'s':''}`);
+    return parts.join(' and ');
+  };
   const docTitle=projectName?`Bid Proposal - ${projectName}`:'Bid Proposal';
   let html='<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+docTitle+'</title>';
   html+='<style>*{margin:0;padding:0;box-sizing:border-box}html,body{height:auto;overflow:visible}body{font-family:-apple-system,sans-serif;color:#1a1a1a;font-size:12px}';
@@ -4115,7 +4133,7 @@ function buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,pri
   if(client.phone) html+=`<p style="color:#666">${client.phone}</p>`;
   if(client.email) html+=`<p style="color:#666">${client.email}</p>`;
   html+='</div>';
-  html+='<table><thead><tr><th>Room</th><th>Description</th></tr></thead><tbody>';
+  html+='<table><thead><tr><th>Item</th><th>Description</th><th style="text-align:right">Amount</th></tr></thead><tbody>';
   rooms.forEach(r=>{
     const c=calcRoom(r,settings);
     const lines=[],prepItems=[];
@@ -4137,29 +4155,30 @@ function buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,pri
     if(r.doorFrames?.enabled && c.perimLF) lines.push(`Painting ${r.doorFrames.coats||2} coat${(r.doorFrames.coats||2)>1?'s':''} on door frames`);
     Object.entries(prepLabelsMap).forEach(([k,v])=>{if(r.prep?.[k])prepItems.push(v);});
     if(r.prep?.custom) prepItems.push(r.prep.custom);
-    const materials=[];
-    if(r.walls?.enabled&&r.paint?.wallProduct){
-      const hex=getHex(r.paint.wallColour);
-      materials.push({label:`Walls: ${r.paint.wallProduct}`,colour:r.paint.wallColour,sheen:r.paint.wallSheen,hex});
-    }
-    if(r.ceiling?.enabled&&r.paint?.ceilProduct){
-      const hex=getHex(r.paint.ceilColour);
-      materials.push({label:`Ceiling: ${r.paint.ceilProduct}`,colour:r.paint.ceilColour,sheen:r.paint.ceilSheen,hex});
-    }
-    if((r.baseboards?.enabled||r.doors?.enabled||roomDoorCount(r)>0||r.crown?.enabled)&&r.paint?.trimProduct){
-      const hex=getHex(r.paint.trimColour);
-      materials.push({label:`Trim: ${r.paint.trimProduct}`,colour:r.paint.trimColour,sheen:r.paint.trimSheen,hex});
-    }
+    const mats=roomMaterials(r);
+    const supplyCost=calcRoomSupplyCost(r,supplies||[]);
+    const matTotal=mats.reduce((s,m)=>s+m.lineCost,0)+supplyCost;
     html+=`<tr><td style="font-weight:600;white-space:nowrap">${r.name}</td><td>`;
     if(prepItems.length) html+=`<p style="margin-bottom:4px"><strong>Prep:</strong> ${prepItems.join(', ')}</p>`;
     html+=`<p>${lines.join('<br>')}</p>`;
-    if(materials.length) materials.forEach(m=>{html+=`<p style="font-size:10px;color:#666;margin-top:4px">${m.label} — ${m.colour}${m.hex?`<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${m.hex};border:1px solid #ccc;margin:0 3px;vertical-align:middle"></span>`:''} (${m.sheen})</p>`;});
+    if(mats.length||supplyCost>0){
+      html+=`<div style="margin-top:6px;padding-top:6px;border-top:1px dashed #e5e5e5">`;
+      html+=`<p style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:2px">Materials</p>`;
+      mats.forEach(m=>{
+        const sw=m.hex?`<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${m.hex};border:1px solid #ccc;margin:0 3px;vertical-align:middle"></span>`:'';
+        const q=qtyLabel(m.sqft);
+        html+=`<p style="font-size:11px;color:#444;margin-top:2px">${m.surface}: ${m.product}${m.colour?` — ${m.colour}`:''}${sw}${q?` · ${q}`:''} — ${fmtC(m.lineCost)}</p>`;
+      });
+      if(supplyCost>0) html+=`<p style="font-size:11px;color:#444">Supplies — ${fmtC(supplyCost)}</p>`;
+      html+=`</div>`;
+    }
+    html+=`</td><td style="text-align:right;font-weight:600;white-space:nowrap">${fmtC(c.cost+matTotal)}`;
+    if(matTotal>0) html+=`<div style="font-size:10px;font-weight:400;color:#888;margin-top:2px">Labour ${fmtC(c.cost)}<br>Materials ${fmtC(matTotal)}</div>`;
     html+=`</td></tr>`;
   });
   html+='</tbody></table>';
   html+=`<div style="margin-top:24px;padding-top:16px" class="border-gold"><table style="width:auto;margin-left:auto"><tr><td style="text-align:right;padding:4px 16px;color:#888">Subtotal</td><td style="text-align:right;padding:4px 0;font-weight:600">${fmtC(totals.discounted)}</td></tr>`;
   html+=`<tr><td style="text-align:right;padding:4px 16px;color:#888">HST (13%)</td><td style="text-align:right;padding:4px 0">${fmtC(totals.taxAmt)}</td></tr>`;
-  if(totals.materialCost>0) html+=`<tr><td style="text-align:right;padding:4px 16px;color:#888">Materials</td><td style="text-align:right;padding:4px 0">${fmtC(totals.materialCost)}</td></tr>`;
   html+=`<tr style="border-top:2px solid ${gold}"><td style="text-align:right;padding:8px 16px;font-weight:700;font-size:14px" class="gold">Total</td><td style="text-align:right;padding:8px 0;font-weight:700;font-size:14px" class="gold">${fmtC(totals.total)}</td></tr></table></div>`;
   html+='</div>';
   html+='<div class="page">';

@@ -5510,13 +5510,21 @@ function ClientPortal({session}){
 
   const showToast = (msg) => { setToast(msg); setTimeout(()=>setToast(''),5000); };
 
-  const loadProjects = useCallback(async()=>{
+  // silent=true is used for background polling: don't flash the loading state or surface a
+  // banner for a transient network hiccup — just keep showing the last good data and retry.
+  const loadProjects = useCallback(async(silent=false)=>{
     try{
       const data = await supaFetch(`/rest/v1/rpc/get_client_deals`, 'POST', {client_email: email});
-      if(data) setDeals(data);
-      else setDeals([]);
+      setDeals(prev=>{
+        const next = data || [];
+        // Skip the update if nothing actually changed, so open document overlays / in-progress
+        // interactions aren't disturbed by an identical re-render every poll.
+        if(prev.length===next.length && prev.every((d,i)=>JSON.stringify(d)===JSON.stringify(next[i]))) return prev;
+        return next;
+      });
+      if(silent) setError('');
     }catch(e){
-      setError(e.message);
+      if(!silent) setError(e.message);
     }finally{
       setLoading(false);
     }
@@ -5525,6 +5533,22 @@ function ClientPortal({session}){
   useEffect(()=>{
     if(email) loadProjects();
     loadPaintColours().then(c=>{setBmColours(c.bm);setSwColours(c.sw);});
+  },[email, loadProjects]);
+
+  // Keep project status/progress/documents current in real time: poll while the tab is visible,
+  // and refresh immediately whenever the client returns to this tab or the window regains focus.
+  useEffect(()=>{
+    if(!email) return;
+    const tick=()=>{ if(document.visibilityState==='visible') loadProjects(true); };
+    const interval=setInterval(tick, 8000);
+    const onVisible=()=>{ if(document.visibilityState==='visible') loadProjects(true); };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    return ()=>{
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+    };
   },[email, loadProjects]);
 
   useEffect(()=>{

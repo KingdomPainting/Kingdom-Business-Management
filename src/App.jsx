@@ -2583,10 +2583,17 @@ function CoverTab({client,setClient,deals,contacts,onSelectDeal,selectedDealId})
 }
 
 // ─── ROOMS TAB ────────────────────────────────────────────────────────────────
-function RoomsTab({rooms,settings,onUpdate,onRemove,onAdd,paints,ceilPaints,colours,swColours,primers,supplies}){
+function RoomsTab({rooms,settings,onUpdate,onRemove,onAdd,paints,ceilPaints,colours,swColours,primers,supplies,focusedRef}){
   const totalCost=rooms.reduce((s,r)=>s+calcRoom(r,settings).cost,0);
+  const containerRef=useRef(null);
+  // The first time the Rooms tab is opened, drop the cursor straight into the first room's name.
+  useEffect(()=>{
+    if(!focusedRef||focusedRef.current) return;
+    const el=containerRef.current?.querySelector('input[placeholder="Room name"]');
+    if(el){ el.focus(); el.select?.(); focusedRef.current=true; }
+  },[focusedRef]);
   return (
-    <div style={{padding:'16px 12px',overflow:'auto',maxHeight:'100%'}}>
+    <div ref={containerRef} style={{padding:'16px 12px',overflow:'auto',maxHeight:'100%'}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
         <div style={{display:'flex',gap:12,alignItems:'center'}}>
           <h3 style={{fontSize:15,fontWeight:700}}>Rooms</h3>
@@ -2818,8 +2825,7 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
         <table style={{width:'100%',borderCollapse:'collapse',marginBottom:24}}>
           <thead><tr>
             <th style={thStyle}>Item</th>
-            <th style={thStyle}>Description</th>
-            <th style={{...thStyle,textAlign:'right'}}>Amount</th>
+            <th style={thStyle}>Description &amp; Amount</th>
           </tr></thead>
           <tbody>
             {rooms.map(r=>{
@@ -2841,31 +2847,38 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
               else if(r.windows?.count>0) surfaces.push(`${r.windows.count} window${r.windows.count>1?'s':''} — ${r.windows.coats} coat${r.windows.coats>1?'s':''}`);
               const mats=roomMaterials(r);
               const supplyCost=calcRoomSupplyCost(r,supplies||[]);
-              const matTotal=mats.reduce((s,m)=>s+m.lineCost,0)+supplyCost;
               return (
                 <tr key={r.id}>
-                  <td style={{...tdStyle,fontWeight:600,whiteSpace:'nowrap'}}>{r.name}</td>
+                  <td style={{...tdStyle,fontWeight:600,whiteSpace:'nowrap',verticalAlign:'top'}}>{r.name}</td>
                   <td style={tdStyle}>
-                    {prepItems.length>0&&<p style={{fontSize:11,marginBottom:4}}><strong>Prep:</strong> {prepItems.join(', ')}</p>}
-                    {surfaces.map((s,i)=><p key={i} style={{fontSize:11,color:'#444'}}>{s}</p>)}
+                    {/* Prep & surfaces — labour cost sits with this section */}
+                    <div style={{display:'flex',justifyContent:'space-between',gap:16}}>
+                      <div style={{minWidth:0}}>
+                        {prepItems.length>0&&<p style={{fontSize:11,marginBottom:4}}><strong>Prep:</strong> {prepItems.join(', ')}</p>}
+                        {surfaces.map((s,i)=><p key={i} style={{fontSize:11,color:'#444'}}>{s}</p>)}
+                      </div>
+                      <div style={{fontWeight:600,whiteSpace:'nowrap'}}>{fmtCAD(c.cost)}</div>
+                    </div>
                     {(mats.length>0||supplyCost>0)&&(
                       <div style={{marginTop:6,paddingTop:6,borderTop:'1px dashed #e5e5e5'}}>
                         <p style={{fontSize:10,fontWeight:700,color:'#888',textTransform:'uppercase',letterSpacing:'0.04em',marginBottom:2}}>Materials</p>
                         {mats.map((m,i)=>(
-                          <p key={i} style={{fontSize:11,color:'#444',display:'flex',gap:4,alignItems:'center',flexWrap:'wrap'}}>
-                            <span>{m.surface}: {m.product}{m.colour?` — ${m.colour}`:''}</span>
-                            {m.hex&&<span style={{width:9,height:9,borderRadius:2,background:m.hex,border:'1px solid #ccc',display:'inline-block'}}/>}
-                            {qtyLabel(m.sqft)&&<span style={{color:'#888'}}>· {qtyLabel(m.sqft)}</span>}
-                            <span style={{color:'#888'}}>— {fmtCAD(m.lineCost)}</span>
-                          </p>
+                          <div key={i} style={{display:'flex',justifyContent:'space-between',gap:8,fontSize:11,color:'#444'}}>
+                            <span style={{display:'flex',gap:4,alignItems:'center',flexWrap:'wrap',minWidth:0}}>
+                              <span>{m.surface}: {m.product}{m.colour?` — ${m.colour}`:''}</span>
+                              {m.hex&&<span style={{width:9,height:9,borderRadius:2,background:m.hex,border:'1px solid #ccc',display:'inline-block'}}/>}
+                              {qtyLabel(m.sqft)&&<span style={{color:'#888'}}>· {qtyLabel(m.sqft)}</span>}
+                            </span>
+                            <span style={{whiteSpace:'nowrap',fontWeight:600}}>{fmtCAD(m.lineCost)}</span>
+                          </div>
                         ))}
-                        {supplyCost>0&&<p style={{fontSize:11,color:'#444'}}>Supplies <span style={{color:'#888'}}>— {fmtCAD(supplyCost)}</span></p>}
+                        {supplyCost>0&&(
+                          <div style={{display:'flex',justifyContent:'space-between',gap:8,fontSize:11,color:'#444'}}>
+                            <span>Supplies</span><span style={{whiteSpace:'nowrap',fontWeight:600}}>{fmtCAD(supplyCost)}</span>
+                          </div>
+                        )}
                       </div>
                     )}
-                  </td>
-                  <td style={{...tdStyle,textAlign:'right',fontWeight:600,whiteSpace:'nowrap'}}>
-                    {fmtCAD(c.cost+matTotal)}
-                    {matTotal>0&&<p style={{fontSize:10,fontWeight:400,color:'#888',marginTop:2}}>Labour {fmtCAD(c.cost)}<br/>Materials {fmtCAD(matTotal)}</p>}
                   </td>
                 </tr>
               );
@@ -3634,6 +3647,7 @@ function MasterEstimate(){
   },[]);
 
   const saveTimerRef=useRef(null);
+  const roomNameFocusedRef=useRef(false); // one-time autofocus of the first room's name on Rooms tab
   const buildTitle=useCallback(()=>{
     const deal=deals.find(d=>d.id===selectedDealId);
     const project=deal?.dealName||'';
@@ -3737,6 +3751,7 @@ function MasterEstimate(){
     setClient({name:'',email:'',phone:'',address:''});
     setChangeItems([]);setChangeCounter(0);
     setCurrentEstimateId(null);setActiveTab('cover');
+    roomNameFocusedRef.current=false;
   };
 
   const deleteEstimate=async(eid)=>{
@@ -3940,6 +3955,7 @@ function MasterEstimate(){
             onUpdate={(i,updated)=>setRooms(rooms.map((r,j)=>j===i?updated:r))}
             onRemove={(i)=>{if(rooms.length>1)setRooms(rooms.filter((_,j)=>j!==i));}}
             onAdd={()=>{const next=roomCounter+1;setRoomCounter(next);setRooms([...rooms,newRoom(String(next),next)]);}}
+            focusedRef={roomNameFocusedRef}
             paints={ps.paints} ceilPaints={ps.ceilPaints} colours={ps.colours} swColours={ps.swColours} primers={ps.primers} supplies={ps.supplies}/>
         )}
         {activeTab==='breakdown'&&(
@@ -4133,7 +4149,7 @@ function buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,pri
   if(client.phone) html+=`<p style="color:#666">${client.phone}</p>`;
   if(client.email) html+=`<p style="color:#666">${client.email}</p>`;
   html+='</div>';
-  html+='<table><thead><tr><th>Item</th><th>Description</th><th style="text-align:right">Amount</th></tr></thead><tbody>';
+  html+='<table><thead><tr><th>Item</th><th>Description &amp; Amount</th></tr></thead><tbody>';
   rooms.forEach(r=>{
     const c=calcRoom(r,settings);
     const lines=[],prepItems=[];
@@ -4157,23 +4173,22 @@ function buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,pri
     if(r.prep?.custom) prepItems.push(r.prep.custom);
     const mats=roomMaterials(r);
     const supplyCost=calcRoomSupplyCost(r,supplies||[]);
-    const matTotal=mats.reduce((s,m)=>s+m.lineCost,0)+supplyCost;
-    html+=`<tr><td style="font-weight:600;white-space:nowrap">${r.name}</td><td>`;
+    html+=`<tr><td style="font-weight:600;white-space:nowrap;vertical-align:top">${r.name}</td><td>`;
+    // Prep & surfaces — labour cost sits with this section
+    html+=`<div style="display:flex;justify-content:space-between;gap:16px"><div>`;
     if(prepItems.length) html+=`<p style="margin-bottom:4px"><strong>Prep:</strong> ${prepItems.join(', ')}</p>`;
-    html+=`<p>${lines.join('<br>')}</p>`;
+    html+=`<p>${lines.join('<br>')}</p></div><div style="font-weight:600;white-space:nowrap">${fmtC(c.cost)}</div></div>`;
     if(mats.length||supplyCost>0){
       html+=`<div style="margin-top:6px;padding-top:6px;border-top:1px dashed #e5e5e5">`;
       html+=`<p style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:2px">Materials</p>`;
       mats.forEach(m=>{
         const sw=m.hex?`<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${m.hex};border:1px solid #ccc;margin:0 3px;vertical-align:middle"></span>`:'';
         const q=qtyLabel(m.sqft);
-        html+=`<p style="font-size:11px;color:#444;margin-top:2px">${m.surface}: ${m.product}${m.colour?` — ${m.colour}`:''}${sw}${q?` · ${q}`:''} — ${fmtC(m.lineCost)}</p>`;
+        html+=`<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;color:#444"><span>${m.surface}: ${m.product}${m.colour?` — ${m.colour}`:''}${sw}${q?` · ${q}`:''}</span><span style="white-space:nowrap;font-weight:600">${fmtC(m.lineCost)}</span></div>`;
       });
-      if(supplyCost>0) html+=`<p style="font-size:11px;color:#444">Supplies — ${fmtC(supplyCost)}</p>`;
+      if(supplyCost>0) html+=`<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;color:#444"><span>Supplies</span><span style="white-space:nowrap;font-weight:600">${fmtC(supplyCost)}</span></div>`;
       html+=`</div>`;
     }
-    html+=`</td><td style="text-align:right;font-weight:600;white-space:nowrap">${fmtC(c.cost+matTotal)}`;
-    if(matTotal>0) html+=`<div style="font-size:10px;font-weight:400;color:#888;margin-top:2px">Labour ${fmtC(c.cost)}<br>Materials ${fmtC(matTotal)}</div>`;
     html+=`</td></tr>`;
   });
   html+='</tbody></table>';

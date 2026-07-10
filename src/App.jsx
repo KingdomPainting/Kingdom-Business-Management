@@ -2475,7 +2475,7 @@ function RoomCard({room,settings,onChange,onRemove,primers,paints,ceilPaints,col
               {room.walls.coats===3&&<div style={{marginTop:-6,marginBottom:10}}><p style={{fontSize:11,fontWeight:500,color:'var(--muted-fg)',marginBottom:4}}>Walls Primer</p><select value={room.paint.wallsPrimer||''} onChange={e=>up({wallsPrimer:e.target.value})} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Select Primer —</option>{(primers||[]).map(p=><option key={p.n} value={p.n}>{p.n}</option>)}</select></div>}
             </>}
             {room.ceiling.enabled&&<>
-              <PaintRow label='Ceiling' prod={room.paint.ceilProduct} colour={room.paint.ceilColour} sheen={room.paint.ceilSheen} products={(ceilPaints||[]).map(p=>p.n)} colours={coloursForProd(room.paint.ceilProduct).filter(n=>n==='SW 7006 Extra White'||n==='BM White 01')} onProd={v=>up({ceilProduct:v})} onColour={v=>up({ceilColour:v})} onSheen={v=>up({ceilSheen:v})}/>
+              <PaintRow label='Ceiling' prod={room.paint.ceilProduct} colour={room.paint.ceilColour} sheen={room.paint.ceilSheen} products={[...new Set([...(paints||[]),...(ceilPaints||[])].map(p=>p.n))]} colours={coloursForProd(room.paint.ceilProduct)} onProd={v=>up({ceilProduct:v})} onColour={v=>up({ceilColour:v})} onSheen={v=>up({ceilSheen:v})}/>
               {room.ceiling.coats===3&&<div style={{marginTop:-6,marginBottom:10}}><p style={{fontSize:11,fontWeight:500,color:'var(--muted-fg)',marginBottom:4}}>Ceiling Primer</p><select value={room.paint.ceilingPrimer||''} onChange={e=>up({ceilingPrimer:e.target.value})} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Select Primer —</option>{(primers||[]).map(p=><option key={p.n} value={p.n}>{p.n}</option>)}</select></div>}
             </>}
             {(room.baseboards.enabled||room.doors?.enabled||roomDoorCount(room)>0||room.crown.enabled)&&<>
@@ -2770,10 +2770,19 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
   const prepLabelsMap={furniture:'Move furniture',plastic:'Cover w/ plastic',outlets:'Remove outlets',drywall:'Drywall repairs',caulking:'Caulking',cleanup:'Clean up'};
   const allColours=[...(colours||[]),...(swColours||[])];
   const getHex=(name)=>{const c=allColours.find(x=>x.n===name);return c?.h||null;};
-  // Materials, itemised — paint products (per product/colour/surface) plus supplies
+  // Materials are itemised inside each room's line. Costs come from the whole-estimate
+  // aggregation (so a colour shared across rooms is priced once — pails included — and its
+  // cost is split between those rooms in proportion to each room's paintable area).
   const matBuffer=settings._standards?.matBuffer||1.15;
   const paintCosts=calcPaintCosts(rooms,paints||[],ceilPaints||[],primers||[],allColours,matBuffer);
-  const supplyTotal=rooms.reduce((s,r)=>s+calcRoomSupplyCost(r,supplies||[]),0);
+  const roomMaterials=(r)=>{
+    const own=calcPaintCosts([r],paints||[],ceilPaints||[],primers||[],allColours,matBuffer).lines;
+    return own.map(m=>{
+      const g=paintCosts.lines.find(x=>x.product===m.product&&x.colour===m.colour&&x.sheen===m.sheen&&x.surface===m.surface);
+      const share=g&&g.sqft>0?m.sqft/g.sqft:1;
+      return {...m,lineCost:(g?g.lineCost:m.lineCost)*share};
+    });
+  };
   // Spelled-out quantity: gallons and/or pails (1 pail = 1900 sqft, 1 gallon = 350 sqft)
   const qtyLabel=(sqft)=>{
     if(!sqft||sqft<=0) return '';
@@ -2830,37 +2839,37 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
               } else if(r.doors?.count>0) surfaces.push(`${r.doors.count} door${r.doors.count>1?'s':''} — ${r.doors.coats} coat${r.doors.coats>1?'s':''}`);
               if(r.windows?.enabled&&roomWindowLF(r)>0) surfaces.push(`${r.windows.dims?.length||0} window${(r.windows.dims?.length||0)>1?'s':''} — ${r.windows.coats} coat${r.windows.coats>1?'s':''}`);
               else if(r.windows?.count>0) surfaces.push(`${r.windows.count} window${r.windows.count>1?'s':''} — ${r.windows.coats} coat${r.windows.coats>1?'s':''}`);
+              const mats=roomMaterials(r);
+              const supplyCost=calcRoomSupplyCost(r,supplies||[]);
+              const matTotal=mats.reduce((s,m)=>s+m.lineCost,0)+supplyCost;
               return (
                 <tr key={r.id}>
                   <td style={{...tdStyle,fontWeight:600,whiteSpace:'nowrap'}}>{r.name}</td>
                   <td style={tdStyle}>
                     {prepItems.length>0&&<p style={{fontSize:11,marginBottom:4}}><strong>Prep:</strong> {prepItems.join(', ')}</p>}
                     {surfaces.map((s,i)=><p key={i} style={{fontSize:11,color:'#444'}}>{s}</p>)}
+                    {(mats.length>0||supplyCost>0)&&(
+                      <div style={{marginTop:6,paddingTop:6,borderTop:'1px dashed #e5e5e5'}}>
+                        <p style={{fontSize:10,fontWeight:700,color:'#888',textTransform:'uppercase',letterSpacing:'0.04em',marginBottom:2}}>Materials</p>
+                        {mats.map((m,i)=>(
+                          <p key={i} style={{fontSize:11,color:'#444',display:'flex',gap:4,alignItems:'center',flexWrap:'wrap'}}>
+                            <span>{m.surface}: {m.product}{m.colour?` — ${m.colour}`:''}</span>
+                            {m.hex&&<span style={{width:9,height:9,borderRadius:2,background:m.hex,border:'1px solid #ccc',display:'inline-block'}}/>}
+                            {qtyLabel(m.sqft)&&<span style={{color:'#888'}}>· {qtyLabel(m.sqft)}</span>}
+                            <span style={{color:'#888'}}>— {fmtCAD(m.lineCost)}</span>
+                          </p>
+                        ))}
+                        {supplyCost>0&&<p style={{fontSize:11,color:'#444'}}>Supplies <span style={{color:'#888'}}>— {fmtCAD(supplyCost)}</span></p>}
+                      </div>
+                    )}
                   </td>
-                  <td style={{...tdStyle,textAlign:'right',fontWeight:600,whiteSpace:'nowrap'}}>{fmtCAD(c.cost)}</td>
+                  <td style={{...tdStyle,textAlign:'right',fontWeight:600,whiteSpace:'nowrap'}}>
+                    {fmtCAD(c.cost+matTotal)}
+                    {matTotal>0&&<p style={{fontSize:10,fontWeight:400,color:'#888',marginTop:2}}>Labour {fmtCAD(c.cost)}<br/>Materials {fmtCAD(matTotal)}</p>}
+                  </td>
                 </tr>
               );
             })}
-            {paintCosts.lines.map((m,i)=>(
-              <tr key={'mat-'+i}>
-                <td style={{...tdStyle,fontWeight:600,whiteSpace:'nowrap'}}>Materials</td>
-                <td style={tdStyle}>
-                  <p style={{fontSize:11,color:'#444',display:'flex',gap:4,alignItems:'center',flexWrap:'wrap'}}>
-                    <span>{m.surface}: {m.product}{m.colour?` — ${m.colour}`:''}</span>
-                    {m.hex&&<span style={{width:9,height:9,borderRadius:2,background:m.hex,border:'1px solid #ccc',display:'inline-block'}}/>}
-                    {qtyLabel(m.sqft)&&<span style={{color:'#888'}}>· {qtyLabel(m.sqft)}</span>}
-                  </p>
-                </td>
-                <td style={{...tdStyle,textAlign:'right',fontWeight:600,whiteSpace:'nowrap'}}>{fmtCAD(m.lineCost)}</td>
-              </tr>
-            ))}
-            {supplyTotal>0&&(
-              <tr key='mat-supplies'>
-                <td style={{...tdStyle,fontWeight:600,whiteSpace:'nowrap'}}>Materials</td>
-                <td style={tdStyle}><p style={{fontSize:11,color:'#444'}}>Supplies</p></td>
-                <td style={{...tdStyle,textAlign:'right',fontWeight:600,whiteSpace:'nowrap'}}>{fmtCAD(supplyTotal)}</td>
-              </tr>
-            )}
           </tbody>
         </table>
         <div style={{borderTop:'2px solid #e5e5e5',paddingTop:16,display:'flex',justifyContent:'flex-end'}}>
@@ -4079,6 +4088,24 @@ function buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,pri
   const allColours=[...(colours||[]),...(swColours||[])];
   const getHex=name=>{const c=allColours.find(x=>x.n===name);return c?.h||null;};
   const prepLabelsMap={furniture:'Move furniture',plastic:'Cover w/ plastic',outlets:'Remove outlets',drywall:'Drywall repairs',caulking:'Caulking',cleanup:'Clean up'};
+  const matBuffer=settings._standards?.matBuffer||1.15;
+  // Each room's materials, priced from the whole-estimate aggregation so a colour shared across
+  // rooms (pails included) has its cost split between them in proportion to each room's area.
+  const roomMaterials=(r)=>{
+    const own=calcPaintCosts([r],paints||[],ceilPaints||[],primers||[],allColours,matBuffer).lines;
+    return own.map(m=>{
+      const g=paintData.lines.find(x=>x.product===m.product&&x.colour===m.colour&&x.sheen===m.sheen&&x.surface===m.surface);
+      const share=g&&g.sqft>0?m.sqft/g.sqft:1;
+      return {...m,lineCost:(g?g.lineCost:m.lineCost)*share};
+    });
+  };
+  const qtyLabel=(sqft)=>{
+    if(!sqft||sqft<=0) return '';
+    if(sqft<=1900){ const g=Math.ceil(sqft/350); return `${g} gallon${g>1?'s':''}`; }
+    const pails=Math.floor(sqft/1900); const rem=sqft-pails*1900; const eg=rem>0?Math.ceil(rem/350):0;
+    const parts=[]; if(pails>0) parts.push(`${pails} pail${pails>1?'s':''}`); if(eg>0) parts.push(`${eg} gallon${eg>1?'s':''}`);
+    return parts.join(' and ');
+  };
   const docTitle=projectName?`Bid Proposal - ${projectName}`:'Bid Proposal';
   let html='<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+docTitle+'</title>';
   html+='<style>*{margin:0;padding:0;box-sizing:border-box}html,body{height:auto;overflow:visible}body{font-family:-apple-system,sans-serif;color:#1a1a1a;font-size:12px}';
@@ -4106,7 +4133,7 @@ function buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,pri
   if(client.phone) html+=`<p style="color:#666">${client.phone}</p>`;
   if(client.email) html+=`<p style="color:#666">${client.email}</p>`;
   html+='</div>';
-  html+='<table><thead><tr><th>Room</th><th>Description</th></tr></thead><tbody>';
+  html+='<table><thead><tr><th>Item</th><th>Description</th><th style="text-align:right">Amount</th></tr></thead><tbody>';
   rooms.forEach(r=>{
     const c=calcRoom(r,settings);
     const lines=[],prepItems=[];
@@ -4128,29 +4155,30 @@ function buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,pri
     if(r.doorFrames?.enabled && c.perimLF) lines.push(`Painting ${r.doorFrames.coats||2} coat${(r.doorFrames.coats||2)>1?'s':''} on door frames`);
     Object.entries(prepLabelsMap).forEach(([k,v])=>{if(r.prep?.[k])prepItems.push(v);});
     if(r.prep?.custom) prepItems.push(r.prep.custom);
-    const materials=[];
-    if(r.walls?.enabled&&r.paint?.wallProduct){
-      const hex=getHex(r.paint.wallColour);
-      materials.push({label:`Walls: ${r.paint.wallProduct}`,colour:r.paint.wallColour,sheen:r.paint.wallSheen,hex});
-    }
-    if(r.ceiling?.enabled&&r.paint?.ceilProduct){
-      const hex=getHex(r.paint.ceilColour);
-      materials.push({label:`Ceiling: ${r.paint.ceilProduct}`,colour:r.paint.ceilColour,sheen:r.paint.ceilSheen,hex});
-    }
-    if((r.baseboards?.enabled||r.doors?.enabled||roomDoorCount(r)>0||r.crown?.enabled)&&r.paint?.trimProduct){
-      const hex=getHex(r.paint.trimColour);
-      materials.push({label:`Trim: ${r.paint.trimProduct}`,colour:r.paint.trimColour,sheen:r.paint.trimSheen,hex});
-    }
+    const mats=roomMaterials(r);
+    const supplyCost=calcRoomSupplyCost(r,supplies||[]);
+    const matTotal=mats.reduce((s,m)=>s+m.lineCost,0)+supplyCost;
     html+=`<tr><td style="font-weight:600;white-space:nowrap">${r.name}</td><td>`;
     if(prepItems.length) html+=`<p style="margin-bottom:4px"><strong>Prep:</strong> ${prepItems.join(', ')}</p>`;
     html+=`<p>${lines.join('<br>')}</p>`;
-    if(materials.length) materials.forEach(m=>{html+=`<p style="font-size:10px;color:#666;margin-top:4px">${m.label} — ${m.colour}${m.hex?`<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${m.hex};border:1px solid #ccc;margin:0 3px;vertical-align:middle"></span>`:''} (${m.sheen})</p>`;});
+    if(mats.length||supplyCost>0){
+      html+=`<div style="margin-top:6px;padding-top:6px;border-top:1px dashed #e5e5e5">`;
+      html+=`<p style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:2px">Materials</p>`;
+      mats.forEach(m=>{
+        const sw=m.hex?`<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${m.hex};border:1px solid #ccc;margin:0 3px;vertical-align:middle"></span>`:'';
+        const q=qtyLabel(m.sqft);
+        html+=`<p style="font-size:11px;color:#444;margin-top:2px">${m.surface}: ${m.product}${m.colour?` — ${m.colour}`:''}${sw}${q?` · ${q}`:''} — ${fmtC(m.lineCost)}</p>`;
+      });
+      if(supplyCost>0) html+=`<p style="font-size:11px;color:#444">Supplies — ${fmtC(supplyCost)}</p>`;
+      html+=`</div>`;
+    }
+    html+=`</td><td style="text-align:right;font-weight:600;white-space:nowrap">${fmtC(c.cost+matTotal)}`;
+    if(matTotal>0) html+=`<div style="font-size:10px;font-weight:400;color:#888;margin-top:2px">Labour ${fmtC(c.cost)}<br>Materials ${fmtC(matTotal)}</div>`;
     html+=`</td></tr>`;
   });
   html+='</tbody></table>';
   html+=`<div style="margin-top:24px;padding-top:16px" class="border-gold"><table style="width:auto;margin-left:auto"><tr><td style="text-align:right;padding:4px 16px;color:#888">Subtotal</td><td style="text-align:right;padding:4px 0;font-weight:600">${fmtC(totals.discounted)}</td></tr>`;
   html+=`<tr><td style="text-align:right;padding:4px 16px;color:#888">HST (13%)</td><td style="text-align:right;padding:4px 0">${fmtC(totals.taxAmt)}</td></tr>`;
-  if(totals.materialCost>0) html+=`<tr><td style="text-align:right;padding:4px 16px;color:#888">Materials</td><td style="text-align:right;padding:4px 0">${fmtC(totals.materialCost)}</td></tr>`;
   html+=`<tr style="border-top:2px solid ${gold}"><td style="text-align:right;padding:8px 16px;font-weight:700;font-size:14px" class="gold">Total</td><td style="text-align:right;padding:8px 0;font-weight:700;font-size:14px" class="gold">${fmtC(totals.total)}</td></tr></table></div>`;
   html+='</div>';
   html+='<div class="page">';
@@ -5482,13 +5510,21 @@ function ClientPortal({session}){
 
   const showToast = (msg) => { setToast(msg); setTimeout(()=>setToast(''),5000); };
 
-  const loadProjects = useCallback(async()=>{
+  // silent=true is used for background polling: don't flash the loading state or surface a
+  // banner for a transient network hiccup — just keep showing the last good data and retry.
+  const loadProjects = useCallback(async(silent=false)=>{
     try{
       const data = await supaFetch(`/rest/v1/rpc/get_client_deals`, 'POST', {client_email: email});
-      if(data) setDeals(data);
-      else setDeals([]);
+      setDeals(prev=>{
+        const next = data || [];
+        // Skip the update if nothing actually changed, so open document overlays / in-progress
+        // interactions aren't disturbed by an identical re-render every poll.
+        if(prev.length===next.length && prev.every((d,i)=>JSON.stringify(d)===JSON.stringify(next[i]))) return prev;
+        return next;
+      });
+      if(silent) setError('');
     }catch(e){
-      setError(e.message);
+      if(!silent) setError(e.message);
     }finally{
       setLoading(false);
     }
@@ -5497,6 +5533,22 @@ function ClientPortal({session}){
   useEffect(()=>{
     if(email) loadProjects();
     loadPaintColours().then(c=>{setBmColours(c.bm);setSwColours(c.sw);});
+  },[email, loadProjects]);
+
+  // Keep project status/progress/documents current in real time: poll while the tab is visible,
+  // and refresh immediately whenever the client returns to this tab or the window regains focus.
+  useEffect(()=>{
+    if(!email) return;
+    const tick=()=>{ if(document.visibilityState==='visible') loadProjects(true); };
+    const interval=setInterval(tick, 8000);
+    const onVisible=()=>{ if(document.visibilityState==='visible') loadProjects(true); };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    return ()=>{
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+    };
   },[email, loadProjects]);
 
   useEffect(()=>{

@@ -2583,10 +2583,17 @@ function CoverTab({client,setClient,deals,contacts,onSelectDeal,selectedDealId})
 }
 
 // ─── ROOMS TAB ────────────────────────────────────────────────────────────────
-function RoomsTab({rooms,settings,onUpdate,onRemove,onAdd,paints,ceilPaints,colours,swColours,primers,supplies}){
+function RoomsTab({rooms,settings,onUpdate,onRemove,onAdd,paints,ceilPaints,colours,swColours,primers,supplies,focusedRef}){
   const totalCost=rooms.reduce((s,r)=>s+calcRoom(r,settings).cost,0);
+  const containerRef=useRef(null);
+  // The first time the Rooms tab is opened, drop the cursor straight into the first room's name.
+  useEffect(()=>{
+    if(!focusedRef||focusedRef.current) return;
+    const el=containerRef.current?.querySelector('input[placeholder="Room name"]');
+    if(el){ el.focus(); el.select?.(); focusedRef.current=true; }
+  },[focusedRef]);
   return (
-    <div style={{padding:'16px 12px',overflow:'auto',maxHeight:'100%'}}>
+    <div ref={containerRef} style={{padding:'16px 12px',overflow:'auto',maxHeight:'100%'}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
         <div style={{display:'flex',gap:12,alignItems:'center'}}>
           <h3 style={{fontSize:15,fontWeight:700}}>Rooms</h3>
@@ -2818,8 +2825,7 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
         <table style={{width:'100%',borderCollapse:'collapse',marginBottom:24}}>
           <thead><tr>
             <th style={thStyle}>Item</th>
-            <th style={thStyle}>Description</th>
-            <th style={{...thStyle,textAlign:'right'}}>Amount</th>
+            <th style={thStyle}>Description &amp; Amount</th>
           </tr></thead>
           <tbody>
             {rooms.map(r=>{
@@ -2841,31 +2847,38 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
               else if(r.windows?.count>0) surfaces.push(`${r.windows.count} window${r.windows.count>1?'s':''} — ${r.windows.coats} coat${r.windows.coats>1?'s':''}`);
               const mats=roomMaterials(r);
               const supplyCost=calcRoomSupplyCost(r,supplies||[]);
-              const matTotal=mats.reduce((s,m)=>s+m.lineCost,0)+supplyCost;
               return (
                 <tr key={r.id}>
-                  <td style={{...tdStyle,fontWeight:600,whiteSpace:'nowrap'}}>{r.name}</td>
+                  <td style={{...tdStyle,fontWeight:600,whiteSpace:'nowrap',verticalAlign:'top'}}>{r.name}</td>
                   <td style={tdStyle}>
-                    {prepItems.length>0&&<p style={{fontSize:11,marginBottom:4}}><strong>Prep:</strong> {prepItems.join(', ')}</p>}
-                    {surfaces.map((s,i)=><p key={i} style={{fontSize:11,color:'#444'}}>{s}</p>)}
+                    {/* Prep & surfaces — labour cost sits with this section */}
+                    <div style={{display:'flex',justifyContent:'space-between',gap:16}}>
+                      <div style={{minWidth:0}}>
+                        {prepItems.length>0&&<p style={{fontSize:11,marginBottom:4}}><strong>Prep:</strong> {prepItems.join(', ')}</p>}
+                        {surfaces.map((s,i)=><p key={i} style={{fontSize:11,color:'#444'}}>{s}</p>)}
+                      </div>
+                      <div style={{fontWeight:600,whiteSpace:'nowrap'}}>{fmtCAD(c.cost)}</div>
+                    </div>
                     {(mats.length>0||supplyCost>0)&&(
                       <div style={{marginTop:6,paddingTop:6,borderTop:'1px dashed #e5e5e5'}}>
                         <p style={{fontSize:10,fontWeight:700,color:'#888',textTransform:'uppercase',letterSpacing:'0.04em',marginBottom:2}}>Materials</p>
                         {mats.map((m,i)=>(
-                          <p key={i} style={{fontSize:11,color:'#444',display:'flex',gap:4,alignItems:'center',flexWrap:'wrap'}}>
-                            <span>{m.surface}: {m.product}{m.colour?` — ${m.colour}`:''}</span>
-                            {m.hex&&<span style={{width:9,height:9,borderRadius:2,background:m.hex,border:'1px solid #ccc',display:'inline-block'}}/>}
-                            {qtyLabel(m.sqft)&&<span style={{color:'#888'}}>· {qtyLabel(m.sqft)}</span>}
-                            <span style={{color:'#888'}}>— {fmtCAD(m.lineCost)}</span>
-                          </p>
+                          <div key={i} style={{display:'flex',justifyContent:'space-between',gap:8,fontSize:11,color:'#444'}}>
+                            <span style={{display:'flex',gap:4,alignItems:'center',flexWrap:'wrap',minWidth:0}}>
+                              <span>{m.surface}: {m.product}{m.colour?` — ${m.colour}`:''}</span>
+                              {m.hex&&<span style={{width:9,height:9,borderRadius:2,background:m.hex,border:'1px solid #ccc',display:'inline-block'}}/>}
+                              {qtyLabel(m.sqft)&&<span style={{color:'#888'}}>· {qtyLabel(m.sqft)}</span>}
+                            </span>
+                            <span style={{whiteSpace:'nowrap',fontWeight:600}}>{fmtCAD(m.lineCost)}</span>
+                          </div>
                         ))}
-                        {supplyCost>0&&<p style={{fontSize:11,color:'#444'}}>Supplies <span style={{color:'#888'}}>— {fmtCAD(supplyCost)}</span></p>}
+                        {supplyCost>0&&(
+                          <div style={{display:'flex',justifyContent:'space-between',gap:8,fontSize:11,color:'#444'}}>
+                            <span>Supplies</span><span style={{whiteSpace:'nowrap',fontWeight:600}}>{fmtCAD(supplyCost)}</span>
+                          </div>
+                        )}
                       </div>
                     )}
-                  </td>
-                  <td style={{...tdStyle,textAlign:'right',fontWeight:600,whiteSpace:'nowrap'}}>
-                    {fmtCAD(c.cost+matTotal)}
-                    {matTotal>0&&<p style={{fontSize:10,fontWeight:400,color:'#888',marginTop:2}}>Labour {fmtCAD(c.cost)}<br/>Materials {fmtCAD(matTotal)}</p>}
                   </td>
                 </tr>
               );
@@ -3634,6 +3647,7 @@ function MasterEstimate(){
   },[]);
 
   const saveTimerRef=useRef(null);
+  const roomNameFocusedRef=useRef(false); // one-time autofocus of the first room's name on Rooms tab
   const buildTitle=useCallback(()=>{
     const deal=deals.find(d=>d.id===selectedDealId);
     const project=deal?.dealName||'';
@@ -3737,6 +3751,7 @@ function MasterEstimate(){
     setClient({name:'',email:'',phone:'',address:''});
     setChangeItems([]);setChangeCounter(0);
     setCurrentEstimateId(null);setActiveTab('cover');
+    roomNameFocusedRef.current=false;
   };
 
   const deleteEstimate=async(eid)=>{
@@ -3799,7 +3814,7 @@ function MasterEstimate(){
 
       const __projName=deals.find(d=>d.id===selectedDealId)?.dealName||'';
       // Client-portal quote = the exact Bid Proposal PDF generated by the Export Bid button
-      const qhtml=buildBidProposalHtml(client,rooms,settings,totals,ps.paints,ps.ceilPaints,ps.primers,ps.colours,ps.swColours,ps.supplies,__projName);
+      const qhtml=buildBidProposalHtml(client,rooms,settings,totals,ps.paints,ps.ceilPaints,ps.primers,ps.colours,ps.swColours,ps.supplies,__projName,'quote');
 
       let chtml='<!DOCTYPE html><html><head><meta charset="utf-8"><title>Contract</title><style>'+css+'</style></head><body style="padding:40px 48px;max-width:900px;margin:0 auto">';
       chtml+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid ${gold}"><div style="display:flex;gap:12px;align-items:center"><img src="/kingdom-logo-dark.svg" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:1px">Painting Service Agreement</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p></div></div>`;
@@ -3864,10 +3879,7 @@ function MasterEstimate(){
       chtml+=`<div style="font-size:11px;line-height:1.7;color:#444"><p style="margin-bottom:8px">The total cost for the Services shall be <strong>${fmtC(totals.total)}</strong>, which includes labour, materials, and any applicable taxes. A different payment plan can be discussed.</p>`;
       chtml+=`<p>50% Deposit: ${fmtC(totals.deposit)} · 50% Upon Completion: ${fmtC(totals.balance)}</p></div>`;
       chtml+=contractClausesHtml(gold,5);
-      chtml+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">12. Signatures</p>`;
-      chtml+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:24px;font-size:11px">';
-      chtml+='<div><div style="border-bottom:1px solid #ccc;height:60px;margin-bottom:8px"></div><p style="color:#888">Client Signature</p></div>';
-      chtml+='<div><div style="border-bottom:1px solid #ccc;height:60px;margin-bottom:8px"></div><p style="color:#888">Contractor Signature</p></div></div>';
+      chtml+=contractSignatureBoxesHtml(gold,client);
       chtml+='</body></html>';
 
       const pushData={value:totals.total,rooms:dealRooms,quote_html:qhtml,quote_date:todayISO,contract_html:chtml};
@@ -3940,6 +3952,7 @@ function MasterEstimate(){
             onUpdate={(i,updated)=>setRooms(rooms.map((r,j)=>j===i?updated:r))}
             onRemove={(i)=>{if(rooms.length>1)setRooms(rooms.filter((_,j)=>j!==i));}}
             onAdd={()=>{const next=roomCounter+1;setRoomCounter(next);setRooms([...rooms,newRoom(String(next),next)]);}}
+            focusedRef={roomNameFocusedRef}
             paints={ps.paints} ceilPaints={ps.ceilPaints} colours={ps.colours} swColours={ps.swColours} primers={ps.primers} supplies={ps.supplies}/>
         )}
         {activeTab==='breakdown'&&(
@@ -4077,7 +4090,26 @@ function contractClausesHtml(gold,startNum){
   ].join('');
 }
 
-function buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,primers,colours,swColours,supplies,projectName){
+// mode: 'full' = cover + quote + agreement (Export Bid); 'quote' = the quote page only
+// (used for the client portal's Quote document).
+// "12. Signatures" section with two separate boxes — one for the client, one for the contractor.
+// The client box carries an id + slot marker so the portal signing flow can draw and save the
+// signature directly inside it.
+const CLIENT_SIG_SLOT='<!--CLIENT_SIGNATURE_SLOT-->';
+function contractSignatureBoxesHtml(gold,client){
+  let h='<div class="section">';
+  h+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">12. Signatures</p>`;
+  h+='<p style="font-size:11px;line-height:1.7;color:#444;margin-bottom:8px">By signing below, the parties agree to the terms and conditions outlined in this Agreement.</p>';
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:16px;font-size:11px">';
+  h+=`<div><p style="font-weight:600;margin-bottom:6px">Client Signature</p><div id="client-sig-box" style="border:1px solid #ccc;border-radius:6px;background:#fafafa;min-height:110px;padding:6px;text-align:center">${CLIENT_SIG_SLOT}</div><p style="color:#888;margin-top:4px">${client?.name||'Client'}</p></div>`;
+  h+='<div><p style="font-weight:600;margin-bottom:6px">Contractor Signature</p><div id="contractor-sig-box" style="border:1px solid #ccc;border-radius:6px;background:#fafafa;min-height:110px;padding:6px"></div><p style="color:#888;margin-top:4px">David Truong, Kingdom Painting Inc.</p></div>';
+  h+='</div></div>';
+  return h;
+}
+
+// mode: 'full' = cover + quote + agreement (Export Bid); 'quote' = the quote page only
+// (used for the client portal's Quote document).
+function buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,primers,colours,swColours,supplies,projectName,mode='full'){
   const fmtN=n=>Math.round(n).toLocaleString('en-CA');
   const fmtC=n=>'$'+n.toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2});
   const today=new Date().toLocaleDateString('en-CA',{year:'numeric',month:'long',day:'numeric'});
@@ -4106,7 +4138,9 @@ function buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,pri
     const parts=[]; if(pails>0) parts.push(`${pails} pail${pails>1?'s':''}`); if(eg>0) parts.push(`${eg} gallon${eg>1?'s':''}`);
     return parts.join(' and ');
   };
-  const docTitle=projectName?`Bid Proposal - ${projectName}`:'Bid Proposal';
+  const docTitle=mode==='quote'
+    ?(projectName?`Quote - ${projectName}`:'Quote')
+    :(projectName?`Bid Proposal - ${projectName}`:'Bid Proposal');
   let html='<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+docTitle+'</title>';
   html+='<style>*{margin:0;padding:0;box-sizing:border-box}html,body{height:auto;overflow:visible}body{font-family:-apple-system,sans-serif;color:#1a1a1a;font-size:12px}';
   html+='.page{page-break-after:always;break-after:page;padding:40px 48px;max-width:900px;margin:0 auto}.page:last-child{page-break-after:auto;break-after:auto}';
@@ -4114,17 +4148,19 @@ function buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,pri
   html+=`.gold{color:${gold}}.border-gold{border-bottom:2px solid ${gold}}`;
   html+='table{width:100%;border-collapse:collapse}th{text-align:left;padding:8px 10px;border-bottom:2px solid #e5e5e5;color:#888;font-size:11px;font-weight:600}td{padding:8px 10px;border-bottom:1px solid #eee;font-size:12px;vertical-align:top}';
   html+='@media print{body{padding:0}.page{padding:32px 40px}}</style></head><body>';
-  html+='<div class="page" style="display:flex;align-items:center;justify-content:center;min-height:90vh">';
-  html+='<div style="text-align:center">';
-  html+=`<img src="/kingdom-logo-dark.svg" style="height:80px;margin:0 auto"><div style="width:60px;height:2px;background:${gold};margin:16px auto"></div>`;
-  html+='<p style="font-size:16px;font-weight:600;letter-spacing:0.08em;color:#555;margin-top:24px">BID PROPOSAL</p>';
-  html+='<div style="margin-top:48px"><p style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:#999">PREPARED FOR</p>';
-  html+=`<p style="font-size:18px;font-weight:600;margin-top:8px">${client.name||'Client Name'}</p>`;
-  if(clientAddr) html+=`<p style="font-size:12px;color:#666;margin-top:6px">${clientAddr}</p>`;
-  if(client.phone) html+=`<p style="font-size:12px;color:#666;margin-top:4px">${client.phone}</p>`;
-  if(client.email) html+=`<p style="font-size:12px;color:#666;margin-top:2px">${client.email}</p>`;
-  html+='</div>';
-  html+=`<p style="font-size:12px;color:#999;margin-top:32px">${today}</p></div></div>`;
+  if(mode!=='quote'){
+    html+='<div class="page" style="display:flex;align-items:center;justify-content:center;min-height:90vh">';
+    html+='<div style="text-align:center">';
+    html+=`<img src="/kingdom-logo-dark.svg" style="height:80px;margin:0 auto"><div style="width:60px;height:2px;background:${gold};margin:16px auto"></div>`;
+    html+='<p style="font-size:16px;font-weight:600;letter-spacing:0.08em;color:#555;margin-top:24px">BID PROPOSAL</p>';
+    html+='<div style="margin-top:48px"><p style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:#999">PREPARED FOR</p>';
+    html+=`<p style="font-size:18px;font-weight:600;margin-top:8px">${client.name||'Client Name'}</p>`;
+    if(clientAddr) html+=`<p style="font-size:12px;color:#666;margin-top:6px">${clientAddr}</p>`;
+    if(client.phone) html+=`<p style="font-size:12px;color:#666;margin-top:4px">${client.phone}</p>`;
+    if(client.email) html+=`<p style="font-size:12px;color:#666;margin-top:2px">${client.email}</p>`;
+    html+='</div>';
+    html+=`<p style="font-size:12px;color:#999;margin-top:32px">${today}</p></div></div>`;
+  }
   html+='<div class="page">';
   html+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px" class="border-gold"><div style="display:flex;gap:12px;align-items:center"><img src="/kingdom-logo-dark.svg" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:2px">QUOTE</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p><p style="font-size:10px;color:#999;margin-top:4px">HST# 71164 5556 RT0001</p></div></div>`;
   html+='<div style="margin-bottom:24px;font-size:12px"><p style="font-weight:600;color:#888;font-size:10px;text-transform:uppercase;margin-bottom:4px">Prepared For</p>';
@@ -4133,7 +4169,7 @@ function buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,pri
   if(client.phone) html+=`<p style="color:#666">${client.phone}</p>`;
   if(client.email) html+=`<p style="color:#666">${client.email}</p>`;
   html+='</div>';
-  html+='<table><thead><tr><th>Item</th><th>Description</th><th style="text-align:right">Amount</th></tr></thead><tbody>';
+  html+='<table><thead><tr><th>Item</th><th>Description &amp; Amount</th></tr></thead><tbody>';
   rooms.forEach(r=>{
     const c=calcRoom(r,settings);
     const lines=[],prepItems=[];
@@ -4157,23 +4193,22 @@ function buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,pri
     if(r.prep?.custom) prepItems.push(r.prep.custom);
     const mats=roomMaterials(r);
     const supplyCost=calcRoomSupplyCost(r,supplies||[]);
-    const matTotal=mats.reduce((s,m)=>s+m.lineCost,0)+supplyCost;
-    html+=`<tr><td style="font-weight:600;white-space:nowrap">${r.name}</td><td>`;
+    html+=`<tr><td style="font-weight:600;white-space:nowrap;vertical-align:top">${r.name}</td><td>`;
+    // Prep & surfaces — labour cost sits with this section
+    html+=`<div style="display:flex;justify-content:space-between;gap:16px"><div>`;
     if(prepItems.length) html+=`<p style="margin-bottom:4px"><strong>Prep:</strong> ${prepItems.join(', ')}</p>`;
-    html+=`<p>${lines.join('<br>')}</p>`;
+    html+=`<p>${lines.join('<br>')}</p></div><div style="font-weight:600;white-space:nowrap">${fmtC(c.cost)}</div></div>`;
     if(mats.length||supplyCost>0){
       html+=`<div style="margin-top:6px;padding-top:6px;border-top:1px dashed #e5e5e5">`;
       html+=`<p style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:2px">Materials</p>`;
       mats.forEach(m=>{
         const sw=m.hex?`<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${m.hex};border:1px solid #ccc;margin:0 3px;vertical-align:middle"></span>`:'';
         const q=qtyLabel(m.sqft);
-        html+=`<p style="font-size:11px;color:#444;margin-top:2px">${m.surface}: ${m.product}${m.colour?` — ${m.colour}`:''}${sw}${q?` · ${q}`:''} — ${fmtC(m.lineCost)}</p>`;
+        html+=`<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;color:#444"><span>${m.surface}: ${m.product}${m.colour?` — ${m.colour}`:''}${sw}${q?` · ${q}`:''}</span><span style="white-space:nowrap;font-weight:600">${fmtC(m.lineCost)}</span></div>`;
       });
-      if(supplyCost>0) html+=`<p style="font-size:11px;color:#444">Supplies — ${fmtC(supplyCost)}</p>`;
+      if(supplyCost>0) html+=`<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;color:#444"><span>Supplies</span><span style="white-space:nowrap;font-weight:600">${fmtC(supplyCost)}</span></div>`;
       html+=`</div>`;
     }
-    html+=`</td><td style="text-align:right;font-weight:600;white-space:nowrap">${fmtC(c.cost+matTotal)}`;
-    if(matTotal>0) html+=`<div style="font-size:10px;font-weight:400;color:#888;margin-top:2px">Labour ${fmtC(c.cost)}<br>Materials ${fmtC(matTotal)}</div>`;
     html+=`</td></tr>`;
   });
   html+='</tbody></table>';
@@ -4181,6 +4216,7 @@ function buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,pri
   html+=`<tr><td style="text-align:right;padding:4px 16px;color:#888">HST (13%)</td><td style="text-align:right;padding:4px 0">${fmtC(totals.taxAmt)}</td></tr>`;
   html+=`<tr style="border-top:2px solid ${gold}"><td style="text-align:right;padding:8px 16px;font-weight:700;font-size:14px" class="gold">Total</td><td style="text-align:right;padding:8px 0;font-weight:700;font-size:14px" class="gold">${fmtC(totals.total)}</td></tr></table></div>`;
   html+='</div>';
+  if(mode!=='quote'){
   html+='<div class="page">';
   html+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px" class="border-gold"><div style="display:flex;gap:12px;align-items:center"><img src="/kingdom-logo-dark.svg" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:1px">Painting Service Agreement</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p></div></div>`;
   html+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">1. Parties</p>`;
@@ -4248,12 +4284,9 @@ function buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,pri
   html+=`<div style="font-size:11px;line-height:1.7;color:#444"><p style="margin-bottom:8px">The total cost for the Services shall be <strong>${fmtC(totals.total)}</strong>, which includes labour, materials, and any applicable taxes. A different payment plan can be discussed.</p>`;
   html+=`<p>50% Deposit: ${fmtC(totals.deposit)} · 50% Upon Completion: ${fmtC(totals.balance)}</p></div></div>`;
   html+=contractClausesHtml(gold,5);
-  html+='<div class="section">';
-  html+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">12. Signatures</p>`;
-  html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:24px;font-size:11px">';
-  html+='<div><div style="border-bottom:1px solid #ccc;height:60px;margin-bottom:8px"></div><p style="color:#888">Client Signature</p></div>';
-  html+='<div><div style="border-bottom:1px solid #ccc;height:60px;margin-bottom:8px"></div><p style="color:#888">Contractor Signature</p></div></div></div>';
+  html+=contractSignatureBoxesHtml(gold,client);
   html+='</div>';
+  }
   html+='</body></html>';
   return html;
 }
@@ -5507,6 +5540,8 @@ function ClientPortal({session}){
   const sigDrawingRef = useRef(false);
   const frameRef = useRef(null);
   const blobUrlRef = useRef(null);
+  const docSigCanvasRef = useRef(null); // canvas injected into the document's Client Signature box
+  const [sigInDoc, setSigInDoc] = useState(false);
 
   const showToast = (msg) => { setToast(msg); setTimeout(()=>setToast(''),5000); };
 
@@ -5620,11 +5655,44 @@ body{font-family:'Montserrat',Georgia,sans-serif;background:#fff;color:#1a1714;p
     blobUrlRef.current = url;
     setOverlay({label, url, dealId, signable: signable&&!d.contract_signed_html, docKey: key});
     setSigStatus('');
+    setSigInDoc(false);
+    docSigCanvasRef.current=null;
   };
 
   const closeOverlay = ()=>{
     if(blobUrlRef.current){URL.revokeObjectURL(blobUrlRef.current);blobUrlRef.current=null;}
     setOverlay(null);
+    setSigInDoc(false);
+    docSigCanvasRef.current=null;
+  };
+
+  // Put the signature pad inside the document's own "Client Signature" box (the blob-URL iframe
+  // is same-origin, so we can reach into it). Older contracts without the box fall back to the
+  // signature pad in the panel below the document.
+  const injectSigCanvas = ()=>{
+    try{
+      if(!overlay?.signable) return;
+      const doc = frameRef.current?.contentDocument;
+      const box = doc?.getElementById('client-sig-box');
+      if(!box){ setSigInDoc(false); return; }
+      box.innerHTML='';
+      box.style.background='#fff';
+      const canvas = doc.createElement('canvas');
+      const w = box.clientWidth||350, h = Math.max(box.clientHeight,110);
+      canvas.width=w; canvas.height=h;
+      canvas.style.width='100%'; canvas.style.height=h+'px';
+      canvas.style.cursor='crosshair'; canvas.style.touchAction='none'; canvas.style.display='block';
+      box.appendChild(canvas);
+      const ctx=canvas.getContext('2d');
+      ctx.strokeStyle='#1a1714';ctx.lineWidth=2;ctx.lineCap='round';ctx.lineJoin='round';
+      const getPos=(e)=>{const r=canvas.getBoundingClientRect();const s=e.touches?e.touches[0]:e;return{x:(s.clientX-r.left)*(canvas.width/r.width),y:(s.clientY-r.top)*(canvas.height/r.height)};};
+      let drawing=false;
+      canvas.onmousedown=canvas.ontouchstart=(e)=>{e.preventDefault();drawing=true;const p=getPos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);};
+      canvas.onmousemove=canvas.ontouchmove=(e)=>{if(!drawing)return;e.preventDefault();const p=getPos(e);ctx.lineTo(p.x,p.y);ctx.stroke();};
+      canvas.onmouseup=canvas.ontouchend=()=>{drawing=false;};
+      docSigCanvasRef.current=canvas;
+      setSigInDoc(true);
+    }catch(e){ setSigInDoc(false); }
   };
 
   const initSig = useCallback(()=>{
@@ -5644,12 +5712,12 @@ body{font-family:'Montserrat',Georgia,sans-serif;background:#fff;color:#1a1714;p
   },[overlay, initSig]);
 
   const clearSig = ()=>{
-    const canvas = sigCanvasRef.current;
+    const canvas = docSigCanvasRef.current||sigCanvasRef.current;
     if(canvas){const ctx=canvas.getContext('2d');ctx.clearRect(0,0,canvas.width,canvas.height);}
   };
 
   const saveSig = async()=>{
-    const canvas = sigCanvasRef.current;
+    const canvas = docSigCanvasRef.current||sigCanvasRef.current;
     if(!canvas||!overlay) return;
     const ctx = canvas.getContext('2d');
     const px = ctx.getImageData(0,0,canvas.width,canvas.height).data;
@@ -5660,8 +5728,18 @@ body{font-family:'Montserrat',Georgia,sans-serif;background:#fff;color:#1a1714;p
     const sigImg = canvas.toDataURL('image/png');
     const now = new Date().toLocaleString('en-CA',{dateStyle:'long',timeStyle:'short'});
     const d = deals.find(x=>x.id===overlay.dealId);
-    const sigBlock = `<div style="margin-top:40px;padding:20px 24px;border-top:2px solid #C4922A;font-family:sans-serif;font-size:12px"><p style="color:#555;margin-bottom:10px">Electronically signed by <strong>${email}</strong> on ${now}</p><img src="${sigImg}" style="max-width:320px;border:1px solid #ddd;border-radius:6px;padding:8px;background:#fff;display:block"/></div>`;
-    const signedHtml = (d.contract_html||'') + sigBlock;
+    const base = d.contract_html||'';
+    let signedHtml;
+    if(base.includes(CLIENT_SIG_SLOT)){
+      // Place the signature inside the document's Client Signature box
+      signedHtml = base.replace(CLIENT_SIG_SLOT,
+        `<img src="${sigImg}" style="max-width:100%;max-height:96px;display:block;margin:0 auto"/>`+
+        `<div style="font-size:10px;color:#555;margin-top:4px">Electronically signed by <strong>${email}</strong> on ${now}</div>`);
+    }else{
+      // Older contracts without a signature box — append the signature block at the end
+      const sigBlock = `<div style="margin-top:40px;padding:20px 24px;border-top:2px solid #C4922A;font-family:sans-serif;font-size:12px"><p style="color:#555;margin-bottom:10px">Electronically signed by <strong>${email}</strong> on ${now}</p><img src="${sigImg}" style="max-width:320px;border:1px solid #ddd;border-radius:6px;padding:8px;background:#fff;display:block"/></div>`;
+      signedHtml = base + sigBlock;
+    }
     try{
       await supaFetch('/rest/v1/rpc/save_signed_contract','POST',{deal_id:overlay.dealId,signed_html:signedHtml});
       setSigStatus('Contract signed!');
@@ -5822,13 +5900,15 @@ body{font-family:'Montserrat',Georgia,sans-serif;background:#fff;color:#1a1714;p
             <button className="cp-overlay-close" onClick={closeOverlay}>Close</button>
           </div>
           <div className="cp-overlay-body">
-            <iframe ref={frameRef} src={overlay.url} style={{width:'100%',height:'100%',border:'none'}} referrerPolicy="no-referrer"/>
+            <iframe ref={frameRef} src={overlay.url} onLoad={injectSigCanvas} style={{width:'100%',height:'100%',border:'none'}} referrerPolicy="no-referrer"/>
           </div>
           {overlay.signable&&(
             <div className="cp-sig-panel">
               <h3>Sign this contract</h3>
-              <p>Draw your signature below then click Save Signature.</p>
-              <canvas ref={sigCanvasRef} className="cp-sig-canvas" width={600} height={120}/>
+              {sigInDoc
+                ? <p>Draw your signature in the <strong>Client Signature</strong> box in the Signatures section of the document above, then click Save Signature.</p>
+                : <p>Draw your signature below then click Save Signature.</p>}
+              {!sigInDoc&&<canvas ref={sigCanvasRef} className="cp-sig-canvas" width={600} height={120}/>}
               <div className="cp-sig-actions">
                 <button className="cp-btn-clear" onClick={clearSig}>Clear</button>
                 <button className="cp-btn-save-sig" onClick={saveSig} disabled={sigSaving}>{sigSaving?'Saving...':'Save Signature'}</button>

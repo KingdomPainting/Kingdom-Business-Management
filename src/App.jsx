@@ -2397,7 +2397,7 @@ function RoomCard({room,settings,onChange,onRemove,primers,paints,ceilPaints,col
                 </div>
                 {room.ceiling.type==='stucco'&&(
                   <label style={{fontSize:11,display:'flex',gap:6,alignItems:'center',cursor:'pointer'}}>
-                    <input type='checkbox' checked={room.ceiling.removeStucco||false} onChange={e=>u({ceiling:{...room.ceiling,removeStucco:e.target.checked}})} style={cbStyle}/> Stucco removal
+                    <input type='checkbox' checked={room.ceiling.removeStucco||false} onChange={e=>u({ceiling:{...room.ceiling,removeStucco:e.target.checked,...(e.target.checked?{coats:3}:{})}})} style={cbStyle}/> Stucco removal
                   </label>
                 )}
               </div>

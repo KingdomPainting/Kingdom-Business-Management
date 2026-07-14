@@ -2825,7 +2825,8 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
         <table style={{width:'100%',borderCollapse:'collapse',marginBottom:24}}>
           <thead><tr>
             <th style={thStyle}>Item</th>
-            <th style={thStyle}>Description &amp; Amount</th>
+            <th style={thStyle}>Description</th>
+            <th style={{...thStyle,textAlign:'right'}}>Amount</th>
           </tr></thead>
           <tbody>
             {rooms.map(r=>{
@@ -2847,36 +2848,32 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
               else if(r.windows?.count>0) surfaces.push(`${r.windows.count} window${r.windows.count>1?'s':''} — ${r.windows.coats} coat${r.windows.coats>1?'s':''}`);
               const mats=roomMaterials(r);
               const supplyCost=calcRoomSupplyCost(r,supplies||[]);
+              const matTotal=mats.reduce((s,m)=>s+m.lineCost,0)+supplyCost;
+              const secHead={fontSize:10,fontWeight:700,color:'#888',textTransform:'uppercase',letterSpacing:'0.04em'};
               return (
                 <tr key={r.id}>
                   <td style={{...tdStyle,fontWeight:600,whiteSpace:'nowrap',verticalAlign:'top'}}>{r.name}</td>
-                  <td style={tdStyle}>
-                    {/* Prep & surfaces — labour cost sits with this section */}
-                    <div style={{display:'flex',justifyContent:'space-between',gap:16}}>
-                      <div style={{minWidth:0}}>
-                        {prepItems.length>0&&<p style={{fontSize:11,marginBottom:4}}><strong>Prep:</strong> {prepItems.join(', ')}</p>}
-                        {surfaces.map((s,i)=><p key={i} style={{fontSize:11,color:'#444'}}>{s}</p>)}
-                      </div>
-                      <div style={{fontWeight:600,whiteSpace:'nowrap'}}>{fmtCAD(c.cost)}</div>
+                  <td colSpan={2} style={tdStyle}>
+                    {/* Labour — cost on the section header line, under the Amount column */}
+                    <div style={{display:'flex',justifyContent:'space-between',gap:16,marginBottom:2}}>
+                      <p style={secHead}>Labour</p>
+                      <span style={{fontWeight:600,whiteSpace:'nowrap'}}>{fmtCAD(c.cost)}</span>
                     </div>
+                    {prepItems.length>0&&<p style={{fontSize:11,marginBottom:4}}><strong>Prep:</strong> {prepItems.join(', ')}</p>}
+                    {surfaces.map((s,i)=><p key={i} style={{fontSize:11,color:'#444'}}>{s}</p>)}
                     {(mats.length>0||supplyCost>0)&&(
                       <div style={{marginTop:6,paddingTop:6,borderTop:'1px dashed #e5e5e5'}}>
-                        <p style={{fontSize:10,fontWeight:700,color:'#888',textTransform:'uppercase',letterSpacing:'0.04em',marginBottom:2}}>Materials</p>
+                        <div style={{display:'flex',justifyContent:'space-between',gap:16,marginBottom:2}}>
+                          <p style={secHead}>Materials</p>
+                          <span style={{fontWeight:600,whiteSpace:'nowrap'}}>{fmtCAD(matTotal)}</span>
+                        </div>
                         {mats.map((m,i)=>(
-                          <div key={i} style={{display:'flex',justifyContent:'space-between',gap:8,fontSize:11,color:'#444'}}>
-                            <span style={{display:'flex',gap:4,alignItems:'center',flexWrap:'wrap',minWidth:0}}>
-                              <span>{m.surface}: {m.product}{m.colour?` — ${m.colour}`:''}</span>
-                              {m.hex&&<span style={{width:9,height:9,borderRadius:2,background:m.hex,border:'1px solid #ccc',display:'inline-block'}}/>}
-                              {qtyLabel(m.sqft)&&<span style={{color:'#888'}}>· {qtyLabel(m.sqft)}</span>}
-                            </span>
-                            <span style={{whiteSpace:'nowrap',fontWeight:600}}>{fmtCAD(m.lineCost)}</span>
-                          </div>
+                          <p key={i} style={{fontSize:11,color:'#444',display:'flex',gap:4,alignItems:'center',flexWrap:'wrap'}}>
+                            <span>{m.surface}: {m.product}{m.colour?` — ${m.colour}`:''}</span>
+                            {m.hex&&<span style={{width:9,height:9,borderRadius:2,background:m.hex,border:'1px solid #ccc',display:'inline-block'}}/>}
+                          </p>
                         ))}
-                        {supplyCost>0&&(
-                          <div style={{display:'flex',justifyContent:'space-between',gap:8,fontSize:11,color:'#444'}}>
-                            <span>Supplies</span><span style={{whiteSpace:'nowrap',fontWeight:600}}>{fmtCAD(supplyCost)}</span>
-                          </div>
-                        )}
+                        {supplyCost>0&&<p style={{fontSize:11,color:'#444'}}>Supplies</p>}
                       </div>
                     )}
                   </td>
@@ -3817,7 +3814,7 @@ function MasterEstimate(){
       const qhtml=buildBidProposalHtml(client,rooms,settings,totals,ps.paints,ps.ceilPaints,ps.primers,ps.colours,ps.swColours,ps.supplies,__projName,'quote');
 
       let chtml='<!DOCTYPE html><html><head><meta charset="utf-8"><title>Contract</title><style>'+css+'</style></head><body style="padding:40px 48px;max-width:900px;margin:0 auto">';
-      chtml+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid ${gold}"><div style="display:flex;gap:12px;align-items:center"><img src="/kingdom-logo-dark.svg" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:1px">Painting Service Agreement</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p></div></div>`;
+      chtml+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid ${gold}"><div style="display:flex;gap:12px;align-items:center"><img src="${LOGO_PNG}" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:1px">Painting Service Agreement</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p></div></div>`;
       chtml+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">1. Parties</p>`;
       chtml+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:8px;font-size:11px;color:#444;line-height:1.7">';
       chtml+=`<div><p style="font-weight:600;margin-bottom:4px">Client</p><p>${client.name||'—'}</p>`;
@@ -3888,7 +3885,7 @@ function MasterEstimate(){
         const coSub=changeItems.reduce((s,it)=>s+(parseFloat(it.amount)||0),0);
         const coTax=coSub*0.13;const coTotal=coSub+coTax;
         let cohtml='<!DOCTYPE html><html><head><meta charset="utf-8"><title>Change Order</title><style>'+css+'</style></head><body style="padding:40px 48px;max-width:900px;margin:0 auto">';
-        cohtml+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid ${gold}"><div style="display:flex;gap:12px;align-items:center"><img src="/kingdom-logo-dark.svg" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:2px">CHANGE ORDER</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p><p style="font-size:10px;color:#999;margin-top:4px">HST# 71164 5556 RT0001</p></div></div>`;
+        cohtml+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid ${gold}"><div style="display:flex;gap:12px;align-items:center"><img src="${LOGO_PNG}" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:2px">CHANGE ORDER</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p><p style="font-size:10px;color:#999;margin-top:4px">HST# 71164 5556 RT0001</p></div></div>`;
         cohtml+=`<p style="font-size:12px;margin-bottom:20px"><strong>Client:</strong> ${client.name||'—'}</p>`;
         cohtml+='<table><thead><tr><th style="width:60px">Item</th><th>Description</th><th style="text-align:right;width:120px">Amount</th></tr></thead><tbody>';
         changeItems.forEach(it=>{cohtml+=`<tr><td>${it.num||''}</td><td>${it.desc||''}</td><td style="text-align:right">${fmtC(parseFloat(it.amount)||0)}</td></tr>`;});
@@ -4151,7 +4148,7 @@ function buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,pri
   if(mode!=='quote'){
     html+='<div class="page" style="display:flex;align-items:center;justify-content:center;min-height:90vh">';
     html+='<div style="text-align:center">';
-    html+=`<img src="/kingdom-logo-dark.svg" style="height:80px;margin:0 auto"><div style="width:60px;height:2px;background:${gold};margin:16px auto"></div>`;
+    html+=`<img src="${LOGO_PNG}" style="height:80px;margin:0 auto"><div style="width:60px;height:2px;background:${gold};margin:16px auto"></div>`;
     html+='<p style="font-size:16px;font-weight:600;letter-spacing:0.08em;color:#555;margin-top:24px">BID PROPOSAL</p>';
     html+='<div style="margin-top:48px"><p style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:#999">PREPARED FOR</p>';
     html+=`<p style="font-size:18px;font-weight:600;margin-top:8px">${client.name||'Client Name'}</p>`;
@@ -4162,14 +4159,14 @@ function buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,pri
     html+=`<p style="font-size:12px;color:#999;margin-top:32px">${today}</p></div></div>`;
   }
   html+='<div class="page">';
-  html+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px" class="border-gold"><div style="display:flex;gap:12px;align-items:center"><img src="/kingdom-logo-dark.svg" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:2px">QUOTE</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p><p style="font-size:10px;color:#999;margin-top:4px">HST# 71164 5556 RT0001</p></div></div>`;
+  html+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px" class="border-gold"><div style="display:flex;gap:12px;align-items:center"><img src="${LOGO_PNG}" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:2px">QUOTE</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p><p style="font-size:10px;color:#999;margin-top:4px">HST# 71164 5556 RT0001</p></div></div>`;
   html+='<div style="margin-bottom:24px;font-size:12px"><p style="font-weight:600;color:#888;font-size:10px;text-transform:uppercase;margin-bottom:4px">Prepared For</p>';
   html+=`<p style="font-weight:600">${client.name||'—'}</p>`;
   if(clientAddr) html+=`<p style="color:#666">${clientAddr}</p>`;
   if(client.phone) html+=`<p style="color:#666">${client.phone}</p>`;
   if(client.email) html+=`<p style="color:#666">${client.email}</p>`;
   html+='</div>';
-  html+='<table><thead><tr><th>Item</th><th>Description &amp; Amount</th></tr></thead><tbody>';
+  html+='<table><thead><tr><th>Item</th><th>Description</th><th style="text-align:right">Amount</th></tr></thead><tbody>';
   rooms.forEach(r=>{
     const c=calcRoom(r,settings);
     const lines=[],prepItems=[];
@@ -4193,20 +4190,21 @@ function buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,pri
     if(r.prep?.custom) prepItems.push(r.prep.custom);
     const mats=roomMaterials(r);
     const supplyCost=calcRoomSupplyCost(r,supplies||[]);
-    html+=`<tr><td style="font-weight:600;white-space:nowrap;vertical-align:top">${r.name}</td><td>`;
-    // Prep & surfaces — labour cost sits with this section
-    html+=`<div style="display:flex;justify-content:space-between;gap:16px"><div>`;
+    const matTotal=mats.reduce((s,m)=>s+m.lineCost,0)+supplyCost;
+    const secHead='font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.04em';
+    html+=`<tr><td style="font-weight:600;white-space:nowrap;vertical-align:top">${r.name}</td><td colspan="2">`;
+    // Labour — cost on the section header line, under the Amount column
+    html+=`<div style="display:flex;justify-content:space-between;gap:16px;margin-bottom:2px"><span style="${secHead}">Labour</span><span style="font-weight:600;white-space:nowrap">${fmtC(c.cost)}</span></div>`;
     if(prepItems.length) html+=`<p style="margin-bottom:4px"><strong>Prep:</strong> ${prepItems.join(', ')}</p>`;
-    html+=`<p>${lines.join('<br>')}</p></div><div style="font-weight:600;white-space:nowrap">${fmtC(c.cost)}</div></div>`;
+    html+=`<p>${lines.join('<br>')}</p>`;
     if(mats.length||supplyCost>0){
       html+=`<div style="margin-top:6px;padding-top:6px;border-top:1px dashed #e5e5e5">`;
-      html+=`<p style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:2px">Materials</p>`;
+      html+=`<div style="display:flex;justify-content:space-between;gap:16px;margin-bottom:2px"><span style="${secHead}">Materials</span><span style="font-weight:600;white-space:nowrap">${fmtC(matTotal)}</span></div>`;
       mats.forEach(m=>{
         const sw=m.hex?`<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${m.hex};border:1px solid #ccc;margin:0 3px;vertical-align:middle"></span>`:'';
-        const q=qtyLabel(m.sqft);
-        html+=`<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;color:#444"><span>${m.surface}: ${m.product}${m.colour?` — ${m.colour}`:''}${sw}${q?` · ${q}`:''}</span><span style="white-space:nowrap;font-weight:600">${fmtC(m.lineCost)}</span></div>`;
+        html+=`<p style="font-size:11px;color:#444">${m.surface}: ${m.product}${m.colour?` — ${m.colour}`:''}${sw}</p>`;
       });
-      if(supplyCost>0) html+=`<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;color:#444"><span>Supplies</span><span style="white-space:nowrap;font-weight:600">${fmtC(supplyCost)}</span></div>`;
+      if(supplyCost>0) html+=`<p style="font-size:11px;color:#444">Supplies</p>`;
       html+=`</div>`;
     }
     html+=`</td></tr>`;
@@ -4218,7 +4216,7 @@ function buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,pri
   html+='</div>';
   if(mode!=='quote'){
   html+='<div class="page">';
-  html+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px" class="border-gold"><div style="display:flex;gap:12px;align-items:center"><img src="/kingdom-logo-dark.svg" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:1px">Painting Service Agreement</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p></div></div>`;
+  html+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px" class="border-gold"><div style="display:flex;gap:12px;align-items:center"><img src="${LOGO_PNG}" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:1px">Painting Service Agreement</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p></div></div>`;
   html+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">1. Parties</p>`;
   html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:8px;font-size:11px;color:#444;line-height:1.7">';
   html+=`<div><p style="font-weight:600;margin-bottom:4px">Client</p><p>${client.name||'—'}</p>`;
@@ -5464,7 +5462,12 @@ const PORTAL_STYLES = `
   .cp-stage-pill{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;padding:2px 10px;border-radius:20px;margin-bottom:8px}
   .cp-name{font-size:16px;font-weight:700;color:#1a1714;margin-bottom:4px}
   .cp-addr{font-size:12px;color:#7a6e65;margin-bottom:10px}
+  .cp-sched{font-size:12px;color:#3a3530;margin-bottom:10px;line-height:1.7}
+  .cp-sched strong{color:#262E4B}
   .cp-val{font-size:14px;color:#C4922A;font-weight:700}
+  .cp-doc-actions{display:flex;align-items:center;gap:14px}
+  .cp-doc-dl{font-size:11px;color:#7a6e65;font-weight:600;background:none;border:none;cursor:pointer;padding:0}
+  .cp-doc-dl:hover{color:#C4922A}
   .cp-rooms{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;margin-bottom:8px}
   .cp-room{display:flex;align-items:center;gap:5px;padding:3px 10px 3px 6px;border-radius:20px;background:#f4f5f7;border:1px solid #e2e5eb;font-size:11px;font-weight:600;color:#374151}
   .cp-room.done{background:#f0fdf4;border-color:#bbf7d0}
@@ -5513,6 +5516,22 @@ const PORTAL_STYLES = `
 function portalStageStyle(stage){
   const m={'Lead':'background:#dbeafe;color:#1d4ed8','Contacted':'background:#ede9fe;color:#7c3aed','Quote Sent':'background:#fef9c3;color:#a16207','Scheduled':'background:#ffedd5;color:#ea580c','In Progress':'background:#d1fae5;color:#065f46','Archive':'background:#f3f4f6;color:#6b7280'};
   return m[stage]||'background:#f3f4f6;color:#6b7280';
+}
+
+function cpDateTime(dateStr,timeStr){
+  if(!dateStr) return '';
+  let out=dateStr;
+  try{ out=new Date(dateStr+'T12:00:00').toLocaleDateString('en-CA',{weekday:'short',year:'numeric',month:'short',day:'numeric'}); }catch(e){}
+  if(timeStr){
+    let t=timeStr;
+    try{
+      const [h,m]=timeStr.split(':').map(Number);
+      const d=new Date(); d.setHours(h,m||0,0,0);
+      t=d.toLocaleTimeString('en-CA',{hour:'numeric',minute:'2-digit'});
+    }catch(e){}
+    out+=` at ${t}`;
+  }
+  return out;
 }
 
 function portalStageObj(stage){
@@ -5666,6 +5685,20 @@ body{font-family:'Montserrat',Georgia,sans-serif;background:#fff;color:#1a1714;p
     docSigCanvasRef.current=null;
   };
 
+  // Download a document as a self-contained HTML file the client can save / print to PDF.
+  const downloadDoc = (d, key, label)=>{
+    const raw = key==='contract_html' && d.contract_signed_html ? d.contract_signed_html : d[key];
+    if(!raw) return;
+    const wrapped = wrapDocHtml(raw);
+    const blob = new Blob([wrapped],{type:'text/html'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${(d.dealName||'Project').replace(/[^\w\- ]+/g,'').trim()} - ${label}.html`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),4000);
+  };
+
   // Put the signature pad inside the document's own "Client Signature" box (the blob-URL iframe
   // is same-origin, so we can reach into it). Older contracts without the box fall back to the
   // signature pad in the panel below the document.
@@ -5805,7 +5838,10 @@ body{font-family:'Montserrat',Georgia,sans-serif;background:#fff;color:#1a1714;p
                 {canSign&&<span style={{fontSize:10,fontWeight:700,color:'#C4922A',background:'#fff8ee',border:'1px solid #C4922A',padding:'1px 7px',borderRadius:20,marginLeft:6}}>Sign</span>}
                 {isSigned&&<span style={{fontSize:11,color:'#16a34a',fontWeight:600,marginLeft:6}}>{'✅'} Signed {signedDate}</span>}
               </span>
-              <span style={{fontSize:11,color:'#7a6e65',fontWeight:600}}>Open {'↗'}</span>
+              <span className="cp-doc-actions">
+                <button className="cp-doc-dl" onClick={e=>{e.stopPropagation();downloadDoc(d,doc.key,doc.label);}} title={`Download ${doc.label}`}>{'⬇'} Download</button>
+                <span style={{fontSize:11,color:'#7a6e65',fontWeight:600}}>Open {'↗'}</span>
+              </span>
             </div>
           );
         })}
@@ -5847,6 +5883,12 @@ body{font-family:'Montserrat',Georgia,sans-serif;background:#fff;color:#1a1714;p
           <div className="cp-stage-pill" style={stObj}>{d.stage||'Lead'}</div>
           <div className="cp-name">{d.dealName||'Project'}</div>
           {d.address&&<div className="cp-addr">{'\u{1F4CD}'} {d.address}</div>}
+          {(d.startDate||d.endDate)&&(
+            <div className="cp-sched">
+              {d.startDate&&<div>{'\u{1F4C5}'} <strong>Start:</strong> {cpDateTime(d.startDate,d.startTime)}</div>}
+              {d.endDate&&<div>{'\u{1F3C1}'} <strong>End:</strong> {cpDateTime(d.endDate,d.endTime)}</div>}
+            </div>
+          )}
           {d.value&&<div className="cp-val">${parseFloat(d.value).toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>}
           {!past&&renderRooms(d.rooms)}
           {!past&&(

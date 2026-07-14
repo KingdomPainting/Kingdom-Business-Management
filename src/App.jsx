@@ -3814,7 +3814,7 @@ function MasterEstimate(){
       const qhtml=buildBidProposalHtml(client,rooms,settings,totals,ps.paints,ps.ceilPaints,ps.primers,ps.colours,ps.swColours,ps.supplies,__projName,'quote');
 
       let chtml='<!DOCTYPE html><html><head><meta charset="utf-8"><title>Contract</title><style>'+css+'</style></head><body style="padding:40px 48px;max-width:900px;margin:0 auto">';
-      chtml+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid ${gold}"><div style="display:flex;gap:12px;align-items:center"><img src="/kingdom-logo-dark.svg" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:1px">Painting Service Agreement</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p></div></div>`;
+      chtml+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid ${gold}"><div style="display:flex;gap:12px;align-items:center"><img src="${LOGO_PNG}" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:1px">Painting Service Agreement</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p></div></div>`;
       chtml+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">1. Parties</p>`;
       chtml+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:8px;font-size:11px;color:#444;line-height:1.7">';
       chtml+=`<div><p style="font-weight:600;margin-bottom:4px">Client</p><p>${client.name||'—'}</p>`;
@@ -3885,7 +3885,7 @@ function MasterEstimate(){
         const coSub=changeItems.reduce((s,it)=>s+(parseFloat(it.amount)||0),0);
         const coTax=coSub*0.13;const coTotal=coSub+coTax;
         let cohtml='<!DOCTYPE html><html><head><meta charset="utf-8"><title>Change Order</title><style>'+css+'</style></head><body style="padding:40px 48px;max-width:900px;margin:0 auto">';
-        cohtml+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid ${gold}"><div style="display:flex;gap:12px;align-items:center"><img src="/kingdom-logo-dark.svg" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:2px">CHANGE ORDER</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p><p style="font-size:10px;color:#999;margin-top:4px">HST# 71164 5556 RT0001</p></div></div>`;
+        cohtml+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid ${gold}"><div style="display:flex;gap:12px;align-items:center"><img src="${LOGO_PNG}" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:2px">CHANGE ORDER</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p><p style="font-size:10px;color:#999;margin-top:4px">HST# 71164 5556 RT0001</p></div></div>`;
         cohtml+=`<p style="font-size:12px;margin-bottom:20px"><strong>Client:</strong> ${client.name||'—'}</p>`;
         cohtml+='<table><thead><tr><th style="width:60px">Item</th><th>Description</th><th style="text-align:right;width:120px">Amount</th></tr></thead><tbody>';
         changeItems.forEach(it=>{cohtml+=`<tr><td>${it.num||''}</td><td>${it.desc||''}</td><td style="text-align:right">${fmtC(parseFloat(it.amount)||0)}</td></tr>`;});
@@ -4148,7 +4148,7 @@ function buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,pri
   if(mode!=='quote'){
     html+='<div class="page" style="display:flex;align-items:center;justify-content:center;min-height:90vh">';
     html+='<div style="text-align:center">';
-    html+=`<img src="/kingdom-logo-dark.svg" style="height:80px;margin:0 auto"><div style="width:60px;height:2px;background:${gold};margin:16px auto"></div>`;
+    html+=`<img src="${LOGO_PNG}" style="height:80px;margin:0 auto"><div style="width:60px;height:2px;background:${gold};margin:16px auto"></div>`;
     html+='<p style="font-size:16px;font-weight:600;letter-spacing:0.08em;color:#555;margin-top:24px">BID PROPOSAL</p>';
     html+='<div style="margin-top:48px"><p style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:#999">PREPARED FOR</p>';
     html+=`<p style="font-size:18px;font-weight:600;margin-top:8px">${client.name||'Client Name'}</p>`;
@@ -4159,7 +4159,7 @@ function buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,pri
     html+=`<p style="font-size:12px;color:#999;margin-top:32px">${today}</p></div></div>`;
   }
   html+='<div class="page">';
-  html+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px" class="border-gold"><div style="display:flex;gap:12px;align-items:center"><img src="/kingdom-logo-dark.svg" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:2px">QUOTE</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p><p style="font-size:10px;color:#999;margin-top:4px">HST# 71164 5556 RT0001</p></div></div>`;
+  html+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px" class="border-gold"><div style="display:flex;gap:12px;align-items:center"><img src="${LOGO_PNG}" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:2px">QUOTE</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p><p style="font-size:10px;color:#999;margin-top:4px">HST# 71164 5556 RT0001</p></div></div>`;
   html+='<div style="margin-bottom:24px;font-size:12px"><p style="font-weight:600;color:#888;font-size:10px;text-transform:uppercase;margin-bottom:4px">Prepared For</p>';
   html+=`<p style="font-weight:600">${client.name||'—'}</p>`;
   if(clientAddr) html+=`<p style="color:#666">${clientAddr}</p>`;
@@ -4216,7 +4216,7 @@ function buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,pri
   html+='</div>';
   if(mode!=='quote'){
   html+='<div class="page">';
-  html+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px" class="border-gold"><div style="display:flex;gap:12px;align-items:center"><img src="/kingdom-logo-dark.svg" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:1px">Painting Service Agreement</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p></div></div>`;
+  html+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px" class="border-gold"><div style="display:flex;gap:12px;align-items:center"><img src="${LOGO_PNG}" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:1px">Painting Service Agreement</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p></div></div>`;
   html+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">1. Parties</p>`;
   html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:8px;font-size:11px;color:#444;line-height:1.7">';
   html+=`<div><p style="font-weight:600;margin-bottom:4px">Client</p><p>${client.name||'—'}</p>`;
@@ -5462,7 +5462,12 @@ const PORTAL_STYLES = `
   .cp-stage-pill{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;padding:2px 10px;border-radius:20px;margin-bottom:8px}
   .cp-name{font-size:16px;font-weight:700;color:#1a1714;margin-bottom:4px}
   .cp-addr{font-size:12px;color:#7a6e65;margin-bottom:10px}
+  .cp-sched{font-size:12px;color:#3a3530;margin-bottom:10px;line-height:1.7}
+  .cp-sched strong{color:#262E4B}
   .cp-val{font-size:14px;color:#C4922A;font-weight:700}
+  .cp-doc-actions{display:flex;align-items:center;gap:14px}
+  .cp-doc-dl{font-size:11px;color:#7a6e65;font-weight:600;background:none;border:none;cursor:pointer;padding:0}
+  .cp-doc-dl:hover{color:#C4922A}
   .cp-rooms{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;margin-bottom:8px}
   .cp-room{display:flex;align-items:center;gap:5px;padding:3px 10px 3px 6px;border-radius:20px;background:#f4f5f7;border:1px solid #e2e5eb;font-size:11px;font-weight:600;color:#374151}
   .cp-room.done{background:#f0fdf4;border-color:#bbf7d0}
@@ -5511,6 +5516,22 @@ const PORTAL_STYLES = `
 function portalStageStyle(stage){
   const m={'Lead':'background:#dbeafe;color:#1d4ed8','Contacted':'background:#ede9fe;color:#7c3aed','Quote Sent':'background:#fef9c3;color:#a16207','Scheduled':'background:#ffedd5;color:#ea580c','In Progress':'background:#d1fae5;color:#065f46','Archive':'background:#f3f4f6;color:#6b7280'};
   return m[stage]||'background:#f3f4f6;color:#6b7280';
+}
+
+function cpDateTime(dateStr,timeStr){
+  if(!dateStr) return '';
+  let out=dateStr;
+  try{ out=new Date(dateStr+'T12:00:00').toLocaleDateString('en-CA',{weekday:'short',year:'numeric',month:'short',day:'numeric'}); }catch(e){}
+  if(timeStr){
+    let t=timeStr;
+    try{
+      const [h,m]=timeStr.split(':').map(Number);
+      const d=new Date(); d.setHours(h,m||0,0,0);
+      t=d.toLocaleTimeString('en-CA',{hour:'numeric',minute:'2-digit'});
+    }catch(e){}
+    out+=` at ${t}`;
+  }
+  return out;
 }
 
 function portalStageObj(stage){
@@ -5664,6 +5685,20 @@ body{font-family:'Montserrat',Georgia,sans-serif;background:#fff;color:#1a1714;p
     docSigCanvasRef.current=null;
   };
 
+  // Download a document as a self-contained HTML file the client can save / print to PDF.
+  const downloadDoc = (d, key, label)=>{
+    const raw = key==='contract_html' && d.contract_signed_html ? d.contract_signed_html : d[key];
+    if(!raw) return;
+    const wrapped = wrapDocHtml(raw);
+    const blob = new Blob([wrapped],{type:'text/html'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${(d.dealName||'Project').replace(/[^\w\- ]+/g,'').trim()} - ${label}.html`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),4000);
+  };
+
   // Put the signature pad inside the document's own "Client Signature" box (the blob-URL iframe
   // is same-origin, so we can reach into it). Older contracts without the box fall back to the
   // signature pad in the panel below the document.
@@ -5803,7 +5838,10 @@ body{font-family:'Montserrat',Georgia,sans-serif;background:#fff;color:#1a1714;p
                 {canSign&&<span style={{fontSize:10,fontWeight:700,color:'#C4922A',background:'#fff8ee',border:'1px solid #C4922A',padding:'1px 7px',borderRadius:20,marginLeft:6}}>Sign</span>}
                 {isSigned&&<span style={{fontSize:11,color:'#16a34a',fontWeight:600,marginLeft:6}}>{'✅'} Signed {signedDate}</span>}
               </span>
-              <span style={{fontSize:11,color:'#7a6e65',fontWeight:600}}>Open {'↗'}</span>
+              <span className="cp-doc-actions">
+                <button className="cp-doc-dl" onClick={e=>{e.stopPropagation();downloadDoc(d,doc.key,doc.label);}} title={`Download ${doc.label}`}>{'⬇'} Download</button>
+                <span style={{fontSize:11,color:'#7a6e65',fontWeight:600}}>Open {'↗'}</span>
+              </span>
             </div>
           );
         })}
@@ -5845,6 +5883,12 @@ body{font-family:'Montserrat',Georgia,sans-serif;background:#fff;color:#1a1714;p
           <div className="cp-stage-pill" style={stObj}>{d.stage||'Lead'}</div>
           <div className="cp-name">{d.dealName||'Project'}</div>
           {d.address&&<div className="cp-addr">{'\u{1F4CD}'} {d.address}</div>}
+          {(d.startDate||d.endDate)&&(
+            <div className="cp-sched">
+              {d.startDate&&<div>{'\u{1F4C5}'} <strong>Start:</strong> {cpDateTime(d.startDate,d.startTime)}</div>}
+              {d.endDate&&<div>{'\u{1F3C1}'} <strong>End:</strong> {cpDateTime(d.endDate,d.endTime)}</div>}
+            </div>
+          )}
           {d.value&&<div className="cp-val">${parseFloat(d.value).toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>}
           {!past&&renderRooms(d.rooms)}
           {!past&&(

@@ -3779,7 +3779,7 @@ function MasterEstimate(){
       name:contact?.fullName||contact?.full_name||[contact?.first_name,contact?.last_name].filter(Boolean).join(' ')||'',
       email:contact?.email||'',
       phone:contact?.phone||'',
-      address:contact?.address||deal.address||'',
+      address:deal.address||'',
     });
   };
 

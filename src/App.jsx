@@ -27,6 +27,7 @@ import {
   onSupaStatus, setSupaStatus, checkSupaConnection,
 } from "./lib/supabase";
 import { DB, api, bootstrapDB } from "./lib/api";
+import { analyzeReceipt } from "./lib/receipt";
 import {
   GCAL_CLIENT_ID, gcalGetToken, gcalSetToken, gcalClearToken, gcalSignIn, gcalFetchEvents,
   gcalCreateEvent, gcalCreateProjectEvent, gcalDeleteEvent,
@@ -4972,6 +4973,39 @@ function Bookkeeping({showToast}){
   const [editing,setEditing]=useState(null);
   const [recurringDlg,setRecurringDlg]=useState(null); // {action,count,apply} for recurring edit/delete choice
   const [loading,setLoading]=useState(true);
+  const [scanning,setScanning]=useState(false);
+  const receiptInputRef=useRef(null);
+
+  const handleReceiptCapture=async(e)=>{
+    const file=e.target.files&&e.target.files[0];
+    if(e.target)e.target.value=''; // allow re-selecting the same photo
+    if(!file)return;
+    setScanning(true);
+    try{
+      const dataUrl=await new Promise((res,rej)=>{
+        const r=new FileReader();
+        r.onload=()=>res(r.result); r.onerror=rej;
+        r.readAsDataURL(file);
+      });
+      const result=await analyzeReceipt(dataUrl);
+      if(!result||(!result.vendor&&!result.date&&result.amount===''&&result.amount!==0)){
+        showToast?.('Could not read the receipt — enter details manually');
+      }else{
+        setForm(f=>({
+          ...f,
+          type:'expense',
+          amount:(result.amount!==''&&result.amount!=null)?String(result.amount):f.amount,
+          date:result.date||f.date,
+          vendor:result.vendor||f.vendor,
+        }));
+        showToast?.('Receipt scanned');
+      }
+    }catch(err){
+      showToast?.('Receipt scan failed');
+    }finally{
+      setScanning(false);
+    }
+  };
 
   useEffect(()=>{
     (async()=>{
@@ -5307,7 +5341,17 @@ function Bookkeeping({showToast}){
 
         {/* Add / Edit form */}
         <Card style={{padding:'14px 18px'}}>
-          <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',marginBottom:10}}>{editing?'Edit Entry':'Add Entry'}</p>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
+            <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)'}}>{editing?'Edit Entry':'Add Entry'}</p>
+            <input ref={receiptInputRef} type="file" accept="image/*" capture="environment" onChange={handleReceiptCapture} style={{display:'none'}}/>
+            <button onClick={()=>receiptInputRef.current&&receiptInputRef.current.click()} disabled={scanning} title="Scan receipt with camera"
+              style={{display:'flex',alignItems:'center',gap:5,padding:'5px 10px',border:'1px solid var(--border)',borderRadius:6,background:'var(--card)',color:'var(--fg)',fontSize:11,fontWeight:600,cursor:scanning?'wait':'pointer',opacity:scanning?0.6:1}}>
+              {scanning
+                ?<><span style={{display:'inline-block',width:12,height:12,border:'2px solid var(--muted)',borderTopColor:'var(--primary)',borderRadius:'50%',animation:'spin 0.7s linear infinite'}}/>Scanning…</>
+                :<><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Scan</>
+              }
+            </button>
+          </div>
           <div style={{display:'flex',flexDirection:'column',gap:8}}>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
               <input type="date" value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))} style={inp}/>

@@ -25,6 +25,7 @@ export const STYLE = `
   .dash-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   .bk-grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; }
   .bk-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
   @media (max-width:768px) {
     .est-grid-2 { grid-template-columns:1fr; }
     .dash-row { grid-template-columns:1fr; }

@@ -5810,13 +5810,10 @@ function ClientPortal({session}){
       if(installment!=null) body.installment = installment;
       const res = await functionFetch('create-checkout-session', body);
       if(!res||!res.url){ showToast('Could not start payment. Please try again.'); setPayingDeal(null); return; }
-      const stripe = await loadStripe();
-      if(stripe && res.id){
-        const { error } = await stripe.redirectToCheckout({ sessionId: res.id });
-        if(error){ window.location.href = res.url; }
-      }else{
-        window.location.href = res.url;
-      }
+      // Navigate straight to the Stripe-hosted Checkout page. This works in both
+      // test and live mode and doesn't depend on the publishable key matching the
+      // session's mode (redirectToCheckout would reject a test-pk / live-session mismatch).
+      window.location.href = res.url;
     }catch(e){
       const m=e.message||'';
       showToast(m.includes('not configured')?'Payments are not set up yet.'

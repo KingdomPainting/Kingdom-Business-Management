@@ -22,7 +22,7 @@ import {
 } from "./lib/constants";
 import {
   SUPA_URL, SUPA_KEY, ADMIN_EMAIL, DEMO_EMAIL, isDemo, _session,
-  onAuthChange, setSession, supaHeaders, supaFetch,
+  onAuthChange, setSession, supaHeaders, supaFetch, functionFetch,
   signIn, signUp, signOut, refreshSession,
   onSupaStatus, setSupaStatus, checkSupaConnection,
 } from "./lib/supabase";
@@ -5743,7 +5743,7 @@ function ClientPortal({session}){
   const payProject = async(deal)=>{
     setPayingDeal(deal.id);
     try{
-      const res = await supaFetch('/functions/v1/create-checkout-session','POST',{
+      const res = await functionFetch('create-checkout-session',{
         deal_id: deal.id,
         return_url: window.location.origin+window.location.pathname,
       });
@@ -5756,7 +5756,10 @@ function ClientPortal({session}){
         window.location.href = res.url;
       }
     }catch(e){
-      showToast((e.message||'').includes('not configured')?'Payments are not set up yet.':'Could not start payment. Please try again.');
+      const m=e.message||'';
+      showToast(m.includes('not configured')?'Payments are not set up yet.'
+        :m.includes('no balance')?'This project has no balance due.'
+        :'Could not start payment. Please try again.');
       setPayingDeal(null);
     }
   };

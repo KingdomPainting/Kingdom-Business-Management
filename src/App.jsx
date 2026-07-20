@@ -5574,10 +5574,16 @@ const PORTAL_STYLES = `
   .cp-prog-fill{height:100%;background:#C4922A;border-radius:9px}
   .cp-pay{border-top:1px solid #ede9df;padding:16px 20px;background:#fffdf8}
   .cp-pay-head{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#C4922A;margin-bottom:12px}
-  .cp-pay-sched{display:flex;flex-direction:column;gap:6px;margin-bottom:12px;padding-bottom:12px;border-bottom:1px dashed #ede0c8}
-  .cp-pay-sched-row{display:flex;align-items:center;justify-content:space-between;font-size:13px;color:#3a3530}
+  .cp-pay-sched{display:flex;flex-direction:column;gap:8px;margin-bottom:12px;padding-bottom:12px;border-bottom:1px dashed #ede0c8}
+  .cp-pay-sched-row{display:flex;align-items:center;justify-content:space-between;font-size:13px;color:#3a3530;gap:10px}
+  .cp-pay-sched-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cp-pay-sched-right{display:flex;align-items:center;gap:10px;flex-shrink:0}
   .cp-pay-sched-amt{font-weight:600;color:#1a1714}
   .cp-pay-sched-paid{font-size:11px;font-weight:700;color:#16a34a}
+  .cp-pay-sched-upcoming{font-size:11px;font-weight:600;color:#9ca3af}
+  .cp-pay-inst-btn{background:#C4922A;color:#fff;border:none;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;padding:5px 16px;border-radius:6px;transition:background .15s}
+  .cp-pay-inst-btn:hover{background:#b07e20}
+  .cp-pay-inst-btn:disabled{opacity:.6;cursor:wait}
   .cp-pay-rows{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
   .cp-pay-row{display:flex;align-items:center;justify-content:space-between;font-size:13px;color:#3a3530}
   .cp-pay-row.cp-pay-due{border-top:1px solid #ede0c8;padding-top:8px;margin-top:2px;font-weight:700;color:#1a1714}
@@ -5796,13 +5802,13 @@ function ClientPortal({session}){
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[]);
 
-  const payProject = async(deal)=>{
-    setPayingDeal(deal.id);
+  const payProject = async(deal, installment=null)=>{
+    const key = installment==null ? deal.id : `${deal.id}:${installment}`;
+    setPayingDeal(key);
     try{
-      const res = await functionFetch('create-checkout-session',{
-        deal_id: deal.id,
-        return_url: window.location.origin+window.location.pathname,
-      });
+      const body = { deal_id: deal.id, return_url: window.location.origin+window.location.pathname };
+      if(installment!=null) body.installment = installment;
+      const res = await functionFetch('create-checkout-session', body);
       if(!res||!res.url){ showToast('Could not start payment. Please try again.'); setPayingDeal(null); return; }
       const stripe = await loadStripe();
       if(stripe && res.id){
@@ -5815,6 +5821,8 @@ function ClientPortal({session}){
       const m=e.message||'';
       showToast(m.includes('not configured')?'Payments are not set up yet.'
         :m.includes('no balance')?'This project has no balance due.'
+        :m.includes('already been made')?'This payment has already been made.'
+        :m.includes('earlier payment')?'Please pay the earlier payment first.'
         :'Could not start payment. Please try again.');
       setPayingDeal(null);
     }
@@ -6081,17 +6089,28 @@ body{font-family:'Montserrat',Georgia,sans-serif;background:#fff;color:#1a1714;p
               <span>Payment</span>
             </div>
             {schedule.length>1&&(()=>{
-              let covered=dealPaid;
+              const prefix=[]; let run=0;
+              schedule.forEach(b=>{ run+=parseFloat(b.amount)||0; prefix.push(run); });
+              let nextDue=schedule.length;
+              for(let i=0;i<schedule.length;i++){ if(prefix[i]>dealPaid+0.005){ nextDue=i; break; } }
               return (
                 <div className="cp-pay-sched">
                   {schedule.map((b,i)=>{
                     const amt=parseFloat(b.amount)||0;
-                    const isPaid=covered>=amt-0.005;
-                    covered-=amt;
+                    const isPaid=i<nextDue;
+                    const isNext=i===nextDue;
+                    const key=`${d.id}:${i}`;
                     return (
                       <div key={i} className="cp-pay-sched-row">
-                        <span>{b.label||`Payment ${i+1}`}</span>
-                        <span className="cp-pay-sched-amt">{fmtMoney(amt)}{isPaid&&<span className="cp-pay-sched-paid">{' '}✅ Paid</span>}</span>
+                        <span className="cp-pay-sched-label">{b.label||`Payment ${i+1}`}</span>
+                        <span className="cp-pay-sched-right">
+                          <span className="cp-pay-sched-amt">{fmtMoney(amt)}</span>
+                          {isPaid
+                            ? <span className="cp-pay-sched-paid">{'✅'} Paid</span>
+                            : isNext
+                              ? <button className="cp-pay-inst-btn" disabled={payingDeal===key} onClick={()=>payProject(d,i)}>{payingDeal===key?'…':'Pay'}</button>
+                              : <span className="cp-pay-sched-upcoming">Upcoming</span>}
+                        </span>
                       </div>
                     );
                   })}
@@ -6103,11 +6122,13 @@ body{font-family:'Montserrat',Georgia,sans-serif;background:#fff;color:#1a1714;p
               {dealPaid>0&&<div className="cp-pay-row"><span>Paid</span><span>{fmtMoney(dealPaid)}</span></div>}
               <div className="cp-pay-row cp-pay-due"><span>Balance due</span><span>{fmtMoney(balance)}</span></div>
             </div>
-            {balance>0
-              ? <button className="cp-pay-btn" disabled={payingDeal===d.id} onClick={()=>payProject(d)}>
-                  {payingDeal===d.id?'Redirecting…':`Pay ${fmtMoney(balance)}`}
-                </button>
-              : <div className="cp-pay-done">{'✅'} Paid in full</div>
+            {balance<=0
+              ? <div className="cp-pay-done">{'✅'} Paid in full</div>
+              : schedule.length>1
+                ? null
+                : <button className="cp-pay-btn" disabled={payingDeal===d.id} onClick={()=>payProject(d)}>
+                    {payingDeal===d.id?'Redirecting…':`Pay ${fmtMoney(balance)}`}
+                  </button>
             }
             <div className="cp-pay-secure">{'\u{1F512}'} Secure payment powered by Stripe</div>
           </div>

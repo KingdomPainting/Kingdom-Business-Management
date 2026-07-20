@@ -63,6 +63,32 @@ export async function supaFetch(path, method='GET', body=null){
   return text ? JSON.parse(text) : null;
 }
 
+// Call a Supabase Edge Function. Unlike supaFetch this omits the `Prefer`
+// header, so the function's CORS preflight only needs to allow the standard
+// auth/apikey/content-type headers. Refreshes an expired JWT once and retries.
+export async function functionFetch(name, body=null){
+  const doFetch = ()=>{
+    const token = _session?.access_token || SUPA_KEY;
+    return fetch(`${SUPA_URL}/functions/v1/${name}`, {
+      method: 'POST',
+      headers: { 'apikey': SUPA_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  };
+  let res = await doFetch();
+  if(res.status===401){
+    const fresh = await refreshOnce();
+    if(fresh) res = await doFetch();
+  }
+  const text = await res.text();
+  let data = null;
+  try{ data = text ? JSON.parse(text) : null; }catch{ data = { raw:text }; }
+  if(!res.ok){
+    throw new Error(data?.error || `Function ${name}: ${res.status}`);
+  }
+  return data;
+}
+
 // ─── Auth helpers ─────────────────────────────────────────────────────────────
 export async function signIn(email, password){
   // Demo account — fully client-side, never touches the database

@@ -22,7 +22,7 @@ import {
 } from "./lib/constants";
 import {
   SUPA_URL, SUPA_KEY, ADMIN_EMAIL, DEMO_EMAIL, isDemo, _session,
-  onAuthChange, setSession, supaHeaders, supaFetch,
+  onAuthChange, setSession, supaHeaders, supaFetch, functionFetch,
   signIn, signUp, signOut, refreshSession,
   onSupaStatus, setSupaStatus, checkSupaConnection,
 } from "./lib/supabase";
@@ -370,7 +370,8 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead',onAdd
   const blank={dealName:'',value:'',description:'',contactId:'',referralContactId:'',labels:[],leadSource:'',
     startDate:'',startTime:'09:00',endDate:'',endTime:'17:00',
     scheduleDays:[], // [{date, startTime, endTime, calEventId}]
-    address:'',notes:'',rooms:[],progress:0,contactFreeText:'',quote_html:'',contract_html:'',change_order_html:'',invoice_html:'',contract_signed_html:'',contract_signed_at:'',quote_date:'',drive_files:[]};
+    address:'',notes:'',rooms:[],progress:0,contactFreeText:'',quote_html:'',contract_html:'',change_order_html:'',invoice_html:'',contract_signed_html:'',contract_signed_at:'',quote_date:'',drive_files:[],
+    payment_schedule:[{label:'Full Payment',amount:''}]};
   const [f,setF]=useState(blank);
   const [syncing,setSyncing]=useState(false);
 
@@ -386,7 +387,10 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead',onAdd
       quote_html:deal.quote_html||'',contract_html:deal.contract_html||'',change_order_html:deal.change_order_html||'',
         drive_files:deal.drive_files||[],
       invoice_html:deal.invoice_html||'',contract_signed_html:deal.contract_signed_html||'',contract_signed_at:deal.contract_signed_at||'',
-      quote_date:deal.quote_date||''
+      quote_date:deal.quote_date||'',
+      payment_schedule:(Array.isArray(deal.payment_schedule)&&deal.payment_schedule.length)
+        ?deal.payment_schedule.map(b=>({label:b.label||'',amount:(b.amount??'').toString()}))
+        :[{label:'Full Payment',amount:deal.value?.toString()||''}]
     });
     else setF(blank);
   },[deal,open]);
@@ -423,6 +427,18 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead',onAdd
   const updateDayTime=(date,key,val)=>setF(x=>({...x,scheduleDays:x.scheduleDays.map(d=>d.date===date?{...d,[key]:val}:d)}));
 
   const toggleLabel=l=>setF(x=>({...x,labels:x.labels.includes(l)?x.labels.filter(v=>v!==l):[...x.labels,l]}));
+
+  // Payment schedule (up to 4 boxes; amounts must sum to the project value). When
+  // there's a single box it tracks the project value, so editing the value keeps
+  // the "one box = total" state in sync.
+  const handleValue=v=>setF(x=>{
+    const ps=(x.payment_schedule&&x.payment_schedule.length)?x.payment_schedule:[{label:'Full Payment',amount:''}];
+    const np=ps.length===1?[{...ps[0],amount:v}]:ps;
+    return {...x,value:v,payment_schedule:np};
+  });
+  const updateBox=(i,key,val)=>setF(x=>{const ps=[...x.payment_schedule];ps[i]={...ps[i],[key]:val};return {...x,payment_schedule:ps};});
+  const addBox=()=>setF(x=>x.payment_schedule.length>=4?x:{...x,payment_schedule:[...x.payment_schedule,{label:`Payment ${x.payment_schedule.length+1}`,amount:''}]});
+  const removeBox=i=>setF(x=>x.payment_schedule.length<=1?x:{...x,payment_schedule:x.payment_schedule.filter((_,j)=>j!==i)});
 
   const save=async()=>{
     setSyncing(true);
@@ -488,6 +504,7 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead',onAdd
       endDate:f.endDate||undefined,endTime:f.endTime||undefined,
       scheduleDays:finalDays,address:f.address||null,notes:f.notes||null,
       rooms:f.rooms||undefined,progress:f.progress||0,
+      payment_schedule:(()=>{const ps=f.payment_schedule.filter(b=>String(b.amount).trim()!=='').map(b=>({label:b.label||'',amount:parseFloat(b.amount)||0}));return ps.length?ps:null;})(),
       quote_date:f.quote_date||undefined,
       quote_html:f.quote_html||null,
       contract_html:f.contract_html||null,
@@ -536,6 +553,10 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead',onAdd
   ];
   const inp={background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%'};
 
+  const _projTotal=parseFloat(f.value)||0;
+  const _schedSum=f.payment_schedule.reduce((s,b)=>s+(parseFloat(b.amount)||0),0);
+  const paymentValid=!(_projTotal>0)||Math.abs(_schedSum-_projTotal)<0.005;
+
   return (
     <Modal open={open} onClose={onClose} title={deal?'Edit Project':'New Project'}>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
@@ -544,9 +565,40 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead',onAdd
           <ContactCombobox contacts={contacts} value={f.contactId} freeText={f.contactFreeText||''} onChange={(id,txt)=>setF(x=>({...x,contactId:id,contactFreeText:txt||''}))} onAddContact={onAddContact} /></div>
       </div>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
-        <div><Label>Value ($)</Label><input type='number' value={f.value} onChange={e=>setF(x=>({...x,value:e.target.value}))} placeholder='0' style={inp}/></div>
+        <div><Label>Value ($)</Label><input type='number' value={f.value} onChange={e=>handleValue(e.target.value)} placeholder='0' style={inp}/></div>
         <div><Label>Quote Date</Label><input type='date' value={f.quote_date||''} onChange={e=>setF(x=>({...x,quote_date:e.target.value}))} style={inp}/></div>
       </div>
+      {/* Payment schedule — shown to the client on their portal. Up to 4 boxes; must sum to Value. */}
+      {(()=>{
+        const projTotal=parseFloat(f.value)||0;
+        const schedSum=f.payment_schedule.reduce((s,b)=>s+(parseFloat(b.amount)||0),0);
+        const matches=Math.abs(schedSum-projTotal)<0.005;
+        const fmt=n=>'$'+n.toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2});
+        return (
+          <div style={{marginBottom:12,padding:12,background:'rgba(212,169,106,0.08)',borderRadius:8,border:'1px solid rgba(212,169,106,0.2)'}}>
+            <p style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',marginBottom:10}}>Payment Schedule <span style={{fontWeight:400,textTransform:'none',letterSpacing:0}}>· shown on client portal</span></p>
+            <div style={{display:'flex',flexDirection:'column',gap:8}}>
+              {f.payment_schedule.map((b,i)=>(
+                <div key={i} style={{display:'flex',gap:8,alignItems:'center'}}>
+                  <input value={b.label} onChange={e=>updateBox(i,'label',e.target.value)} placeholder={`Payment ${i+1}`} style={{...inp,flex:'1 1 auto'}}/>
+                  <input type='number' value={b.amount} onChange={e=>updateBox(i,'amount',e.target.value)} placeholder='0.00' min='0' step='0.01' style={{...inp,width:120,textAlign:'right'}}/>
+                  {f.payment_schedule.length>1
+                    ? <button type='button' onClick={()=>removeBox(i)} title='Remove' style={{flexShrink:0,width:28,height:28,borderRadius:6,border:'1px solid var(--border)',background:'var(--card)',color:'var(--muted-fg)',cursor:'pointer',fontSize:14,lineHeight:1}}>×</button>
+                    : <span style={{width:28,flexShrink:0}}/>}
+                </div>
+              ))}
+            </div>
+            {f.payment_schedule.length<4&&(
+              <button type='button' onClick={addBox} style={{marginTop:8,display:'flex',alignItems:'center',gap:5,padding:'5px 12px',border:'1px dashed var(--primary)',borderRadius:6,background:'transparent',color:'var(--primary)',fontSize:12,fontWeight:600,cursor:'pointer'}}>+ Add payment</button>
+            )}
+            <div style={{marginTop:10,display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:12}}>
+              <span style={{color:'var(--muted-fg)'}}>Total of payments</span>
+              <span style={{fontWeight:700,color:matches?'#16a34a':'var(--destructive)'}}>{fmt(schedSum)} / {fmt(projTotal)}</span>
+            </div>
+            {!matches&&projTotal>0&&<p style={{marginTop:4,fontSize:11,color:'var(--destructive)'}}>Payments must add up to the project value ({fmt(projTotal)}).</p>}
+          </div>
+        );
+      })()}
       <div style={{marginBottom:12}}><Label>Address (for calendar events)</Label><input value={f.address} onChange={e=>setF(x=>({...x,address:e.target.value}))} placeholder='Job site address' style={inp}/></div>
       {/* Schedule — start row + end row each with date / start time / end time */}
       <div style={{marginBottom:12,padding:12,background:'rgba(212,169,106,0.08)',borderRadius:8,border:'1px solid rgba(212,169,106,0.2)'}}>
@@ -703,7 +755,7 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead',onAdd
       </div>
       <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
         <button onClick={onClose} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 14px',border:'1px solid var(--border)',borderRadius:6,background:'var(--card)',color:'var(--fg)',fontSize:12,fontWeight:500,cursor:'pointer'}}>Cancel</button>
-        <button onClick={save} disabled={!f.dealName||syncing} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 14px',border:'1px solid var(--primary)',borderRadius:6,background:'var(--primary)',color:'#fff',fontSize:12,fontWeight:600,cursor:(!f.dealName||syncing)?'not-allowed':'pointer',opacity:(!f.dealName||syncing)?0.6:1}}>{syncing?'Syncing…':'Save Project'}</button>
+        <button onClick={save} disabled={!f.dealName||syncing||!paymentValid} title={!paymentValid?'Payments must add up to the project value':''} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 14px',border:'1px solid var(--primary)',borderRadius:6,background:'var(--primary)',color:'#fff',fontSize:12,fontWeight:600,cursor:(!f.dealName||syncing||!paymentValid)?'not-allowed':'pointer',opacity:(!f.dealName||syncing||!paymentValid)?0.6:1}}>{syncing?'Syncing…':'Save Project'}</button>
       </div>
     </Modal>
   );
@@ -5522,6 +5574,16 @@ const PORTAL_STYLES = `
   .cp-prog-fill{height:100%;background:#C4922A;border-radius:9px}
   .cp-pay{border-top:1px solid #ede9df;padding:16px 20px;background:#fffdf8}
   .cp-pay-head{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#C4922A;margin-bottom:12px}
+  .cp-pay-sched{display:flex;flex-direction:column;gap:8px;margin-bottom:12px;padding-bottom:12px;border-bottom:1px dashed #ede0c8}
+  .cp-pay-sched-row{display:flex;align-items:center;justify-content:space-between;font-size:13px;color:#3a3530;gap:10px}
+  .cp-pay-sched-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cp-pay-sched-right{display:flex;align-items:center;gap:10px;flex-shrink:0}
+  .cp-pay-sched-amt{font-weight:600;color:#1a1714}
+  .cp-pay-sched-paid{font-size:11px;font-weight:700;color:#16a34a}
+  .cp-pay-sched-upcoming{font-size:11px;font-weight:600;color:#9ca3af}
+  .cp-pay-inst-btn{background:#C4922A;color:#fff;border:none;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;padding:5px 16px;border-radius:6px;transition:background .15s}
+  .cp-pay-inst-btn:hover{background:#b07e20}
+  .cp-pay-inst-btn:disabled{opacity:.6;cursor:wait}
   .cp-pay-rows{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
   .cp-pay-row{display:flex;align-items:center;justify-content:space-between;font-size:13px;color:#3a3530}
   .cp-pay-row.cp-pay-due{border-top:1px solid #ede0c8;padding-top:8px;margin-top:2px;font-weight:700;color:#1a1714}
@@ -5740,13 +5802,13 @@ function ClientPortal({session}){
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[]);
 
-  const payProject = async(deal)=>{
-    setPayingDeal(deal.id);
+  const payProject = async(deal, installment=null)=>{
+    const key = installment==null ? deal.id : `${deal.id}:${installment}`;
+    setPayingDeal(key);
     try{
-      const res = await supaFetch('/functions/v1/create-checkout-session','POST',{
-        deal_id: deal.id,
-        return_url: window.location.origin+window.location.pathname,
-      });
+      const body = { deal_id: deal.id, return_url: window.location.origin+window.location.pathname };
+      if(installment!=null) body.installment = installment;
+      const res = await functionFetch('create-checkout-session', body);
       if(!res||!res.url){ showToast('Could not start payment. Please try again.'); setPayingDeal(null); return; }
       const stripe = await loadStripe();
       if(stripe && res.id){
@@ -5756,7 +5818,12 @@ function ClientPortal({session}){
         window.location.href = res.url;
       }
     }catch(e){
-      showToast((e.message||'').includes('not configured')?'Payments are not set up yet.':'Could not start payment. Please try again.');
+      const m=e.message||'';
+      showToast(m.includes('not configured')?'Payments are not set up yet.'
+        :m.includes('no balance')?'This project has no balance due.'
+        :m.includes('already been made')?'This payment has already been made.'
+        :m.includes('earlier payment')?'Please pay the earlier payment first.'
+        :'Could not start payment. Please try again.');
       setPayingDeal(null);
     }
   };
@@ -5977,6 +6044,7 @@ body{font-family:'Montserrat',Georgia,sans-serif;background:#fff;color:#1a1714;p
     const dealPaid = parseFloat(d.invoicePaid)||0;
     const balance = Math.max(0, dealValue - dealPaid);
     const fmtMoney = n=>'$'+n.toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2});
+    const schedule = (Array.isArray(d.payment_schedule)?d.payment_schedule:[]).filter(b=>(parseFloat(b.amount)||0)>0);
     return (
       <div key={d.id} className="cp-card" style={{position:'relative'}}>
         <div className="cp-card-head">
@@ -6020,16 +6088,47 @@ body{font-family:'Montserrat',Georgia,sans-serif;background:#fff;color:#1a1714;p
 
               <span>Payment</span>
             </div>
+            {schedule.length>1&&(()=>{
+              const prefix=[]; let run=0;
+              schedule.forEach(b=>{ run+=parseFloat(b.amount)||0; prefix.push(run); });
+              let nextDue=schedule.length;
+              for(let i=0;i<schedule.length;i++){ if(prefix[i]>dealPaid+0.005){ nextDue=i; break; } }
+              return (
+                <div className="cp-pay-sched">
+                  {schedule.map((b,i)=>{
+                    const amt=parseFloat(b.amount)||0;
+                    const isPaid=i<nextDue;
+                    const isNext=i===nextDue;
+                    const key=`${d.id}:${i}`;
+                    return (
+                      <div key={i} className="cp-pay-sched-row">
+                        <span className="cp-pay-sched-label">{b.label||`Payment ${i+1}`}</span>
+                        <span className="cp-pay-sched-right">
+                          <span className="cp-pay-sched-amt">{fmtMoney(amt)}</span>
+                          {isPaid
+                            ? <span className="cp-pay-sched-paid">{'✅'} Paid</span>
+                            : isNext
+                              ? <button className="cp-pay-inst-btn" disabled={payingDeal===key} onClick={()=>payProject(d,i)}>{payingDeal===key?'…':'Pay'}</button>
+                              : <span className="cp-pay-sched-upcoming">Upcoming</span>}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
             <div className="cp-pay-rows">
               <div className="cp-pay-row"><span>Project total</span><span>{fmtMoney(dealValue)}</span></div>
               {dealPaid>0&&<div className="cp-pay-row"><span>Paid</span><span>{fmtMoney(dealPaid)}</span></div>}
               <div className="cp-pay-row cp-pay-due"><span>Balance due</span><span>{fmtMoney(balance)}</span></div>
             </div>
-            {balance>0
-              ? <button className="cp-pay-btn" disabled={payingDeal===d.id} onClick={()=>payProject(d)}>
-                  {payingDeal===d.id?'Redirecting…':`Pay ${fmtMoney(balance)}`}
-                </button>
-              : <div className="cp-pay-done">{'✅'} Paid in full</div>
+            {balance<=0
+              ? <div className="cp-pay-done">{'✅'} Paid in full</div>
+              : schedule.length>1
+                ? null
+                : <button className="cp-pay-btn" disabled={payingDeal===d.id} onClick={()=>payProject(d)}>
+                    {payingDeal===d.id?'Redirecting…':`Pay ${fmtMoney(balance)}`}
+                  </button>
             }
             <div className="cp-pay-secure">{'\u{1F512}'} Secure payment powered by Stripe</div>
           </div>

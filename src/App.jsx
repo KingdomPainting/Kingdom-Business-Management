@@ -5823,6 +5823,7 @@ function ClientPortal({session}){
         :m.includes('no balance')?'This project has no balance due.'
         :m.includes('already been made')?'This payment has already been made.'
         :m.includes('earlier payment')?'Please pay the earlier payment first.'
+        :m?`Payment error: ${m}`
         :'Could not start payment. Please try again.');
       setPayingDeal(null);
     }

@@ -5520,6 +5520,17 @@ const PORTAL_STYLES = `
   .cp-prog-label{font-size:11px;color:#7a6e65;margin-bottom:4px}
   .cp-prog-bar{height:6px;background:#e5e1d8;border-radius:9px;overflow:hidden}
   .cp-prog-fill{height:100%;background:#C4922A;border-radius:9px}
+  .cp-pay{border-top:1px solid #ede9df;padding:16px 20px;background:#fffdf8}
+  .cp-pay-head{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#C4922A;margin-bottom:12px}
+  .cp-pay-rows{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+  .cp-pay-row{display:flex;align-items:center;justify-content:space-between;font-size:13px;color:#3a3530}
+  .cp-pay-row.cp-pay-due{border-top:1px solid #ede0c8;padding-top:8px;margin-top:2px;font-weight:700;color:#1a1714}
+  .cp-pay-row.cp-pay-due span:last-child{color:#C4922A;font-size:15px}
+  .cp-pay-btn{width:100%;background:#C4922A;color:#fff;border:none;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;padding:12px;border-radius:8px;transition:background .15s}
+  .cp-pay-btn:hover{background:#b07e20}
+  .cp-pay-btn:disabled{opacity:.6;cursor:wait}
+  .cp-pay-done{text-align:center;font-size:13px;font-weight:700;color:#16a34a;padding:10px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px}
+  .cp-pay-secure{text-align:center;font-size:10px;color:#9ca3af;margin-top:8px}
   .cp-docs{border-top:1px solid #ede9df;padding:14px 16px;background:#faf8f4}
   .cp-doc-row{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:#fff;border:1px solid #e5e1d8;border-radius:8px;margin-bottom:8px;cursor:pointer;transition:background .12s,border-color .12s}
   .cp-doc-row:hover{background:#f5f3ef;border-color:#C4922A}
@@ -5584,6 +5595,22 @@ function portalStageObj(stage){
   return parts;
 }
 
+// ─── Stripe (client portal payments) ─────────────────────────────────────────
+const STRIPE_PUBLISHABLE_KEY='pk_test_51Tv5z7HHwsrSnMax0tfq6MuNQTItbSYLRc7HshmMt61p2JSu7f5AMOyOHiSg04eCX9kxBrwSdygvP3crHuoi6FPf00UObSN3jB';
+let _stripePromise=null;
+function loadStripe(){
+  if(_stripePromise) return _stripePromise;
+  _stripePromise=new Promise((resolve)=>{
+    if(window.Stripe){ resolve(window.Stripe(STRIPE_PUBLISHABLE_KEY)); return; }
+    const s=document.createElement('script');
+    s.src='https://js.stripe.com/v3';
+    s.onload=()=>resolve(window.Stripe?window.Stripe(STRIPE_PUBLISHABLE_KEY):null);
+    s.onerror=()=>resolve(null);
+    document.head.appendChild(s);
+  });
+  return _stripePromise;
+}
+
 function ClientPortal({session}){
   const email = session.user?.email||'';
   const [deals, setDeals] = useState([]);
@@ -5597,6 +5624,7 @@ function ClientPortal({session}){
   const [shakingBell, setShakingBell] = useState(null);
   const [bellPopup, setBellPopup] = useState(null);
   const [cameraDeal, setCameraDeal] = useState(null);
+  const [payingDeal, setPayingDeal] = useState(null);
   const [bmColours, setBmColours] = useState(DEFAULT_COLOURS);
   const [swColours, setSwColours] = useState(DEFAULT_SW_COLOURS);
   const sigCanvasRef = useRef(null);
@@ -5692,6 +5720,45 @@ function ClientPortal({session}){
       setDeals(prev=>prev.map(d=>d.id===dealId?{...d,photos}:d));
       showToast('Photo saved');
     }catch(e){ showToast('Could not save photo'); }
+  };
+
+  // On return from Stripe Checkout, surface the result and refresh (the webhook
+  // records the payment to invoicepaid, so a reload reflects the new balance).
+  useEffect(()=>{
+    const params=new URLSearchParams(window.location.search);
+    const status=params.get('payment');
+    if(status==='success'){
+      showToast('Payment received — thank you!');
+      params.delete('payment');
+      window.history.replaceState({},'',window.location.pathname+(params.toString()?`?${params}`:''));
+      if(email) setTimeout(()=>loadProjects(true),1500);
+    }else if(status==='cancelled'){
+      showToast('Payment cancelled.');
+      params.delete('payment');
+      window.history.replaceState({},'',window.location.pathname+(params.toString()?`?${params}`:''));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[]);
+
+  const payProject = async(deal)=>{
+    setPayingDeal(deal.id);
+    try{
+      const res = await supaFetch('/functions/v1/create-checkout-session','POST',{
+        deal_id: deal.id,
+        return_url: window.location.origin+window.location.pathname,
+      });
+      if(!res||!res.url){ showToast('Could not start payment. Please try again.'); setPayingDeal(null); return; }
+      const stripe = await loadStripe();
+      if(stripe && res.id){
+        const { error } = await stripe.redirectToCheckout({ sessionId: res.id });
+        if(error){ window.location.href = res.url; }
+      }else{
+        window.location.href = res.url;
+      }
+    }catch(e){
+      showToast((e.message||'').includes('not configured')?'Payments are not set up yet.':'Could not start payment. Please try again.');
+      setPayingDeal(null);
+    }
   };
 
   const wrapDocHtml = (html)=>{
@@ -5906,6 +5973,10 @@ body{font-family:'Montserrat',Georgia,sans-serif;background:#fff;color:#1a1714;p
     const pct = Math.min(100,Math.max(0,d.progress||0));
     const hasDocs = d.quote_html||d.contract_html||d.change_order_html||d.invoice_html||(d.drive_files&&d.drive_files.length);
     const stObj = portalStageObj(d.stage);
+    const dealValue = parseFloat(d.value)||0;
+    const dealPaid = parseFloat(d.invoicePaid)||0;
+    const balance = Math.max(0, dealValue - dealPaid);
+    const fmtMoney = n=>'$'+n.toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2});
     return (
       <div key={d.id} className="cp-card" style={{position:'relative'}}>
         <div className="cp-card-head">
@@ -5942,6 +6013,27 @@ body{font-family:'Montserrat',Georgia,sans-serif;background:#fff;color:#1a1714;p
             </div>
           )}
         </div>
+        {dealValue>0&&(
+          <div className="cp-pay">
+            <div className="cp-pay-head">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C4922A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+
+              <span>Payment</span>
+            </div>
+            <div className="cp-pay-rows">
+              <div className="cp-pay-row"><span>Project total</span><span>{fmtMoney(dealValue)}</span></div>
+              {dealPaid>0&&<div className="cp-pay-row"><span>Paid</span><span>{fmtMoney(dealPaid)}</span></div>}
+              <div className="cp-pay-row cp-pay-due"><span>Balance due</span><span>{fmtMoney(balance)}</span></div>
+            </div>
+            {balance>0
+              ? <button className="cp-pay-btn" disabled={payingDeal===d.id} onClick={()=>payProject(d)}>
+                  {payingDeal===d.id?'Redirecting…':`Pay ${fmtMoney(balance)}`}
+                </button>
+              : <div className="cp-pay-done">{'✅'} Paid in full</div>
+            }
+            <div className="cp-pay-secure">{'\u{1F512}'} Secure payment powered by Stripe</div>
+          </div>
+        )}
         <div className="cp-docs">
           {hasDocs ? renderDocRows(d) : <p style={{fontSize:12,color:'#9ca3af',padding:'4px 0'}}>No documents yet.</p>}
         </div>

@@ -23,11 +23,38 @@ export function supaHeaders(){
   };
 }
 
+// De-dupe concurrent token refreshes: Supabase refresh tokens are single-use, so
+// several parallel 401s must share one refresh (portal polling fires many calls).
+let _refreshInFlight = null;
+function refreshOnce(){
+  const rt = _session?.refresh_token;
+  if(!rt || rt==='demo-refresh') return Promise.resolve(null);
+  if(!_refreshInFlight){
+    _refreshInFlight = refreshSession(rt).finally(()=>{ _refreshInFlight = null; });
+  }
+  return _refreshInFlight;
+}
+
 export async function supaFetch(path, method='GET', body=null){
   if(isDemo()) return demoFetch(path, method, body);
-  const opts = { method, headers: supaHeaders() };
-  if(body) opts.body = JSON.stringify(body);
-  const res = await fetch(SUPA_URL + path, opts);
+  const doFetch = ()=>{
+    const opts = { method, headers: supaHeaders() };
+    if(body) opts.body = JSON.stringify(body);
+    return fetch(SUPA_URL + path, opts);
+  };
+  let res = await doFetch();
+  // Access token (JWT) expired — refresh it once and retry the request.
+  if(res.status===401){
+    const fresh = await refreshOnce();
+    if(fresh){
+      res = await doFetch();
+    }else if(_session && _session.refresh_token && _session.refresh_token!=='demo-refresh'){
+      // Refresh token is dead too — end the session so the user is sent to login
+      // instead of looping on an unrecoverable error.
+      localStorage.removeItem('kp_session');
+      setSession(null);
+    }
+  }
   if(!res.ok){
     const err = await res.text();
     throw new Error(`Supabase ${method} ${path}: ${res.status} ${err.slice(0,120)}`);

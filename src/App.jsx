@@ -366,12 +366,22 @@ function DrivePickerBtn({onAttach}){
   );
 }
 
+// Default payment schedule mirrors the quote/contract terms: 50% deposit + 50%
+// on completion. Split by cents so the two halves always sum to the value exactly.
+function defaultPaymentSchedule(value){
+  const v=parseFloat(value)||0;
+  if(!v) return [{label:'Deposit (50%)',amount:''},{label:'Upon Completion (50%)',amount:''}];
+  const cents=Math.round(v*100);
+  const dep=Math.floor(cents/2), bal=cents-dep;
+  return [{label:'Deposit (50%)',amount:(dep/100).toFixed(2)},{label:'Upon Completion (50%)',amount:(bal/100).toFixed(2)}];
+}
+
 function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead',onAddContact}){
   const blank={dealName:'',value:'',description:'',contactId:'',referralContactId:'',labels:[],leadSource:'',
     startDate:'',startTime:'09:00',endDate:'',endTime:'17:00',
     scheduleDays:[], // [{date, startTime, endTime, calEventId}]
     address:'',notes:'',rooms:[],progress:0,contactFreeText:'',quote_html:'',contract_html:'',change_order_html:'',invoice_html:'',contract_signed_html:'',contract_signed_at:'',quote_date:'',drive_files:[],
-    payment_schedule:[{label:'Full Payment',amount:''}]};
+    payment_schedule:defaultPaymentSchedule(''),scheduleAuto:true};
   const [f,setF]=useState(blank);
   const [syncing,setSyncing]=useState(false);
 
@@ -390,7 +400,8 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead',onAdd
       quote_date:deal.quote_date||'',
       payment_schedule:(Array.isArray(deal.payment_schedule)&&deal.payment_schedule.length)
         ?deal.payment_schedule.map(b=>({label:b.label||'',amount:(b.amount??'').toString()}))
-        :[{label:'Full Payment',amount:deal.value?.toString()||''}]
+        :defaultPaymentSchedule(deal.value),
+      scheduleAuto:!(Array.isArray(deal.payment_schedule)&&deal.payment_schedule.length)
     });
     else setF(blank);
   },[deal,open]);
@@ -428,17 +439,16 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead',onAdd
 
   const toggleLabel=l=>setF(x=>({...x,labels:x.labels.includes(l)?x.labels.filter(v=>v!==l):[...x.labels,l]}));
 
-  // Payment schedule (up to 4 boxes; amounts must sum to the project value). When
-  // there's a single box it tracks the project value, so editing the value keeps
-  // the "one box = total" state in sync.
+  // Payment schedule (up to 4 boxes; amounts must sum to the project value).
+  // Defaults to the 50% deposit / 50% on-completion terms and re-splits as the
+  // value changes — until the user edits the schedule, after which it's left alone.
   const handleValue=v=>setF(x=>{
-    const ps=(x.payment_schedule&&x.payment_schedule.length)?x.payment_schedule:[{label:'Full Payment',amount:''}];
-    const np=ps.length===1?[{...ps[0],amount:v}]:ps;
-    return {...x,value:v,payment_schedule:np};
+    if(x.scheduleAuto) return {...x,value:v,payment_schedule:defaultPaymentSchedule(v)};
+    return {...x,value:v};
   });
-  const updateBox=(i,key,val)=>setF(x=>{const ps=[...x.payment_schedule];ps[i]={...ps[i],[key]:val};return {...x,payment_schedule:ps};});
-  const addBox=()=>setF(x=>x.payment_schedule.length>=4?x:{...x,payment_schedule:[...x.payment_schedule,{label:`Payment ${x.payment_schedule.length+1}`,amount:''}]});
-  const removeBox=i=>setF(x=>x.payment_schedule.length<=1?x:{...x,payment_schedule:x.payment_schedule.filter((_,j)=>j!==i)});
+  const updateBox=(i,key,val)=>setF(x=>{const ps=[...x.payment_schedule];ps[i]={...ps[i],[key]:val};return {...x,payment_schedule:ps,scheduleAuto:false};});
+  const addBox=()=>setF(x=>x.payment_schedule.length>=4?x:{...x,payment_schedule:[...x.payment_schedule,{label:`Payment ${x.payment_schedule.length+1}`,amount:''}],scheduleAuto:false});
+  const removeBox=i=>setF(x=>x.payment_schedule.length<=1?x:{...x,payment_schedule:x.payment_schedule.filter((_,j)=>j!==i),scheduleAuto:false});
 
   const save=async()=>{
     setSyncing(true);

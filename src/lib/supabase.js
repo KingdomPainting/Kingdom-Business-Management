@@ -170,6 +170,37 @@ export async function getMy2FA(){ try{ return await supaFetch('/rest/v1/rpc/get_
 export async function setMyPin(pin){ return supaFetch('/rest/v1/rpc/set_my_pin','POST',{ p_pin: pin }); }
 export async function setMy2FAEmail(){ return supaFetch('/rest/v1/rpc/set_my_2fa_email','POST',{}); }
 export async function disableMy2FA(){ return supaFetch('/rest/v1/rpc/disable_my_2fa','POST',{}); }
+export async function setMy2FATotp(factorId){ return supaFetch('/rest/v1/rpc/set_my_2fa_totp','POST',{ p_factor_id: factorId }); }
+
+// ─── Supabase native MFA (TOTP / authenticator app) ───────────────────────────
+// authFetch helper — hits a GoTrue endpoint with a bearer token (defaults to the
+// current session; the login gate passes the not-yet-committed AAL1 token).
+async function authFetch(path, body, token){
+  const t = token || _session?.access_token || SUPA_KEY;
+  const res = await fetch(`${SUPA_URL}/auth/v1${path}`, {
+    method: 'POST', headers: { 'apikey': SUPA_KEY, 'Authorization': `Bearer ${t}`, 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(data.error_description || data.msg || data.message || 'MFA request failed');
+  return data;
+}
+
+// Enroll a new TOTP factor (returns {id, totp:{qr_code, secret, uri}}).
+export async function mfaEnroll(){
+  return authFetch('/factors', { factor_type: 'totp', friendly_name: `Authenticator ${Date.now()}` });
+}
+export async function mfaChallenge(factorId, token){
+  return authFetch(`/factors/${factorId}/challenge`, {}, token);
+}
+// Verify a challenge; on success GoTrue returns a fresh (AAL2) session.
+export async function mfaVerify(factorId, challengeId, code, token){
+  return authFetch(`/factors/${factorId}/verify`, { challenge_id: challengeId, code }, token);
+}
+export async function mfaUnenroll(factorId, token){
+  const t = token || _session?.access_token || SUPA_KEY;
+  try{ await fetch(`${SUPA_URL}/auth/v1/factors/${factorId}`, { method:'DELETE', headers:{ 'apikey':SUPA_KEY, 'Authorization':`Bearer ${t}` } }); }catch{ /* ignore */ }
+}
 
 export async function signUp(email, password){
   const res = await fetch(`${SUPA_URL}/auth/v1/signup`, {

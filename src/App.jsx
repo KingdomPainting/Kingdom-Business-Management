@@ -25,7 +25,8 @@ import {
   onAuthChange, setSession, supaHeaders, supaFetch, functionFetch,
   signIn, signUp, signOut, refreshSession,
   passwordGrant, commitSession, rpcWithToken, sendEmailOtp, verifyEmailOtp,
-  getMy2FA, setMyPin, setMy2FAEmail, disableMy2FA,
+  getMy2FA, setMyPin, setMy2FAEmail, disableMy2FA, setMy2FATotp,
+  mfaEnroll, mfaChallenge, mfaVerify, mfaUnenroll,
   onSupaStatus, setSupaStatus, checkSupaConnection,
 } from "./lib/supabase";
 import { DB, api, bootstrapDB } from "./lib/api";
@@ -6248,14 +6249,39 @@ function TwoFactorModal({open,onClose}){
   const [saving,setSaving]=useState(false);
   const [msg,setMsg]=useState('');
   const [err,setErr]=useState('');
+  const [totpSetup,setTotpSetup]=useState(null); // {factorId, qr, secret, uri}
+  const [totpCode,setTotpCode]=useState('');
+  const [totpBusy,setTotpBusy]=useState(false);
 
   useEffect(()=>{
     if(!open) return;
-    setErr('');setMsg('');setPin('');setPin2('');setLoading(true);
+    setErr('');setMsg('');setPin('');setPin2('');setTotpSetup(null);setTotpCode('');setLoading(true);
     getMy2FA().then(m=>{const mm=m||'none';setMethod(mm);setChoice(mm);}).catch(()=>{setMethod('none');setChoice('none');}).finally(()=>setLoading(false));
   },[open]);
 
+  const startTotp=async()=>{
+    setErr('');setMsg('');setTotpBusy(true);
+    try{
+      const f=await mfaEnroll();
+      setTotpSetup({factorId:f.id, qr:f.totp?.qr_code, secret:f.totp?.secret, uri:f.totp?.uri});
+      setTotpCode('');
+    }catch(e){ setErr(e.message||'Could not start setup'); }
+    setTotpBusy(false);
+  };
+  const verifyTotp=async()=>{
+    if(!/^\d{6}$/.test(totpCode)){ setErr('Enter the 6-digit code from your app'); return; }
+    setErr('');setMsg('');setTotpBusy(true);
+    try{
+      const ch=await mfaChallenge(totpSetup.factorId);
+      await mfaVerify(totpSetup.factorId, ch.id, totpCode);
+      await setMy2FATotp(totpSetup.factorId);
+      setMethod('totp'); setChoice('totp'); setTotpSetup(null); setTotpCode(''); setMsg('Authenticator app enabled.');
+    }catch(e){ setErr(e.message||'Invalid code — try the current one from your app'); }
+    setTotpBusy(false);
+  };
+
   if(!open) return null;
+  const qrSrc = totpSetup?.qr && (totpSetup.qr.startsWith('data:') ? totpSetup.qr : `data:image/svg+xml;utf8,${encodeURIComponent(totpSetup.qr)}`);
 
   const save=async()=>{
     setErr('');setMsg('');setSaving(true);
@@ -6310,9 +6336,35 @@ function TwoFactorModal({open,onClose}){
               <input type="radio" readOnly checked={choice==='email'} style={{marginTop:3}}/>
               <span><span style={{fontSize:13,fontWeight:700,color:'#1a1714'}}>Email code</span><br/><span style={{fontSize:12,color:'#7a6e65'}}>We email a 6-digit code each time you sign in.</span></span>
             </div>
+            <div style={optStyle('totp')} onClick={()=>setChoice('totp')}>
+              <input type="radio" readOnly checked={choice==='totp'} style={{marginTop:3}}/>
+              <span style={{flex:1}}>
+                <span style={{fontSize:13,fontWeight:700,color:'#1a1714'}}>Authenticator app</span>
+                {method==='totp'&&<span style={{fontSize:11,fontWeight:700,color:'#16a34a',marginLeft:8}}>✓ Enabled</span>}
+                <br/><span style={{fontSize:12,color:'#7a6e65'}}>Use Google Authenticator, Authy, etc. (most secure).</span>
+                {choice==='totp'&&method!=='totp'&&(
+                  <div style={{marginTop:12}} onClick={e=>e.stopPropagation()}>
+                    {!totpSetup
+                      ? <button onClick={startTotp} disabled={totpBusy} style={{padding:'8px 14px',border:'none',borderRadius:8,background:'#262E4B',color:'#fff',fontSize:12,fontWeight:700,cursor:'pointer',opacity:totpBusy?0.7:1}}>{totpBusy?'Starting…':'Start setup'}</button>
+                      : <div>
+                          <p style={{fontSize:12,color:'#4a3f36',marginBottom:8}}>1. Scan this in your authenticator app:</p>
+                          {qrSrc&&<img src={qrSrc} alt="QR code" style={{width:150,height:150,background:'#fff',borderRadius:8,border:'1px solid #d6d1c3'}}/>}
+                          {totpSetup.secret&&<p style={{fontSize:11,color:'#7a6e65',margin:'8px 0'}}>Or enter this key manually:<br/><code style={{fontSize:12,color:'#1a1714',wordBreak:'break-all'}}>{totpSetup.secret}</code></p>}
+                          <p style={{fontSize:12,color:'#4a3f36',margin:'10px 0 6px'}}>2. Enter the 6-digit code it shows:</p>
+                          <div style={{display:'flex',gap:8}}>
+                            <input type="tel" inputMode="numeric" value={totpCode} onChange={e=>setTotpCode(e.target.value.replace(/\D/g,'').slice(0,6))} placeholder="123456" style={{...inp,flex:1,fontSize:16,letterSpacing:'0.2em'}}/>
+                            <button onClick={verifyTotp} disabled={totpBusy} style={{padding:'0 16px',border:'none',borderRadius:8,background:'#C4922A',color:'#fff',fontSize:13,fontWeight:700,cursor:'pointer',opacity:totpBusy?0.7:1}}>{totpBusy?'…':'Verify & enable'}</button>
+                          </div>
+                        </div>}
+                  </div>
+                )}
+              </span>
+            </div>
             <div style={{display:'flex',gap:10,justifyContent:'flex-end',marginTop:8}}>
               <button onClick={onClose} style={{padding:'9px 16px',border:'1px solid #c8bfb4',borderRadius:8,background:'#fff',color:'#4a3f36',fontSize:13,fontWeight:600,cursor:'pointer'}}>Close</button>
-              <button onClick={save} disabled={saving} style={{padding:'9px 20px',border:'none',borderRadius:8,background:'#C4922A',color:'#fff',fontSize:13,fontWeight:700,cursor:'pointer',opacity:saving?0.7:1}}>{saving?'Saving…':'Save'}</button>
+              {!(choice==='totp'&&method!=='totp')&&(
+                <button onClick={save} disabled={saving} style={{padding:'9px 20px',border:'none',borderRadius:8,background:'#C4922A',color:'#fff',fontSize:13,fontWeight:700,cursor:'pointer',opacity:saving?0.7:1}}>{saving?'Saving…':'Save'}</button>
+              )}
             </div>
           </>
         )}
@@ -6329,9 +6381,10 @@ function LoginScreen(){
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   // 2FA gate
-  const [step, setStep] = useState('creds'); // 'creds' | 'pin' | 'email'
+  const [step, setStep] = useState('creds'); // 'creds' | 'pin' | 'email' | 'totp'
   const [pending, setPending] = useState(null); // held password-grant session awaiting 2FA
   const [code, setCode] = useState('');
+  const [totpInfo, setTotpInfo] = useState(null); // {factorId, challengeId}
 
   const submit = async () => {
     if(!email || !password){ setError('Please enter email and password'); return; }
@@ -6360,6 +6413,10 @@ function LoginScreen(){
         await sendEmailOtp(email);
         setStep('email');
         setMessage('We emailed you a 6-digit code.');
+      } else if(method === 'totp'){
+        const factorId = await rpcWithToken(session.access_token, 'get_my_totp_factor', {});
+        const ch = await mfaChallenge(factorId, session.access_token);
+        setPending(session); setTotpInfo({ factorId, challengeId: ch.id }); setCode(''); setStep('totp');
       } else {
         commitSession(session);
       }
@@ -6391,15 +6448,26 @@ function LoginScreen(){
     setLoading(false);
   };
 
+  const submitTotp = async () => {
+    if(!/^\d{6}$/.test(code)){ setError('Enter the 6-digit code from your app'); return; }
+    setLoading(true); setError('');
+    try{
+      const session = await mfaVerify(totpInfo.factorId, totpInfo.challengeId, code, pending.access_token);
+      commitSession(session.access_token ? session : pending);
+    }catch(e){ setError('Invalid code — use the current one from your app.'); setCode(''); }
+    setLoading(false);
+  };
+
   const resendCode = async () => {
     setError(''); setMessage('');
     try{ await sendEmailOtp(email); setMessage('New code sent.'); }catch(e){ setError(e.message); }
   };
 
-  const backToLogin = () => { setStep('creds'); setPending(null); setCode(''); setError(''); setMessage(''); setPassword(''); };
+  const backToLogin = () => { setStep('creds'); setPending(null); setCode(''); setTotpInfo(null); setError(''); setMessage(''); setPassword(''); };
 
-  if(step==='pin' || step==='email'){
-    const onCode = step==='pin'?submitPin:submitEmailCode;
+  if(step==='pin' || step==='email' || step==='totp'){
+    const onCode = step==='pin'?submitPin:step==='email'?submitEmailCode:submitTotp;
+    const maxLen = step==='pin'?4:6;
     return (
       <div style={{minHeight:'100vh',background:'#262E4B',display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
         <style>{STYLE}</style>
@@ -6408,12 +6476,14 @@ function LoginScreen(){
           <div style={{background:'#EDE9DE',borderRadius:16,padding:'32px 28px',boxShadow:'0 8px 40px rgba(0,0,0,.30)'}}>
             <h2 style={{fontSize:20,fontWeight:700,marginBottom:6,color:'#1a1714'}}>Two-step verification</h2>
             <p style={{fontSize:13,color:'#7a6e65',marginBottom:20}}>
-              {step==='pin' ? 'Enter your 4-digit PIN to finish signing in.' : `Enter the code we sent to ${email}.`}
+              {step==='pin' ? 'Enter your 4-digit PIN to finish signing in.'
+                : step==='email' ? `Enter the code we sent to ${email}.`
+                : 'Enter the 6-digit code from your authenticator app.'}
             </p>
             {message && <div style={{background:'rgba(34,197,94,.1)',border:'1px solid rgba(34,197,94,.3)',borderRadius:8,padding:'10px 12px',fontSize:12,color:'#15803d',marginBottom:16}}>{message}</div>}
             {error && <div style={{background:'rgba(239,68,68,.1)',border:'1px solid rgba(239,68,68,.3)',borderRadius:8,padding:'10px 12px',fontSize:12,color:'#dc2626',marginBottom:16}}>{error}</div>}
             <input type="tel" inputMode="numeric" autoFocus value={code}
-              onChange={e=>setCode(e.target.value.replace(/\D/g,'').slice(0, step==='pin'?4:8))}
+              onChange={e=>setCode(e.target.value.replace(/\D/g,'').slice(0, maxLen))}
               onKeyDown={e=>e.key==='Enter'&&onCode()}
               placeholder={step==='pin'?'••••':'123456'}
               style={{width:'100%',padding:'12px 13px',border:'1.5px solid #c8bfb4',borderRadius:8,fontSize:22,letterSpacing:'0.4em',textAlign:'center',fontFamily:'inherit',color:'#1a1714',background:'#fff',outline:'none',boxSizing:'border-box',marginBottom:20}}

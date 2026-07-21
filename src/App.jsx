@@ -3942,7 +3942,10 @@ function MasterEstimate(){
       chtml+=contractSignatureBoxesHtml(gold,client);
       chtml+='</body></html>';
 
-      const pushData={value:totals.total,rooms:dealRooms,quote_html:qhtml,quote_date:todayISO,contract_html:chtml};
+      // Pushing an estimate sets the project value, so reset the payment schedule to
+      // the default 50% deposit / 50% on-completion split of that value.
+      const pushSchedule=defaultPaymentSchedule(totals.total).map(b=>({label:b.label,amount:parseFloat(b.amount)||0}));
+      const pushData={value:totals.total,rooms:dealRooms,quote_html:qhtml,quote_date:todayISO,contract_html:chtml,payment_schedule:pushSchedule};
 
       if(changeItems.length>0){
         const coSub=changeItems.reduce((s,it)=>s+(parseFloat(it.amount)||0),0);

@@ -6273,8 +6273,11 @@ function TwoFactorModal({open,onClose}){
     setErr('');setMsg('');setTotpBusy(true);
     try{
       const ch=await mfaChallenge(totpSetup.factorId);
-      await mfaVerify(totpSetup.factorId, ch.id, totpCode);
+      const session=await mfaVerify(totpSetup.factorId, ch.id, totpCode);
       await setMy2FATotp(totpSetup.factorId);
+      // Upgrade the live session to AAL2 so DB-level AAL2 enforcement doesn't lock
+      // the user out of their own data immediately after enrolling.
+      if(session?.access_token) commitSession(session);
       setMethod('totp'); setChoice('totp'); setTotpSetup(null); setTotpCode(''); setMsg('Authenticator app enabled.');
     }catch(e){ setErr(e.message||'Invalid code — try the current one from your app'); }
     setTotpBusy(false);

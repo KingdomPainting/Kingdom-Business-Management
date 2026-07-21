@@ -24,6 +24,8 @@ import {
   SUPA_URL, SUPA_KEY, ADMIN_EMAIL, DEMO_EMAIL, isDemo, _session,
   onAuthChange, setSession, supaHeaders, supaFetch, functionFetch,
   signIn, signUp, signOut, refreshSession,
+  passwordGrant, commitSession, rpcWithToken, sendEmailOtp, verifyEmailOtp,
+  getMy2FA, setMyPin, setMy2FAEmail, disableMy2FA,
   onSupaStatus, setSupaStatus, checkSupaConnection,
 } from "./lib/supabase";
 import { DB, api, bootstrapDB } from "./lib/api";
@@ -5700,6 +5702,7 @@ function ClientPortal({session}){
   const [bellPopup, setBellPopup] = useState(null);
   const [cameraDeal, setCameraDeal] = useState(null);
   const [payingDeal, setPayingDeal] = useState(null);
+  const [twoFAOpen, setTwoFAOpen] = useState(false);
   const [bmColours, setBmColours] = useState(DEFAULT_COLOURS);
   const [swColours, setSwColours] = useState(DEFAULT_SW_COLOURS);
   const sigCanvasRef = useRef(null);
@@ -6158,7 +6161,10 @@ body{font-family:'Montserrat',Georgia,sans-serif;background:#fff;color:#1a1714;p
       <div style={{display:'flex',flexDirection:'column',minHeight:'100vh',background:'#f0ede6'}}>
         <div className="cp-header">
           <KPLogo height={36}/>
-          <button className="cp-signout" onClick={signOut}>Sign out</button>
+          <div style={{display:'flex',alignItems:'center',gap:10}}>
+            <button className="cp-signout" onClick={()=>setTwoFAOpen(true)}>🔒 Security</button>
+            <button className="cp-signout" onClick={signOut}>Sign out</button>
+          </div>
         </div>
         <div className="cp-body">
           <div className="cp-title">My Projects</div>
@@ -6224,12 +6230,97 @@ body{font-family:'Montserrat',Georgia,sans-serif;background:#fff;color:#1a1714;p
 
       {cameraDeal&&<PhotoCaptureOverlay onClose={()=>setCameraDeal(null)} onSave={photo=>savePhoto(cameraDeal,photo)} bmColours={bmColours} swColours={swColours}/>}
 
+      <TwoFactorModal open={twoFAOpen} onClose={()=>setTwoFAOpen(false)}/>
+
       {toast&&<div className="cp-toast">{toast}</div>}
     </>
   );
 }
 
 // ─── Login Screen ─────────────────────────────────────────────────────────────
+// ─── Two-factor enrollment (used from both the main app and the client portal) ──
+function TwoFactorModal({open,onClose}){
+  const [method,setMethod]=useState('none');
+  const [choice,setChoice]=useState('none');
+  const [pin,setPin]=useState('');
+  const [pin2,setPin2]=useState('');
+  const [loading,setLoading]=useState(true);
+  const [saving,setSaving]=useState(false);
+  const [msg,setMsg]=useState('');
+  const [err,setErr]=useState('');
+
+  useEffect(()=>{
+    if(!open) return;
+    setErr('');setMsg('');setPin('');setPin2('');setLoading(true);
+    getMy2FA().then(m=>{const mm=m||'none';setMethod(mm);setChoice(mm);}).catch(()=>{setMethod('none');setChoice('none');}).finally(()=>setLoading(false));
+  },[open]);
+
+  if(!open) return null;
+
+  const save=async()=>{
+    setErr('');setMsg('');setSaving(true);
+    try{
+      if(choice==='pin'){
+        if(!/^\d{4}$/.test(pin)){ setErr('PIN must be exactly 4 digits'); setSaving(false); return; }
+        if(pin!==pin2){ setErr('PINs do not match'); setSaving(false); return; }
+        await setMyPin(pin); setMethod('pin'); setMsg('4-digit PIN enabled.');
+      } else if(choice==='email'){
+        await setMy2FAEmail(); setMethod('email'); setMsg('Email codes enabled.');
+      } else {
+        await disableMy2FA(); setMethod('none'); setMsg('Two-factor turned off.');
+      }
+      setPin('');setPin2('');
+    }catch(e){ setErr(e.message||'Could not save'); }
+    setSaving(false);
+  };
+
+  const optStyle=(v)=>({display:'flex',alignItems:'flex-start',gap:10,padding:'12px 14px',border:`1.5px solid ${choice===v?'#C4922A':'#d6d1c3'}`,borderRadius:10,cursor:'pointer',background:choice===v?'rgba(196,146,42,.08)':'#fff',marginBottom:10});
+  const inp={width:'100%',padding:'10px 13px',border:'1.5px solid #c8bfb4',borderRadius:8,fontSize:18,letterSpacing:'0.3em',textAlign:'center',fontFamily:'inherit',color:'#1a1714',background:'#fff',outline:'none',boxSizing:'border-box'};
+
+  return (
+    <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,.55)',zIndex:100000,display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
+      <div onClick={e=>e.stopPropagation()} style={{width:'100%',maxWidth:440,background:'#EDE9DE',borderRadius:16,padding:'26px 26px',boxShadow:'0 10px 50px rgba(0,0,0,.35)',maxHeight:'90vh',overflowY:'auto'}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
+          <h2 style={{fontSize:18,fontWeight:700,color:'#1a1714'}}>Two-Factor Authentication</h2>
+          <button onClick={onClose} style={{background:'none',border:'none',fontSize:20,cursor:'pointer',color:'#7a6e65',lineHeight:1}}>×</button>
+        </div>
+        <p style={{fontSize:12,color:'#7a6e65',marginBottom:16}}>Add a second step when signing in. Current: <strong style={{color:'#1a1714'}}>{method==='none'?'Off':method==='pin'?'4-digit PIN':'Email code'}</strong></p>
+        {loading ? <p style={{fontSize:13,color:'#7a6e65'}}>Loading…</p> : (
+          <>
+            {msg && <div style={{background:'rgba(34,197,94,.1)',border:'1px solid rgba(34,197,94,.3)',borderRadius:8,padding:'9px 12px',fontSize:12,color:'#15803d',marginBottom:14}}>{msg}</div>}
+            {err && <div style={{background:'rgba(239,68,68,.1)',border:'1px solid rgba(239,68,68,.3)',borderRadius:8,padding:'9px 12px',fontSize:12,color:'#dc2626',marginBottom:14}}>{err}</div>}
+            <div style={optStyle('none')} onClick={()=>setChoice('none')}>
+              <input type="radio" readOnly checked={choice==='none'} style={{marginTop:3}}/>
+              <span><span style={{fontSize:13,fontWeight:700,color:'#1a1714'}}>Off</span><br/><span style={{fontSize:12,color:'#7a6e65'}}>Password only.</span></span>
+            </div>
+            <div style={optStyle('pin')} onClick={()=>setChoice('pin')}>
+              <input type="radio" readOnly checked={choice==='pin'} style={{marginTop:3}}/>
+              <span style={{flex:1}}>
+                <span style={{fontSize:13,fontWeight:700,color:'#1a1714'}}>4-digit PIN</span><br/>
+                <span style={{fontSize:12,color:'#7a6e65'}}>Enter a PIN you choose after your password.</span>
+                {choice==='pin'&&(
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:10}} onClick={e=>e.stopPropagation()}>
+                    <input type="password" inputMode="numeric" value={pin} onChange={e=>setPin(e.target.value.replace(/\D/g,'').slice(0,4))} placeholder="PIN" style={inp}/>
+                    <input type="password" inputMode="numeric" value={pin2} onChange={e=>setPin2(e.target.value.replace(/\D/g,'').slice(0,4))} placeholder="Confirm" style={inp}/>
+                  </div>
+                )}
+              </span>
+            </div>
+            <div style={optStyle('email')} onClick={()=>setChoice('email')}>
+              <input type="radio" readOnly checked={choice==='email'} style={{marginTop:3}}/>
+              <span><span style={{fontSize:13,fontWeight:700,color:'#1a1714'}}>Email code</span><br/><span style={{fontSize:12,color:'#7a6e65'}}>We email a 6-digit code each time you sign in.</span></span>
+            </div>
+            <div style={{display:'flex',gap:10,justifyContent:'flex-end',marginTop:8}}>
+              <button onClick={onClose} style={{padding:'9px 16px',border:'1px solid #c8bfb4',borderRadius:8,background:'#fff',color:'#4a3f36',fontSize:13,fontWeight:600,cursor:'pointer'}}>Close</button>
+              <button onClick={save} disabled={saving} style={{padding:'9px 20px',border:'none',borderRadius:8,background:'#C4922A',color:'#fff',fontSize:13,fontWeight:700,cursor:'pointer',opacity:saving?0.7:1}}>{saving?'Saving…':'Save'}</button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function LoginScreen(){
   const [mode, setMode] = useState('login'); // 'login' | 'signup'
   const [email, setEmail] = useState('');
@@ -6237,25 +6328,109 @@ function LoginScreen(){
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  // 2FA gate
+  const [step, setStep] = useState('creds'); // 'creds' | 'pin' | 'email'
+  const [pending, setPending] = useState(null); // held password-grant session awaiting 2FA
+  const [code, setCode] = useState('');
 
   const submit = async () => {
     if(!email || !password){ setError('Please enter email and password'); return; }
     setLoading(true); setError('');
     try{
-      if(mode === 'login'){
-        await signIn(email, password);
-      } else {
+      if(mode === 'signup'){
         const res = await signUp(email, password);
         if(!res.access_token){
           setMessage('Check your email to confirm your account, then sign in.');
           setMode('login'); setLoading(false); return;
         }
+        setLoading(false); return; // signup commits its own session
+      }
+      // Demo account keeps its fully client-side bypass (no 2FA).
+      if(email.trim().toLowerCase()===DEMO_EMAIL){
+        await signIn(email, password); setLoading(false); return;
+      }
+      // Real login: verify the password, then require the second factor if enrolled.
+      const session = await passwordGrant(email, password);
+      let method = 'none';
+      try{ method = await rpcWithToken(session.access_token, 'get_my_2fa', {}); }catch{ method = 'none'; }
+      if(method === 'pin'){
+        setPending(session); setCode(''); setStep('pin');
+      } else if(method === 'email'){
+        setPending(session); setCode('');
+        await sendEmailOtp(email);
+        setStep('email');
+        setMessage('We emailed you a 6-digit code.');
+      } else {
+        commitSession(session);
       }
     } catch(e){
       setError(e.message);
     }
     setLoading(false);
   };
+
+  const submitPin = async () => {
+    if(!/^\d{4}$/.test(code)){ setError('Enter your 4-digit PIN'); return; }
+    setLoading(true); setError('');
+    try{
+      const r = await rpcWithToken(pending.access_token, 'verify_my_pin', { p_pin: code });
+      if(r?.ok){ commitSession(pending); }
+      else if(r?.locked){ setError('Too many attempts. Try again in 15 minutes.'); setCode(''); }
+      else { setError(`Incorrect PIN${typeof r?.remaining==='number'?` — ${r.remaining} attempt(s) left`:''}.`); setCode(''); }
+    }catch(e){ setError(e.message); }
+    setLoading(false);
+  };
+
+  const submitEmailCode = async () => {
+    if(!/^\d{4,8}$/.test(code)){ setError('Enter the code from your email'); return; }
+    setLoading(true); setError('');
+    try{
+      const session = await verifyEmailOtp(email, code);
+      commitSession(session);
+    }catch(e){ setError(e.message); setCode(''); }
+    setLoading(false);
+  };
+
+  const resendCode = async () => {
+    setError(''); setMessage('');
+    try{ await sendEmailOtp(email); setMessage('New code sent.'); }catch(e){ setError(e.message); }
+  };
+
+  const backToLogin = () => { setStep('creds'); setPending(null); setCode(''); setError(''); setMessage(''); setPassword(''); };
+
+  if(step==='pin' || step==='email'){
+    const onCode = step==='pin'?submitPin:submitEmailCode;
+    return (
+      <div style={{minHeight:'100vh',background:'#262E4B',display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
+        <style>{STYLE}</style>
+        <div style={{width:'100%',maxWidth:400}}>
+          <div style={{display:'flex',flexDirection:'column',alignItems:'center',marginBottom:28}}><KPLogo height={52}/></div>
+          <div style={{background:'#EDE9DE',borderRadius:16,padding:'32px 28px',boxShadow:'0 8px 40px rgba(0,0,0,.30)'}}>
+            <h2 style={{fontSize:20,fontWeight:700,marginBottom:6,color:'#1a1714'}}>Two-step verification</h2>
+            <p style={{fontSize:13,color:'#7a6e65',marginBottom:20}}>
+              {step==='pin' ? 'Enter your 4-digit PIN to finish signing in.' : `Enter the code we sent to ${email}.`}
+            </p>
+            {message && <div style={{background:'rgba(34,197,94,.1)',border:'1px solid rgba(34,197,94,.3)',borderRadius:8,padding:'10px 12px',fontSize:12,color:'#15803d',marginBottom:16}}>{message}</div>}
+            {error && <div style={{background:'rgba(239,68,68,.1)',border:'1px solid rgba(239,68,68,.3)',borderRadius:8,padding:'10px 12px',fontSize:12,color:'#dc2626',marginBottom:16}}>{error}</div>}
+            <input type="tel" inputMode="numeric" autoFocus value={code}
+              onChange={e=>setCode(e.target.value.replace(/\D/g,'').slice(0, step==='pin'?4:8))}
+              onKeyDown={e=>e.key==='Enter'&&onCode()}
+              placeholder={step==='pin'?'••••':'123456'}
+              style={{width:'100%',padding:'12px 13px',border:'1.5px solid #c8bfb4',borderRadius:8,fontSize:22,letterSpacing:'0.4em',textAlign:'center',fontFamily:'inherit',color:'#1a1714',background:'#fff',outline:'none',boxSizing:'border-box',marginBottom:20}}
+              onFocus={e=>e.target.style.borderColor='#C4922A'} onBlur={e=>e.target.style.borderColor='#c8bfb4'}/>
+            <button onClick={onCode} disabled={loading}
+              style={{width:'100%',padding:'12px 0',background:'#C4922A',color:'#fff',border:'none',borderRadius:8,fontSize:14,fontWeight:700,cursor:'pointer',opacity:loading?0.7:1}}>
+              {loading?'Please wait…':'Verify'}
+            </button>
+            <div style={{textAlign:'center',marginTop:16,fontSize:12,color:'#7a6e65',display:'flex',justifyContent:'space-between'}}>
+              <button onClick={backToLogin} style={{background:'none',border:'none',color:'#7a6e65',cursor:'pointer',fontSize:12,padding:0}}>← Back</button>
+              {step==='email'&&<button onClick={resendCode} style={{background:'none',border:'none',color:'#C4922A',fontWeight:700,cursor:'pointer',fontSize:12,padding:0}}>Resend code</button>}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{minHeight:'100vh',background:'#262E4B',display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
@@ -6318,6 +6493,7 @@ export default function App(){
   const [toast,setToast]=useState(null);
   const [ready,setReady]=useState(false);
   const [session,setSessionState]=useState(_session);
+  const [twoFAOpen,setTwoFAOpen]=useState(false);
   const showToast=msg=>{setToast(msg);window.__kpToast=msg=>setToast(msg);};
 
   // Listen for auth changes
@@ -6351,6 +6527,7 @@ export default function App(){
             <KPLogo height={34}/>
             <div style={{display:'flex',alignItems:'center',gap:12}}>
               <span style={{fontSize:11,color:'rgba(255,255,255,0.45)'}}>{session.user?.email}</span>
+              <button onClick={()=>setTwoFAOpen(true)} style={{background:'none',border:'1px solid rgba(255,255,255,0.2)',color:'rgba(255,255,255,0.6)',borderRadius:6,padding:'4px 10px',fontSize:11,cursor:'pointer'}}>🔒 Security</button>
               <button onClick={signOut} style={{background:'none',border:'1px solid rgba(255,255,255,0.2)',color:'rgba(255,255,255,0.6)',borderRadius:6,padding:'4px 10px',fontSize:11,cursor:'pointer'}}>Sign out</button>
               <DbStatusDot/>
             </div>
@@ -6382,6 +6559,7 @@ export default function App(){
           }
         </main>
       </div>
+      <TwoFactorModal open={twoFAOpen} onClose={()=>setTwoFAOpen(false)}/>
       {toast&&<Toast msg={toast} onDone={()=>setToast(null)}/>}
     </>
   );

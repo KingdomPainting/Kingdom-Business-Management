@@ -5035,7 +5035,8 @@ function Bookkeeping({showToast}){
   const [form,setForm]=useState(blankForm);
   const [filterType,setFilterType]=useState('all');
   const [filterCat,setFilterCat]=useState('all');
-  const [filterMonth,setFilterMonth]=useState('all');
+  const [filterFrom,setFilterFrom]=useState('all');
+  const [filterTo,setFilterTo]=useState('all');
   const [sortKey,setSortKey]=useState('date');
   const [sortDir,setSortDir]=useState('desc');
   const [editing,setEditing]=useState(null);
@@ -5296,10 +5297,16 @@ function Bookkeeping({showToast}){
 
   const months=Array.from(new Set(allEntries.map(e=>(e.date||'').slice(0,7)).filter(Boolean))).sort().reverse();
 
+  // Month range filter (inclusive). Tolerates the two boxes being picked in either order.
+  let monthLo=filterFrom!=='all'?filterFrom:null, monthHi=filterTo!=='all'?filterTo:null;
+  if(monthLo&&monthHi&&monthLo>monthHi){ const t=monthLo; monthLo=monthHi; monthHi=t; }
+
   const filtered=allEntries.filter(e=>{
     if(filterType!=='all'&&e.type!==filterType) return false;
     if(filterCat!=='all'&&e.category!==filterCat) return false;
-    if(filterMonth!=='all'&&!(e.date||'').startsWith(filterMonth)) return false;
+    const ym=(e.date||'').slice(0,7);
+    if(monthLo&&ym<monthLo) return false;
+    if(monthHi&&ym>monthHi) return false;
     return true;
   });
 
@@ -5477,8 +5484,13 @@ function Bookkeeping({showToast}){
           <option value="Income">Income</option>
           {BK_CATEGORIES.map(c=><option key={c} value={c}>{c}</option>)}
         </select>
-        <select value={filterMonth} onChange={e=>setFilterMonth(e.target.value)} style={selectStyle}>
-          <option value="all">All Months</option>
+        <select value={filterFrom} onChange={e=>setFilterFrom(e.target.value)} style={selectStyle} title="From month">
+          <option value="all">From: any</option>
+          {months.map(m=><option key={m} value={m}>{m}</option>)}
+        </select>
+        <span style={{fontSize:11,color:'var(--muted-fg)'}}>→</span>
+        <select value={filterTo} onChange={e=>setFilterTo(e.target.value)} style={selectStyle} title="To month">
+          <option value="all">To: any</option>
           {months.map(m=><option key={m} value={m}>{m}</option>)}
         </select>
         <button onClick={exportYearPDF} style={{...btnSecondary,display:'inline-flex',alignItems:'center',gap:6}} title={`Export all ${new Date().getFullYear()} entries to PDF`}>

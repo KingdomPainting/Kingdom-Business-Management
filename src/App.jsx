@@ -2999,6 +2999,8 @@ function ContractTab({rooms,settings,client,totals}){
   rooms.forEach(r=>{const c=calcRoom(r,settings);tWalls+=c.wallSqft;tCeil+=c.ceilSqft;tTrim+=c.perimLF;tDoors+=roomDoorCount(r);tHrs+=c.totalHrs;});
   const numWorkers=Math.max(1,settings._standards?.workers||1);
   const estDays=tHrs>0?Math.ceil(tHrs/numWorkers/8):0;
+  const prepLabelsMap={furniture:'Move furniture',plastic:'Cover w/ plastic',outlets:'Remove outlets',drywall:'Drywall repairs',caulking:'Caulking',cleanup:'Clean up'};
+  const roomPrep=r=>{const items=Object.entries(prepLabelsMap).filter(([k])=>r.prep?.[k]).map(([,v])=>v);if(r.prep?.custom)items.push(r.prep.custom);return items;};
 
   const clientSigRef=useRef(null);
   const contractorSigRef=useRef(null);
@@ -3065,6 +3067,7 @@ function ContractTab({rooms,settings,client,totals}){
           <thead><tr>
             <th style={{textAlign:'left',padding:'6px 8px',borderBottom:'2px solid #e5e5e5',color:'#888',fontWeight:600}}>Room</th>
             <th style={{textAlign:'left',padding:'6px 8px',borderBottom:'2px solid #e5e5e5',color:'#888',fontWeight:600}}>Surfaces</th>
+            <th style={{textAlign:'left',padding:'6px 8px',borderBottom:'2px solid #e5e5e5',color:'#888',fontWeight:600}}>Prep</th>
           </tr></thead>
           <tbody>{rooms.map(r=>{
             const parts=[];
@@ -3075,10 +3078,12 @@ function ContractTab({rooms,settings,client,totals}){
             {const dc=roomDoorCount(r);if(dc>0)parts.push(`${dc} Door${dc>1?'s':''}`);}
             {const wc=r.windows?.dims?.length||0;if(r.windows?.enabled&&wc>0)parts.push(`${wc} Window${wc>1?'s':''}`);}
             if(!r.windows?.enabled&&r.windows?.count>0)parts.push(`${r.windows.count} Window${r.windows.count>1?'s':''}`);
+            const prep=roomPrep(r);
             return (
               <tr key={r.id}>
-                <td style={{padding:'6px 8px',borderBottom:'1px solid #eee',fontWeight:500}}>{r.name}</td>
-                <td style={{padding:'6px 8px',borderBottom:'1px solid #eee',color:'#555'}}>{parts.join(', ')||'—'}</td>
+                <td style={{padding:'6px 8px',borderBottom:'1px solid #eee',fontWeight:500,verticalAlign:'top'}}>{r.name}</td>
+                <td style={{padding:'6px 8px',borderBottom:'1px solid #eee',color:'#555',verticalAlign:'top'}}>{parts.join(', ')||'—'}</td>
+                <td style={{padding:'6px 8px',borderBottom:'1px solid #eee',color:'#555',verticalAlign:'top'}}>{prep.join(', ')||'—'}</td>
               </tr>
             );
           })}</tbody>

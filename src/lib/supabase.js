@@ -112,6 +112,96 @@ export async function signIn(email, password){
   return session;
 }
 
+// ─── Two-factor auth helpers ──────────────────────────────────────────────────
+// Password grant only — returns the session WITHOUT committing it, so the login
+// screen can require a second factor before the app treats the user as signed in.
+export async function passwordGrant(email, password){
+  const res = await fetch(`${SUPA_URL}/auth/v1/token?grant_type=password`, {
+    method: 'POST',
+    headers: { 'apikey': SUPA_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+  const data = await res.json();
+  if(!res.ok) throw new Error(data.error_description || data.msg || 'Login failed');
+  return { access_token: data.access_token, refresh_token: data.refresh_token, user: data.user };
+}
+
+// Commit a verified session (no 2FA required, or after the second factor passed).
+export function commitSession(session){
+  setSession(session);
+  localStorage.setItem('kp_session', JSON.stringify(session));
+}
+
+// Call an RPC with an explicit bearer token (used during the 2FA gate, before the
+// session is committed globally).
+export async function rpcWithToken(token, fn, args={}){
+  const res = await fetch(`${SUPA_URL}/rest/v1/rpc/${fn}`, {
+    method: 'POST',
+    headers: { 'apikey': SUPA_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(args),
+  });
+  const text = await res.text();
+  const data = text ? JSON.parse(text) : null;
+  if(!res.ok) throw new Error(data?.message || `Request failed`);
+  return data;
+}
+
+// Email one-time code (Supabase built-in email), used as an email 2FA factor.
+export async function sendEmailOtp(email){
+  const res = await fetch(`${SUPA_URL}/auth/v1/otp`, {
+    method: 'POST', headers: { 'apikey': SUPA_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, create_user: false }),
+  });
+  if(!res.ok){ const d = await res.json().catch(()=>({})); throw new Error(d.error_description || d.msg || 'Could not send code'); }
+  return true;
+}
+export async function verifyEmailOtp(email, token){
+  const res = await fetch(`${SUPA_URL}/auth/v1/verify`, {
+    method: 'POST', headers: { 'apikey': SUPA_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: 'email', email, token }),
+  });
+  const data = await res.json();
+  if(!res.ok) throw new Error(data.error_description || data.msg || 'Invalid or expired code');
+  return { access_token: data.access_token, refresh_token: data.refresh_token, user: data.user };
+}
+
+// Enrollment helpers (called while already signed in — use the current session).
+export async function getMy2FA(){ try{ return await supaFetch('/rest/v1/rpc/get_my_2fa','POST',{}); }catch{ return 'none'; } }
+export async function setMyPin(pin){ return supaFetch('/rest/v1/rpc/set_my_pin','POST',{ p_pin: pin }); }
+export async function setMy2FAEmail(){ return supaFetch('/rest/v1/rpc/set_my_2fa_email','POST',{}); }
+export async function disableMy2FA(){ return supaFetch('/rest/v1/rpc/disable_my_2fa','POST',{}); }
+export async function setMy2FATotp(factorId){ return supaFetch('/rest/v1/rpc/set_my_2fa_totp','POST',{ p_factor_id: factorId }); }
+
+// ─── Supabase native MFA (TOTP / authenticator app) ───────────────────────────
+// authFetch helper — hits a GoTrue endpoint with a bearer token (defaults to the
+// current session; the login gate passes the not-yet-committed AAL1 token).
+async function authFetch(path, body, token){
+  const t = token || _session?.access_token || SUPA_KEY;
+  const res = await fetch(`${SUPA_URL}/auth/v1${path}`, {
+    method: 'POST', headers: { 'apikey': SUPA_KEY, 'Authorization': `Bearer ${t}`, 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(data.error_description || data.msg || data.message || 'MFA request failed');
+  return data;
+}
+
+// Enroll a new TOTP factor (returns {id, totp:{qr_code, secret, uri}}).
+export async function mfaEnroll(){
+  return authFetch('/factors', { factor_type: 'totp', friendly_name: `Authenticator ${Date.now()}` });
+}
+export async function mfaChallenge(factorId, token){
+  return authFetch(`/factors/${factorId}/challenge`, {}, token);
+}
+// Verify a challenge; on success GoTrue returns a fresh (AAL2) session.
+export async function mfaVerify(factorId, challengeId, code, token){
+  return authFetch(`/factors/${factorId}/verify`, { challenge_id: challengeId, code }, token);
+}
+export async function mfaUnenroll(factorId, token){
+  const t = token || _session?.access_token || SUPA_KEY;
+  try{ await fetch(`${SUPA_URL}/auth/v1/factors/${factorId}`, { method:'DELETE', headers:{ 'apikey':SUPA_KEY, 'Authorization':`Bearer ${t}` } }); }catch{ /* ignore */ }
+}
+
 export async function signUp(email, password){
   const res = await fetch(`${SUPA_URL}/auth/v1/signup`, {
     method: 'POST',

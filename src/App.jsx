@@ -24,6 +24,9 @@ import {
   SUPA_URL, SUPA_KEY, ADMIN_EMAIL, DEMO_EMAIL, isDemo, _session,
   onAuthChange, setSession, supaHeaders, supaFetch, functionFetch,
   signIn, signUp, signOut, refreshSession,
+  passwordGrant, commitSession, rpcWithToken, sendEmailOtp, verifyEmailOtp,
+  getMy2FA, setMyPin, setMy2FAEmail, disableMy2FA, setMy2FATotp,
+  mfaEnroll, mfaChallenge, mfaVerify, mfaUnenroll,
   onSupaStatus, setSupaStatus, checkSupaConnection,
 } from "./lib/supabase";
 import { DB, api, bootstrapDB } from "./lib/api";
@@ -366,12 +369,22 @@ function DrivePickerBtn({onAttach}){
   );
 }
 
+// Default payment schedule mirrors the quote/contract terms: 50% deposit + 50%
+// on completion. Split by cents so the two halves always sum to the value exactly.
+function defaultPaymentSchedule(value){
+  const v=parseFloat(value)||0;
+  if(!v) return [{label:'Deposit (50%)',amount:''},{label:'Upon Completion (50%)',amount:''}];
+  const cents=Math.round(v*100);
+  const dep=Math.floor(cents/2), bal=cents-dep;
+  return [{label:'Deposit (50%)',amount:(dep/100).toFixed(2)},{label:'Upon Completion (50%)',amount:(bal/100).toFixed(2)}];
+}
+
 function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead',onAddContact}){
   const blank={dealName:'',value:'',description:'',contactId:'',referralContactId:'',labels:[],leadSource:'',
     startDate:'',startTime:'09:00',endDate:'',endTime:'17:00',
     scheduleDays:[], // [{date, startTime, endTime, calEventId}]
     address:'',notes:'',rooms:[],progress:0,contactFreeText:'',quote_html:'',contract_html:'',change_order_html:'',invoice_html:'',contract_signed_html:'',contract_signed_at:'',quote_date:'',drive_files:[],
-    payment_schedule:[{label:'Full Payment',amount:''}]};
+    payment_schedule:defaultPaymentSchedule(''),scheduleAuto:true};
   const [f,setF]=useState(blank);
   const [syncing,setSyncing]=useState(false);
 
@@ -390,7 +403,8 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead',onAdd
       quote_date:deal.quote_date||'',
       payment_schedule:(Array.isArray(deal.payment_schedule)&&deal.payment_schedule.length)
         ?deal.payment_schedule.map(b=>({label:b.label||'',amount:(b.amount??'').toString()}))
-        :[{label:'Full Payment',amount:deal.value?.toString()||''}]
+        :defaultPaymentSchedule(deal.value),
+      scheduleAuto:!(Array.isArray(deal.payment_schedule)&&deal.payment_schedule.length)
     });
     else setF(blank);
   },[deal,open]);
@@ -428,17 +442,16 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead',onAdd
 
   const toggleLabel=l=>setF(x=>({...x,labels:x.labels.includes(l)?x.labels.filter(v=>v!==l):[...x.labels,l]}));
 
-  // Payment schedule (up to 4 boxes; amounts must sum to the project value). When
-  // there's a single box it tracks the project value, so editing the value keeps
-  // the "one box = total" state in sync.
+  // Payment schedule (up to 4 boxes; amounts must sum to the project value).
+  // Defaults to the 50% deposit / 50% on-completion terms and re-splits as the
+  // value changes — until the user edits the schedule, after which it's left alone.
   const handleValue=v=>setF(x=>{
-    const ps=(x.payment_schedule&&x.payment_schedule.length)?x.payment_schedule:[{label:'Full Payment',amount:''}];
-    const np=ps.length===1?[{...ps[0],amount:v}]:ps;
-    return {...x,value:v,payment_schedule:np};
+    if(x.scheduleAuto) return {...x,value:v,payment_schedule:defaultPaymentSchedule(v)};
+    return {...x,value:v};
   });
-  const updateBox=(i,key,val)=>setF(x=>{const ps=[...x.payment_schedule];ps[i]={...ps[i],[key]:val};return {...x,payment_schedule:ps};});
-  const addBox=()=>setF(x=>x.payment_schedule.length>=4?x:{...x,payment_schedule:[...x.payment_schedule,{label:`Payment ${x.payment_schedule.length+1}`,amount:''}]});
-  const removeBox=i=>setF(x=>x.payment_schedule.length<=1?x:{...x,payment_schedule:x.payment_schedule.filter((_,j)=>j!==i)});
+  const updateBox=(i,key,val)=>setF(x=>{const ps=[...x.payment_schedule];ps[i]={...ps[i],[key]:val};return {...x,payment_schedule:ps,scheduleAuto:false};});
+  const addBox=()=>setF(x=>x.payment_schedule.length>=4?x:{...x,payment_schedule:[...x.payment_schedule,{label:`Payment ${x.payment_schedule.length+1}`,amount:''}],scheduleAuto:false});
+  const removeBox=i=>setF(x=>x.payment_schedule.length<=1?x:{...x,payment_schedule:x.payment_schedule.filter((_,j)=>j!==i),scheduleAuto:false});
 
   const save=async()=>{
     setSyncing(true);
@@ -3932,7 +3945,10 @@ function MasterEstimate(){
       chtml+=contractSignatureBoxesHtml(gold,client);
       chtml+='</body></html>';
 
-      const pushData={value:totals.total,rooms:dealRooms,quote_html:qhtml,quote_date:todayISO,contract_html:chtml};
+      // Pushing an estimate sets the project value, so reset the payment schedule to
+      // the default 50% deposit / 50% on-completion split of that value.
+      const pushSchedule=defaultPaymentSchedule(totals.total).map(b=>({label:b.label,amount:parseFloat(b.amount)||0}));
+      const pushData={value:totals.total,rooms:dealRooms,quote_html:qhtml,quote_date:todayISO,contract_html:chtml,payment_schedule:pushSchedule};
 
       if(changeItems.length>0){
         const coSub=changeItems.reduce((s,it)=>s+(parseFloat(it.amount)||0),0);
@@ -5019,7 +5035,8 @@ function Bookkeeping({showToast}){
   const [form,setForm]=useState(blankForm);
   const [filterType,setFilterType]=useState('all');
   const [filterCat,setFilterCat]=useState('all');
-  const [filterMonth,setFilterMonth]=useState('all');
+  const [filterFrom,setFilterFrom]=useState('all');
+  const [filterTo,setFilterTo]=useState('all');
   const [sortKey,setSortKey]=useState('date');
   const [sortDir,setSortDir]=useState('desc');
   const [editing,setEditing]=useState(null);
@@ -5280,10 +5297,16 @@ function Bookkeeping({showToast}){
 
   const months=Array.from(new Set(allEntries.map(e=>(e.date||'').slice(0,7)).filter(Boolean))).sort().reverse();
 
+  // Month range filter (inclusive). Tolerates the two boxes being picked in either order.
+  let monthLo=filterFrom!=='all'?filterFrom:null, monthHi=filterTo!=='all'?filterTo:null;
+  if(monthLo&&monthHi&&monthLo>monthHi){ const t=monthLo; monthLo=monthHi; monthHi=t; }
+
   const filtered=allEntries.filter(e=>{
     if(filterType!=='all'&&e.type!==filterType) return false;
     if(filterCat!=='all'&&e.category!==filterCat) return false;
-    if(filterMonth!=='all'&&!(e.date||'').startsWith(filterMonth)) return false;
+    const ym=(e.date||'').slice(0,7);
+    if(monthLo&&ym<monthLo) return false;
+    if(monthHi&&ym>monthHi) return false;
     return true;
   });
 
@@ -5461,8 +5484,13 @@ function Bookkeeping({showToast}){
           <option value="Income">Income</option>
           {BK_CATEGORIES.map(c=><option key={c} value={c}>{c}</option>)}
         </select>
-        <select value={filterMonth} onChange={e=>setFilterMonth(e.target.value)} style={selectStyle}>
-          <option value="all">All Months</option>
+        <select value={filterFrom} onChange={e=>setFilterFrom(e.target.value)} style={selectStyle} title="From month">
+          <option value="all">From: any</option>
+          {months.map(m=><option key={m} value={m}>{m}</option>)}
+        </select>
+        <span style={{fontSize:11,color:'var(--muted-fg)'}}>→</span>
+        <select value={filterTo} onChange={e=>setFilterTo(e.target.value)} style={selectStyle} title="To month">
+          <option value="all">To: any</option>
           {months.map(m=><option key={m} value={m}>{m}</option>)}
         </select>
         <button onClick={exportYearPDF} style={{...btnSecondary,display:'inline-flex',alignItems:'center',gap:6}} title={`Export all ${new Date().getFullYear()} entries to PDF`}>
@@ -5687,6 +5715,7 @@ function ClientPortal({session}){
   const [bellPopup, setBellPopup] = useState(null);
   const [cameraDeal, setCameraDeal] = useState(null);
   const [payingDeal, setPayingDeal] = useState(null);
+  const [twoFAOpen, setTwoFAOpen] = useState(false);
   const [bmColours, setBmColours] = useState(DEFAULT_COLOURS);
   const [swColours, setSwColours] = useState(DEFAULT_SW_COLOURS);
   const sigCanvasRef = useRef(null);
@@ -5810,19 +5839,17 @@ function ClientPortal({session}){
       if(installment!=null) body.installment = installment;
       const res = await functionFetch('create-checkout-session', body);
       if(!res||!res.url){ showToast('Could not start payment. Please try again.'); setPayingDeal(null); return; }
-      const stripe = await loadStripe();
-      if(stripe && res.id){
-        const { error } = await stripe.redirectToCheckout({ sessionId: res.id });
-        if(error){ window.location.href = res.url; }
-      }else{
-        window.location.href = res.url;
-      }
+      // Navigate straight to the Stripe-hosted Checkout page. This works in both
+      // test and live mode and doesn't depend on the publishable key matching the
+      // session's mode (redirectToCheckout would reject a test-pk / live-session mismatch).
+      window.location.href = res.url;
     }catch(e){
       const m=e.message||'';
       showToast(m.includes('not configured')?'Payments are not set up yet.'
         :m.includes('no balance')?'This project has no balance due.'
         :m.includes('already been made')?'This payment has already been made.'
         :m.includes('earlier payment')?'Please pay the earlier payment first.'
+        :m?`Payment error: ${m}`
         :'Could not start payment. Please try again.');
       setPayingDeal(null);
     }
@@ -6147,7 +6174,10 @@ body{font-family:'Montserrat',Georgia,sans-serif;background:#fff;color:#1a1714;p
       <div style={{display:'flex',flexDirection:'column',minHeight:'100vh',background:'#f0ede6'}}>
         <div className="cp-header">
           <KPLogo height={36}/>
-          <button className="cp-signout" onClick={signOut}>Sign out</button>
+          <div style={{display:'flex',alignItems:'center',gap:10}}>
+            <button className="cp-signout" onClick={()=>setTwoFAOpen(true)}>🔒 Security</button>
+            <button className="cp-signout" onClick={signOut}>Sign out</button>
+          </div>
         </div>
         <div className="cp-body">
           <div className="cp-title">My Projects</div>
@@ -6213,12 +6243,151 @@ body{font-family:'Montserrat',Georgia,sans-serif;background:#fff;color:#1a1714;p
 
       {cameraDeal&&<PhotoCaptureOverlay onClose={()=>setCameraDeal(null)} onSave={photo=>savePhoto(cameraDeal,photo)} bmColours={bmColours} swColours={swColours}/>}
 
+      <TwoFactorModal open={twoFAOpen} onClose={()=>setTwoFAOpen(false)}/>
+
       {toast&&<div className="cp-toast">{toast}</div>}
     </>
   );
 }
 
 // ─── Login Screen ─────────────────────────────────────────────────────────────
+// ─── Two-factor enrollment (used from both the main app and the client portal) ──
+function TwoFactorModal({open,onClose}){
+  const [method,setMethod]=useState('none');
+  const [choice,setChoice]=useState('none');
+  const [pin,setPin]=useState('');
+  const [pin2,setPin2]=useState('');
+  const [loading,setLoading]=useState(true);
+  const [saving,setSaving]=useState(false);
+  const [msg,setMsg]=useState('');
+  const [err,setErr]=useState('');
+  const [totpSetup,setTotpSetup]=useState(null); // {factorId, qr, secret, uri}
+  const [totpCode,setTotpCode]=useState('');
+  const [totpBusy,setTotpBusy]=useState(false);
+
+  useEffect(()=>{
+    if(!open) return;
+    setErr('');setMsg('');setPin('');setPin2('');setTotpSetup(null);setTotpCode('');setLoading(true);
+    getMy2FA().then(m=>{const mm=m||'none';setMethod(mm);setChoice(mm);}).catch(()=>{setMethod('none');setChoice('none');}).finally(()=>setLoading(false));
+  },[open]);
+
+  const startTotp=async()=>{
+    setErr('');setMsg('');setTotpBusy(true);
+    try{
+      const f=await mfaEnroll();
+      setTotpSetup({factorId:f.id, qr:f.totp?.qr_code, secret:f.totp?.secret, uri:f.totp?.uri});
+      setTotpCode('');
+    }catch(e){ setErr(e.message||'Could not start setup'); }
+    setTotpBusy(false);
+  };
+  const verifyTotp=async()=>{
+    if(!/^\d{6}$/.test(totpCode)){ setErr('Enter the 6-digit code from your app'); return; }
+    setErr('');setMsg('');setTotpBusy(true);
+    try{
+      const ch=await mfaChallenge(totpSetup.factorId);
+      const session=await mfaVerify(totpSetup.factorId, ch.id, totpCode);
+      await setMy2FATotp(totpSetup.factorId);
+      // Upgrade the live session to AAL2 so DB-level AAL2 enforcement doesn't lock
+      // the user out of their own data immediately after enrolling.
+      if(session?.access_token) commitSession(session);
+      setMethod('totp'); setChoice('totp'); setTotpSetup(null); setTotpCode(''); setMsg('Authenticator app enabled.');
+    }catch(e){ setErr(e.message||'Invalid code — try the current one from your app'); }
+    setTotpBusy(false);
+  };
+
+  if(!open) return null;
+  const qrSrc = totpSetup?.qr && (totpSetup.qr.startsWith('data:') ? totpSetup.qr : `data:image/svg+xml;utf8,${encodeURIComponent(totpSetup.qr)}`);
+
+  const save=async()=>{
+    setErr('');setMsg('');setSaving(true);
+    try{
+      if(choice==='pin'){
+        if(!/^\d{4}$/.test(pin)){ setErr('PIN must be exactly 4 digits'); setSaving(false); return; }
+        if(pin!==pin2){ setErr('PINs do not match'); setSaving(false); return; }
+        await setMyPin(pin); setMethod('pin'); setMsg('4-digit PIN enabled.');
+      } else if(choice==='email'){
+        await setMy2FAEmail(); setMethod('email'); setMsg('Email codes enabled.');
+      } else {
+        await disableMy2FA(); setMethod('none'); setMsg('Two-factor turned off.');
+      }
+      setPin('');setPin2('');
+    }catch(e){ setErr(e.message||'Could not save'); }
+    setSaving(false);
+  };
+
+  const optStyle=(v)=>({display:'flex',alignItems:'flex-start',gap:10,padding:'12px 14px',border:`1.5px solid ${choice===v?'#C4922A':'#d6d1c3'}`,borderRadius:10,cursor:'pointer',background:choice===v?'rgba(196,146,42,.08)':'#fff',marginBottom:10});
+  const inp={width:'100%',padding:'10px 13px',border:'1.5px solid #c8bfb4',borderRadius:8,fontSize:18,letterSpacing:'0.3em',textAlign:'center',fontFamily:'inherit',color:'#1a1714',background:'#fff',outline:'none',boxSizing:'border-box'};
+
+  return (
+    <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,.55)',zIndex:100000,display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
+      <div onClick={e=>e.stopPropagation()} style={{width:'100%',maxWidth:440,background:'#EDE9DE',borderRadius:16,padding:'26px 26px',boxShadow:'0 10px 50px rgba(0,0,0,.35)',maxHeight:'90vh',overflowY:'auto'}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
+          <h2 style={{fontSize:18,fontWeight:700,color:'#1a1714'}}>Two-Factor Authentication</h2>
+          <button onClick={onClose} style={{background:'none',border:'none',fontSize:20,cursor:'pointer',color:'#7a6e65',lineHeight:1}}>×</button>
+        </div>
+        <p style={{fontSize:12,color:'#7a6e65',marginBottom:16}}>Add a second step when signing in. Current: <strong style={{color:'#1a1714'}}>{method==='none'?'Off':method==='pin'?'4-digit PIN':'Email code'}</strong></p>
+        {loading ? <p style={{fontSize:13,color:'#7a6e65'}}>Loading…</p> : (
+          <>
+            {msg && <div style={{background:'rgba(34,197,94,.1)',border:'1px solid rgba(34,197,94,.3)',borderRadius:8,padding:'9px 12px',fontSize:12,color:'#15803d',marginBottom:14}}>{msg}</div>}
+            {err && <div style={{background:'rgba(239,68,68,.1)',border:'1px solid rgba(239,68,68,.3)',borderRadius:8,padding:'9px 12px',fontSize:12,color:'#dc2626',marginBottom:14}}>{err}</div>}
+            <div style={optStyle('none')} onClick={()=>setChoice('none')}>
+              <input type="radio" readOnly checked={choice==='none'} style={{marginTop:3}}/>
+              <span><span style={{fontSize:13,fontWeight:700,color:'#1a1714'}}>Off</span><br/><span style={{fontSize:12,color:'#7a6e65'}}>Password only.</span></span>
+            </div>
+            <div style={optStyle('pin')} onClick={()=>setChoice('pin')}>
+              <input type="radio" readOnly checked={choice==='pin'} style={{marginTop:3}}/>
+              <span style={{flex:1}}>
+                <span style={{fontSize:13,fontWeight:700,color:'#1a1714'}}>4-digit PIN</span><br/>
+                <span style={{fontSize:12,color:'#7a6e65'}}>Enter a PIN you choose after your password.</span>
+                {choice==='pin'&&(
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:10}} onClick={e=>e.stopPropagation()}>
+                    <input type="password" inputMode="numeric" value={pin} onChange={e=>setPin(e.target.value.replace(/\D/g,'').slice(0,4))} placeholder="PIN" style={inp}/>
+                    <input type="password" inputMode="numeric" value={pin2} onChange={e=>setPin2(e.target.value.replace(/\D/g,'').slice(0,4))} placeholder="Confirm" style={inp}/>
+                  </div>
+                )}
+              </span>
+            </div>
+            <div style={optStyle('email')} onClick={()=>setChoice('email')}>
+              <input type="radio" readOnly checked={choice==='email'} style={{marginTop:3}}/>
+              <span><span style={{fontSize:13,fontWeight:700,color:'#1a1714'}}>Email code</span><br/><span style={{fontSize:12,color:'#7a6e65'}}>We email a 6-digit code each time you sign in.</span></span>
+            </div>
+            <div style={optStyle('totp')} onClick={()=>setChoice('totp')}>
+              <input type="radio" readOnly checked={choice==='totp'} style={{marginTop:3}}/>
+              <span style={{flex:1}}>
+                <span style={{fontSize:13,fontWeight:700,color:'#1a1714'}}>Authenticator app</span>
+                {method==='totp'&&<span style={{fontSize:11,fontWeight:700,color:'#16a34a',marginLeft:8}}>✓ Enabled</span>}
+                <br/><span style={{fontSize:12,color:'#7a6e65'}}>Use Google Authenticator, Authy, etc. (most secure).</span>
+                {choice==='totp'&&method!=='totp'&&(
+                  <div style={{marginTop:12}} onClick={e=>e.stopPropagation()}>
+                    {!totpSetup
+                      ? <button onClick={startTotp} disabled={totpBusy} style={{padding:'8px 14px',border:'none',borderRadius:8,background:'#262E4B',color:'#fff',fontSize:12,fontWeight:700,cursor:'pointer',opacity:totpBusy?0.7:1}}>{totpBusy?'Starting…':'Start setup'}</button>
+                      : <div>
+                          <p style={{fontSize:12,color:'#4a3f36',marginBottom:8}}>1. Scan this in your authenticator app:</p>
+                          {qrSrc&&<img src={qrSrc} alt="QR code" style={{width:150,height:150,background:'#fff',borderRadius:8,border:'1px solid #d6d1c3'}}/>}
+                          {totpSetup.secret&&<p style={{fontSize:11,color:'#7a6e65',margin:'8px 0'}}>Or enter this key manually:<br/><code style={{fontSize:12,color:'#1a1714',wordBreak:'break-all'}}>{totpSetup.secret}</code></p>}
+                          <p style={{fontSize:12,color:'#4a3f36',margin:'10px 0 6px'}}>2. Enter the 6-digit code it shows:</p>
+                          <div style={{display:'flex',gap:8}}>
+                            <input type="tel" inputMode="numeric" value={totpCode} onChange={e=>setTotpCode(e.target.value.replace(/\D/g,'').slice(0,6))} placeholder="123456" style={{...inp,flex:1,fontSize:16,letterSpacing:'0.2em'}}/>
+                            <button onClick={verifyTotp} disabled={totpBusy} style={{padding:'0 16px',border:'none',borderRadius:8,background:'#C4922A',color:'#fff',fontSize:13,fontWeight:700,cursor:'pointer',opacity:totpBusy?0.7:1}}>{totpBusy?'…':'Verify & enable'}</button>
+                          </div>
+                        </div>}
+                  </div>
+                )}
+              </span>
+            </div>
+            <div style={{display:'flex',gap:10,justifyContent:'flex-end',marginTop:8}}>
+              <button onClick={onClose} style={{padding:'9px 16px',border:'1px solid #c8bfb4',borderRadius:8,background:'#fff',color:'#4a3f36',fontSize:13,fontWeight:600,cursor:'pointer'}}>Close</button>
+              {!(choice==='totp'&&method!=='totp')&&(
+                <button onClick={save} disabled={saving} style={{padding:'9px 20px',border:'none',borderRadius:8,background:'#C4922A',color:'#fff',fontSize:13,fontWeight:700,cursor:'pointer',opacity:saving?0.7:1}}>{saving?'Saving…':'Save'}</button>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function LoginScreen(){
   const [mode, setMode] = useState('login'); // 'login' | 'signup'
   const [email, setEmail] = useState('');
@@ -6226,25 +6395,127 @@ function LoginScreen(){
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  // 2FA gate
+  const [step, setStep] = useState('creds'); // 'creds' | 'pin' | 'email' | 'totp'
+  const [pending, setPending] = useState(null); // held password-grant session awaiting 2FA
+  const [code, setCode] = useState('');
+  const [totpInfo, setTotpInfo] = useState(null); // {factorId, challengeId}
 
   const submit = async () => {
     if(!email || !password){ setError('Please enter email and password'); return; }
     setLoading(true); setError('');
     try{
-      if(mode === 'login'){
-        await signIn(email, password);
-      } else {
+      if(mode === 'signup'){
         const res = await signUp(email, password);
         if(!res.access_token){
           setMessage('Check your email to confirm your account, then sign in.');
           setMode('login'); setLoading(false); return;
         }
+        setLoading(false); return; // signup commits its own session
+      }
+      // Demo account keeps its fully client-side bypass (no 2FA).
+      if(email.trim().toLowerCase()===DEMO_EMAIL){
+        await signIn(email, password); setLoading(false); return;
+      }
+      // Real login: verify the password, then require the second factor if enrolled.
+      const session = await passwordGrant(email, password);
+      let method = 'none';
+      try{ method = await rpcWithToken(session.access_token, 'get_my_2fa', {}); }catch{ method = 'none'; }
+      if(method === 'pin'){
+        setPending(session); setCode(''); setStep('pin');
+      } else if(method === 'email'){
+        setPending(session); setCode('');
+        await sendEmailOtp(email);
+        setStep('email');
+        setMessage('We emailed you a 6-digit code.');
+      } else if(method === 'totp'){
+        const factorId = await rpcWithToken(session.access_token, 'get_my_totp_factor', {});
+        const ch = await mfaChallenge(factorId, session.access_token);
+        setPending(session); setTotpInfo({ factorId, challengeId: ch.id }); setCode(''); setStep('totp');
+      } else {
+        commitSession(session);
       }
     } catch(e){
       setError(e.message);
     }
     setLoading(false);
   };
+
+  const submitPin = async () => {
+    if(!/^\d{4}$/.test(code)){ setError('Enter your 4-digit PIN'); return; }
+    setLoading(true); setError('');
+    try{
+      const r = await rpcWithToken(pending.access_token, 'verify_my_pin', { p_pin: code });
+      if(r?.ok){ commitSession(pending); }
+      else if(r?.locked){ setError('Too many attempts. Try again in 15 minutes.'); setCode(''); }
+      else { setError(`Incorrect PIN${typeof r?.remaining==='number'?` — ${r.remaining} attempt(s) left`:''}.`); setCode(''); }
+    }catch(e){ setError(e.message); }
+    setLoading(false);
+  };
+
+  const submitEmailCode = async () => {
+    if(!/^\d{4,8}$/.test(code)){ setError('Enter the code from your email'); return; }
+    setLoading(true); setError('');
+    try{
+      const session = await verifyEmailOtp(email, code);
+      commitSession(session);
+    }catch(e){ setError(e.message); setCode(''); }
+    setLoading(false);
+  };
+
+  const submitTotp = async () => {
+    if(!/^\d{6}$/.test(code)){ setError('Enter the 6-digit code from your app'); return; }
+    setLoading(true); setError('');
+    try{
+      const session = await mfaVerify(totpInfo.factorId, totpInfo.challengeId, code, pending.access_token);
+      commitSession(session.access_token ? session : pending);
+    }catch(e){ setError('Invalid code — use the current one from your app.'); setCode(''); }
+    setLoading(false);
+  };
+
+  const resendCode = async () => {
+    setError(''); setMessage('');
+    try{ await sendEmailOtp(email); setMessage('New code sent.'); }catch(e){ setError(e.message); }
+  };
+
+  const backToLogin = () => { setStep('creds'); setPending(null); setCode(''); setTotpInfo(null); setError(''); setMessage(''); setPassword(''); };
+
+  if(step==='pin' || step==='email' || step==='totp'){
+    const onCode = step==='pin'?submitPin:step==='email'?submitEmailCode:submitTotp;
+    const maxLen = step==='pin'?4:6;
+    return (
+      <div style={{minHeight:'100vh',background:'#262E4B',display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
+        <style>{STYLE}</style>
+        <div style={{width:'100%',maxWidth:400}}>
+          <div style={{display:'flex',flexDirection:'column',alignItems:'center',marginBottom:28}}><KPLogo height={52}/></div>
+          <div style={{background:'#EDE9DE',borderRadius:16,padding:'32px 28px',boxShadow:'0 8px 40px rgba(0,0,0,.30)'}}>
+            <h2 style={{fontSize:20,fontWeight:700,marginBottom:6,color:'#1a1714'}}>Two-step verification</h2>
+            <p style={{fontSize:13,color:'#7a6e65',marginBottom:20}}>
+              {step==='pin' ? 'Enter your 4-digit PIN to finish signing in.'
+                : step==='email' ? `Enter the code we sent to ${email}.`
+                : 'Enter the 6-digit code from your authenticator app.'}
+            </p>
+            {message && <div style={{background:'rgba(34,197,94,.1)',border:'1px solid rgba(34,197,94,.3)',borderRadius:8,padding:'10px 12px',fontSize:12,color:'#15803d',marginBottom:16}}>{message}</div>}
+            {error && <div style={{background:'rgba(239,68,68,.1)',border:'1px solid rgba(239,68,68,.3)',borderRadius:8,padding:'10px 12px',fontSize:12,color:'#dc2626',marginBottom:16}}>{error}</div>}
+            <input type="tel" inputMode="numeric" autoFocus value={code}
+              onChange={e=>setCode(e.target.value.replace(/\D/g,'').slice(0, maxLen))}
+              onKeyDown={e=>e.key==='Enter'&&onCode()}
+              placeholder={step==='pin'?'••••':'123456'}
+              style={{width:'100%',padding:'12px 13px',border:'1.5px solid #c8bfb4',borderRadius:8,fontSize:22,letterSpacing:'0.4em',textAlign:'center',fontFamily:'inherit',color:'#1a1714',background:'#fff',outline:'none',boxSizing:'border-box',marginBottom:20}}
+              onFocus={e=>e.target.style.borderColor='#C4922A'} onBlur={e=>e.target.style.borderColor='#c8bfb4'}/>
+            <button onClick={onCode} disabled={loading}
+              style={{width:'100%',padding:'12px 0',background:'#C4922A',color:'#fff',border:'none',borderRadius:8,fontSize:14,fontWeight:700,cursor:'pointer',opacity:loading?0.7:1}}>
+              {loading?'Please wait…':'Verify'}
+            </button>
+            <div style={{textAlign:'center',marginTop:16,fontSize:12,color:'#7a6e65',display:'flex',justifyContent:'space-between'}}>
+              <button onClick={backToLogin} style={{background:'none',border:'none',color:'#7a6e65',cursor:'pointer',fontSize:12,padding:0}}>← Back</button>
+              {step==='email'&&<button onClick={resendCode} style={{background:'none',border:'none',color:'#C4922A',fontWeight:700,cursor:'pointer',fontSize:12,padding:0}}>Resend code</button>}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{minHeight:'100vh',background:'#262E4B',display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
@@ -6307,6 +6578,7 @@ export default function App(){
   const [toast,setToast]=useState(null);
   const [ready,setReady]=useState(false);
   const [session,setSessionState]=useState(_session);
+  const [twoFAOpen,setTwoFAOpen]=useState(false);
   const showToast=msg=>{setToast(msg);window.__kpToast=msg=>setToast(msg);};
 
   // Listen for auth changes
@@ -6340,6 +6612,7 @@ export default function App(){
             <KPLogo height={34}/>
             <div style={{display:'flex',alignItems:'center',gap:12}}>
               <span style={{fontSize:11,color:'rgba(255,255,255,0.45)'}}>{session.user?.email}</span>
+              <button onClick={()=>setTwoFAOpen(true)} style={{background:'none',border:'1px solid rgba(255,255,255,0.2)',color:'rgba(255,255,255,0.6)',borderRadius:6,padding:'4px 10px',fontSize:11,cursor:'pointer'}}>🔒 Security</button>
               <button onClick={signOut} style={{background:'none',border:'1px solid rgba(255,255,255,0.2)',color:'rgba(255,255,255,0.6)',borderRadius:6,padding:'4px 10px',fontSize:11,cursor:'pointer'}}>Sign out</button>
               <DbStatusDot/>
             </div>
@@ -6371,6 +6644,7 @@ export default function App(){
           }
         </main>
       </div>
+      <TwoFactorModal open={twoFAOpen} onClose={()=>setTwoFAOpen(false)}/>
       {toast&&<Toast msg={toast} onDone={()=>setToast(null)}/>}
     </>
   );

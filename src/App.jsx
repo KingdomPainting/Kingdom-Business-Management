@@ -2679,6 +2679,16 @@ function RoomsTab({rooms,settings,onUpdate,onRemove,onAdd,paints,ceilPaints,colo
   );
 }
 
+// Field-worker count = active workers selected in Labour Rates. Total labour hours
+// are split across those workers, then estimated at ~6 productive hours per day.
+function fieldWorkerCount(settings){ return Math.max(1, settings?.fieldWorkers || settings?._standards?.workers || 1); }
+function projectHoursAndDays(totalHrs, settings){
+  const n=fieldWorkerCount(settings);
+  const hrs=totalHrs>0?Math.ceil(totalHrs/n):0;
+  const days=hrs>0?Math.ceil(hrs/6):0;
+  return {hrs, days};
+}
+
 // ─── BREAKDOWN TAB ────────────────────────────────────────────────────────────
 function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,swColours,supplies}){
   const fmtN=n=>Math.round(n).toLocaleString('en-CA');
@@ -2689,9 +2699,7 @@ function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,swColour
     tWalls+=c.wallSqft;tCeil+=c.ceilSqft;tTrim+=c.perimLF;tDoors+=roomDoorCount(r);tHrs+=c.totalHrs;tCost+=c.cost;
     return {room:r,calc:c,lines:calcRoomLines(r,settings)};
   });
-  const numWorkers=Math.max(1,settings._standards?.workers||1);
-  const totalProjectHrs=tHrs>0?Math.ceil(tHrs/numWorkers):0;
-  const estDays=totalProjectHrs>0?Math.ceil(totalProjectHrs/6):0;
+  const {hrs:totalProjectHrs,days:estDays}=projectHoursAndDays(tHrs,settings);
   const paintData=calcPaintCosts(rooms,paints||[],ceilPaints||[],primers||[],[...(colours||[]),...(swColours||[])],settings._standards?.matBuffer||1.15);
   const statStyle={background:'var(--card)',border:'1px solid var(--border)',borderRadius:10,padding:'14px 16px',textAlign:'center'};
   const statLabel={fontSize:10,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',fontWeight:600};
@@ -2997,8 +3005,7 @@ function ContractTab({rooms,settings,client,totals}){
   const bodyText={fontSize:11,lineHeight:'1.7',color:'#444',marginBottom:8};
   let tWalls=0,tCeil=0,tTrim=0,tDoors=0,tHrs=0;
   rooms.forEach(r=>{const c=calcRoom(r,settings);tWalls+=c.wallSqft;tCeil+=c.ceilSqft;tTrim+=c.perimLF;tDoors+=roomDoorCount(r);tHrs+=c.totalHrs;});
-  const numWorkers=Math.max(1,settings._standards?.workers||1);
-  const estDays=tHrs>0?Math.ceil(tHrs/numWorkers/8):0;
+  const {days:estDays}=projectHoursAndDays(tHrs,settings);
   const prepLabelsMap={furniture:'Move furniture',plastic:'Cover w/ plastic',outlets:'Remove outlets',drywall:'Drywall repairs',caulking:'Caulking',cleanup:'Clean up'};
   const roomPrep=r=>{const items=Object.entries(prepLabelsMap).filter(([k])=>r.prep?.[k]).map(([,v])=>v);if(r.prep?.custom)items.push(r.prep.custom);return items;};
 
@@ -3701,6 +3708,7 @@ function MasterEstimate(){
     labourBuffer:ps.labour.buffer||1.25,
     taxRate:13,
     discount:ps.labour.discount||0,
+    fieldWorkers:ps.labour.workers?.filter(w=>w.active).length||1,
     _standards:ps.standards
   };
 
@@ -3938,8 +3946,7 @@ function MasterEstimate(){
       chtml+=`</div>`;
       {
         const cHrs=rooms.reduce((s,r)=>s+calcRoom(r,settings).totalHrs,0);
-        const nWorkers=Math.max(1,settings._standards?.workers||1);
-        const estDays=cHrs>0?Math.ceil(cHrs/nWorkers/8):0;
+        const estDays=projectHoursAndDays(cHrs,settings).days;
         chtml+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">3. Duration of Work</p>`;
         chtml+=`<div style="font-size:11px;line-height:1.7;color:#444"><p>The Contractor will commence work on the scheduled date and is expected to complete the work in approximately <strong>${estDays} day${estDays!==1?'(s)':''}</strong>, subject to any unforeseen delays.</p></div>`;
       }
@@ -4345,8 +4352,7 @@ function buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,pri
   html+=`</div>`;
   {
     const tHrs=roomCalcs.reduce((s,x)=>s+x.calc.totalHrs,0);
-    const nWorkers=Math.max(1,settings._standards?.workers||1);
-    const estDays=tHrs>0?Math.ceil(tHrs/nWorkers/8):0;
+    const estDays=projectHoursAndDays(tHrs,settings).days;
     html+='<div class="section">';
     html+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">3. Duration of Work</p>`;
     html+=`<div style="font-size:11px;line-height:1.7;color:#444"><p>The Contractor will commence work on the scheduled date and is expected to complete the work in approximately <strong>${estDays} day${estDays!==1?'(s)':''}</strong>, subject to any unforeseen delays.</p></div></div>`;

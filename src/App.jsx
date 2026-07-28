@@ -2700,7 +2700,7 @@ function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,swColour
     return {room:r,calc:c,lines:calcRoomLines(r,settings)};
   });
   const {hrs:totalProjectHrs,days:estDays}=projectHoursAndDays(tHrs,settings);
-  const paintData=calcPaintCosts(rooms,paints||[],ceilPaints||[],primers||[],[...(colours||[]),...(swColours||[])],settings._standards?.matBuffer||1.15);
+  const paintData=calcPaintCosts(rooms,paints||[],ceilPaints||[],primers||[],[...(colours||[]),...(swColours||[])],settings.matBuffer||1.25);
   const statStyle={background:'var(--card)',border:'1px solid var(--border)',borderRadius:10,padding:'14px 16px',textAlign:'center'};
   const statLabel={fontSize:10,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',fontWeight:600};
   const statVal={fontSize:20,fontWeight:700,marginTop:4};
@@ -2854,7 +2854,7 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
   // Materials are itemised inside each room's line. Costs come from the whole-estimate
   // aggregation (so a colour shared across rooms is priced once — pails included — and its
   // cost is split between those rooms in proportion to each room's paintable area).
-  const matBuffer=settings._standards?.matBuffer||1.15;
+  const matBuffer=settings.matBuffer||1.25;
   const paintCosts=calcPaintCosts(rooms,paints||[],ceilPaints||[],primers||[],allColours,matBuffer);
   const roomMaterials=(r)=>{
     const own=calcPaintCosts([r],paints||[],ceilPaints||[],primers||[],allColours,matBuffer).lines;
@@ -3077,42 +3077,23 @@ function ContractTab({rooms,settings,client,totals}){
             <th style={{textAlign:'left',padding:'6px 8px',borderBottom:'2px solid #e5e5e5',color:'#888',fontWeight:600}}>Prep</th>
           </tr></thead>
           <tbody>{rooms.map(r=>{
-            const parts=[];
-            if(r.walls.enabled)parts.push('Walls');
-            if(r.ceiling.enabled)parts.push('Ceiling');
-            if(r.baseboards.enabled)parts.push('Baseboards');
-            if(r.crown.enabled)parts.push('Crown');
-            {const dc=roomDoorCount(r);if(dc>0)parts.push(`${dc} Door${dc>1?'s':''}`);}
-            {const wc=r.windows?.dims?.length||0;if(r.windows?.enabled&&wc>0)parts.push(`${wc} Window${wc>1?'s':''}`);}
-            if(!r.windows?.enabled&&r.windows?.count>0)parts.push(`${r.windows.count} Window${r.windows.count>1?'s':''}`);
+            const surfLines=calcRoomLines(r,settings).filter(ln=>ln.coats>0);
             const prep=roomPrep(r);
             return (
               <tr key={r.id}>
                 <td style={{padding:'6px 8px',borderBottom:'1px solid #eee',fontWeight:500,verticalAlign:'top'}}>{r.name}</td>
-                <td style={{padding:'6px 8px',borderBottom:'1px solid #eee',color:'#555',verticalAlign:'top'}}>{parts.join(', ')||'—'}</td>
-                <td style={{padding:'6px 8px',borderBottom:'1px solid #eee',color:'#555',verticalAlign:'top'}}>{prep.join(', ')||'—'}</td>
+                <td style={{padding:'6px 8px',borderBottom:'1px solid #eee',color:'#555',verticalAlign:'top'}}>
+                  {surfLines.length
+                    ? surfLines.map((ln,i)=><div key={i}>{ln.surface}: <strong style={{color:'#333'}}>{fmtN(ln.area*ln.coats)} {ln.areaUnit==='lf'?'LF':'sqft'}</strong></div>)
+                    : '—'}
+                </td>
+                <td style={{padding:'6px 8px',borderBottom:'1px solid #eee',color:'#555',verticalAlign:'top'}}>
+                  {prep.length ? prep.map((p,i)=><div key={i}>{p}</div>) : '—'}
+                </td>
               </tr>
             );
           })}</tbody>
         </table>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:8}}>
-          <div style={{background:'#faf7f2',borderRadius:6,padding:'8px 10px',textAlign:'center'}}>
-            <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>Walls</p>
-            <p style={{fontSize:13,fontWeight:700}}>{fmtN(tWalls)} square feet</p>
-          </div>
-          <div style={{background:'#faf7f2',borderRadius:6,padding:'8px 10px',textAlign:'center'}}>
-            <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>Ceiling</p>
-            <p style={{fontSize:13,fontWeight:700}}>{fmtN(tCeil)} square feet</p>
-          </div>
-          <div style={{background:'#faf7f2',borderRadius:6,padding:'8px 10px',textAlign:'center'}}>
-            <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>Trims</p>
-            <p style={{fontSize:13,fontWeight:700}}>{fmtN(tTrim)} linear feet</p>
-          </div>
-          <div style={{background:'#faf7f2',borderRadius:6,padding:'8px 10px',textAlign:'center'}}>
-            <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>Doors</p>
-            <p style={{fontSize:13,fontWeight:700}}>{tDoors} total</p>
-          </div>
-        </div>
 
         <p style={sectionTitle}>Duration of Work</p>
         <p style={bodyText}>The Contractor will commence work on the scheduled date and is expected to complete the work in approximately <strong>{estDays} day{estDays!==1?'(s)':''}</strong>, subject to any unforeseen delays.</p>
@@ -3709,10 +3690,11 @@ function MasterEstimate(){
     taxRate:13,
     discount:ps.labour.discount||0,
     fieldWorkers:ps.labour.workers?.filter(w=>w.active).length||1,
+    matBuffer:ps.labour.matBuffer||1.25,
     _standards:ps.standards
   };
 
-  const paintTotal=calcPaintCosts(rooms,ps.paints||[],ps.ceilPaints||[],ps.primers||[],[...(ps.colours||[]),...(ps.swColours||[])],settings._standards?.matBuffer||1.15).total;
+  const paintTotal=calcPaintCosts(rooms,ps.paints||[],ps.ceilPaints||[],ps.primers||[],[...(ps.colours||[]),...(ps.swColours||[])],settings.matBuffer).total;
   const supplyTotal=rooms.reduce((s,r)=>s+calcRoomSupplyCost(r,ps.supplies||[]),0);
   const totals=calcTotals(rooms,settings,paintTotal+supplyTotal);
   const totalHrs=rooms.reduce((s,r)=>s+calcRoom(r,settings).totalHrs,0);
@@ -4194,11 +4176,11 @@ function buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,pri
   const gold='#C4922A';
   const clientAddr=client.address||'';
   const roomCalcs=rooms.map(r=>({room:r,calc:calcRoom(r,settings),lines:calcRoomLines(r,settings)}));
-  const paintData=calcPaintCosts(rooms,paints||[],ceilPaints||[],primers||[],[...(colours||[]),...(swColours||[])],settings._standards?.matBuffer||1.15);
+  const paintData=calcPaintCosts(rooms,paints||[],ceilPaints||[],primers||[],[...(colours||[]),...(swColours||[])],settings.matBuffer||1.25);
   const allColours=[...(colours||[]),...(swColours||[])];
   const getHex=name=>{const c=allColours.find(x=>x.n===name);return c?.h||null;};
   const prepLabelsMap={furniture:'Move furniture',plastic:'Cover w/ plastic',outlets:'Remove outlets',drywall:'Drywall repairs',caulking:'Caulking',cleanup:'Clean up'};
-  const matBuffer=settings._standards?.matBuffer||1.15;
+  const matBuffer=settings.matBuffer||1.25;
   // Each room's materials, priced from the whole-estimate aggregation so a colour shared across
   // rooms (pails included) has its cost split between them in proportion to each room's area.
   const roomMaterials=(r)=>{

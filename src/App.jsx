@@ -2965,10 +2965,10 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
               </div>
             )}
             <div style={{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:6}}>
-              <span style={{color:'#888'}}>Subtotal</span><span>{fmtCAD(totals.discounted)}</span>
+              <span style={{color:'#888'}}>Subtotal</span><span>{fmtCAD(totals.discounted+(totals.materialCost||0))}</span>
             </div>
             <div style={{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:6}}>
-              <span style={{color:'#888'}}>HST (13%)</span><span>{fmtCAD(totals.taxAmt)}</span>
+              <span style={{color:'#888'}}>Labour HST (13%)</span><span>{fmtCAD(totals.taxAmt)}</span>
             </div>
             <div style={{display:'flex',justifyContent:'space-between',fontSize:14,fontWeight:700,paddingTop:8,borderTop:'2px solid #1a1a1a'}}>
               <span>Total</span><span style={{color:gold}}>{fmtCAD(totals.total)}</span>
@@ -4273,8 +4273,8 @@ function buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,pri
     html+=`</td></tr>`;
   });
   html+='</tbody></table>';
-  html+=`<div style="margin-top:24px;padding-top:16px" class="border-gold"><table style="width:auto;margin-left:auto"><tr><td style="text-align:right;padding:4px 16px;color:#888">Subtotal</td><td style="text-align:right;padding:4px 0;font-weight:600">${fmtC(totals.discounted)}</td></tr>`;
-  html+=`<tr><td style="text-align:right;padding:4px 16px;color:#888">HST (13%)</td><td style="text-align:right;padding:4px 0">${fmtC(totals.taxAmt)}</td></tr>`;
+  html+=`<div style="margin-top:24px;padding-top:16px" class="border-gold"><table style="width:auto;margin-left:auto"><tr><td style="text-align:right;padding:4px 16px;color:#888">Subtotal</td><td style="text-align:right;padding:4px 0;font-weight:600">${fmtC(totals.discounted+(totals.materialCost||0))}</td></tr>`;
+  html+=`<tr><td style="text-align:right;padding:4px 16px;color:#888">Labour HST (13%)</td><td style="text-align:right;padding:4px 0">${fmtC(totals.taxAmt)}</td></tr>`;
   html+=`<tr style="border-top:2px solid ${gold}"><td style="text-align:right;padding:8px 16px;font-weight:700;font-size:14px" class="gold">Total</td><td style="text-align:right;padding:8px 0;font-weight:700;font-size:14px" class="gold">${fmtC(totals.total)}</td></tr></table></div>`;
   html+='</div>';
   if(mode!=='quote'){

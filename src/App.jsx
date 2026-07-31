@@ -1309,22 +1309,25 @@ function Dashboard({toast}){
         <div style={{background:'var(--card)',border:'1px solid var(--border)',borderRadius:10,padding:'14px 16px',flexShrink:0}}>
           <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',marginBottom:12}}>Leads by Source</p>
           <div style={{display:'flex',flexDirection:'column',gap:8}}>
-            {LEAD_SOURCES.map(source=>{
+            {(()=>{
               const srcDeals=deals.filter(d=>['Scheduled','Completed','Archive'].includes(d.stage));
-              const count=srcDeals.filter(d=>d.leadSource===source).length;
               const total=srcDeals.filter(d=>d.leadSource).length||1;
-              const pct=Math.round((count/total)*100);
-              return (
-                <div key={source} style={{display:'flex',alignItems:'center',gap:8}}>
-                  <span style={{fontSize:11,fontWeight:700,width:84,textAlign:'center',flexShrink:0,padding:'2px 10px',borderRadius:20,background:(LEAD_COLORS[source]||{bg:'#f3f4f6'}).bg,color:(LEAD_COLORS[source]||{color:'#374151'}).color}}>{source}</span>
-                  <div style={{flex:1,height:8,background:'var(--muted)',borderRadius:9,overflow:'hidden'}}>
-                    <div style={{height:'100%',background:'var(--primary)',borderRadius:9,width:`${pct}%`,transition:'width .4s'}}/>
+              // Sort sources highest→lowest by count so the order updates as leads change.
+              const ranked=LEAD_SOURCES.map(source=>({source,count:srcDeals.filter(d=>d.leadSource===source).length})).sort((a,b)=>b.count-a.count);
+              return ranked.map(({source,count})=>{
+                const pct=Math.round((count/total)*100);
+                return (
+                  <div key={source} style={{display:'flex',alignItems:'center',gap:8}}>
+                    <span style={{fontSize:11,fontWeight:700,width:84,textAlign:'center',flexShrink:0,padding:'2px 10px',borderRadius:20,background:(LEAD_COLORS[source]||{bg:'#f3f4f6'}).bg,color:(LEAD_COLORS[source]||{color:'#374151'}).color}}>{source}</span>
+                    <div style={{flex:1,height:8,background:'var(--muted)',borderRadius:9,overflow:'hidden'}}>
+                      <div style={{height:'100%',background:'var(--primary)',borderRadius:9,width:`${pct}%`,transition:'width .4s'}}/>
+                    </div>
+                    <span style={{fontSize:11,fontWeight:700,color:'var(--primary)',width:24,textAlign:'right'}}>{count}</span>
+                    <span style={{fontSize:10,color:'var(--muted-fg)',width:32,textAlign:'right'}}>{pct}%</span>
                   </div>
-                  <span style={{fontSize:11,fontWeight:700,color:'var(--primary)',width:24,textAlign:'right'}}>{count}</span>
-                  <span style={{fontSize:10,color:'var(--muted-fg)',width:32,textAlign:'right'}}>{pct}%</span>
-                </div>
-              );
-            })}
+                );
+              });
+            })()}
             {deals.filter(d=>['Scheduled','Completed','Archive'].includes(d.stage)&&d.leadSource).length===0&&(
               <p style={{fontSize:12,color:'var(--muted-fg)'}}>No lead sources assigned yet.</p>
             )}
@@ -4627,6 +4630,8 @@ function Financials({showToast}){
   const [sortDir,setSortDir]=useState('desc'); // newest first by default
   // Bookkeeping expenses linked to a project, summed per project: {dealId:{materials,wages}}
   const [bkAgg,setBkAgg]=useState({});
+  // All bookkeeping expense entries (for the Total/Avg Expenses cards)
+  const [bkExpenses,setBkExpenses]=useState([]);
 
   // Load deals fresh from Supabase on mount to get latest materials/wages
   useEffect(()=>{
@@ -4634,9 +4639,11 @@ function Financials({showToast}){
       setDeals(api.getDeals().filter(d=>['Scheduled','Completed','Archive'].includes(d.stage)&&!(d.labels||[]).includes('Lost')));
       setContacts(api.getContacts());
     });
-    supaFetch('/rest/v1/bookkeeping?type=eq.expense&select=project_id,category,amount').then(rows=>{
+    supaFetch('/rest/v1/bookkeeping?type=eq.expense&select=project_id,category,amount,date').then(rows=>{
+      const list=Array.isArray(rows)?rows:[];
+      setBkExpenses(list);
       const agg={};
-      (rows||[]).forEach(e=>{
+      list.forEach(e=>{
         if(!e.project_id) return;
         const a=agg[e.project_id]||(agg[e.project_id]={materials:0,wages:0});
         if(e.category==='Materials') a.materials+=parseFloat(e.amount)||0;
@@ -4761,6 +4768,16 @@ function Financials({showToast}){
   const lostMonths=new Set(lostDeals.map(d=>{const dt=dealDate(d);return dt&&dt.getTime()!==0?`${dt.getFullYear()}-${dt.getMonth()}`:null;}).filter(Boolean));
   const avgLostPerMonth=lostMonths.size>0?totalLostValue/lostMonths.size:0;
 
+  // Expenses pulled from the Bookkeeping page (all expense-type entries).
+  const totalExpenses=bkExpenses.reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
+  const expenseMonths=new Set(bkExpenses.map(e=>(e.date||'').slice(0,7)).filter(Boolean));
+  const avgExpensesPerMonth=expenseMonths.size>0?totalExpenses/expenseMonths.size:0;
+  // Lost project value range
+  const lostValues=lostDeals.map(d=>parseFloat(d.value)||0).filter(v=>v>0);
+  const lostLow=lostValues.length?Math.min(...lostValues):0;
+  const lostHigh=lostValues.length?Math.max(...lostValues):0;
+  const lostAvg=lostValues.length?lostValues.reduce((a,b)=>a+b,0)/lostValues.length:0;
+
   const inp={background:'var(--muted)',border:'1px solid var(--border)',borderRadius:6,padding:'5px 8px',fontSize:12,color:'var(--fg)',width:'100%',textAlign:'right'};
   const tdStyle={padding:'8px 10px',borderBottom:'1px solid var(--border)',fontSize:12,verticalAlign:'middle'};
   const thStyle={padding:'8px 10px',fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--muted-fg)',borderBottom:'2px solid var(--border)',whiteSpace:'nowrap',textAlign:'left'};
@@ -4775,8 +4792,8 @@ function Financials({showToast}){
       <div className="fin-grid" style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:14,flexShrink:0}}>
         {[
           {label:'Total Revenue',value:fmtUSD(totalRevenue),color:'var(--primary)'},
+          {label:'Total Expenses',value:fmtUSD(totalExpenses),color:'#ef4444'},
           {label:'Total Profit',value:fmtUSD(totalGP),color:totalGP>=0?'#22c55e':'#ef4444'},
-          {label:`Total Projects (${currentYear})`,value:projectsThisYear,color:'var(--fg)'},
         ].map(({label,value,color})=>(
           <Card key={label} style={{padding:'14px 18px'}}>
             <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',marginBottom:4}}>{label}</p>
@@ -4789,8 +4806,8 @@ function Financials({showToast}){
       <div className="fin-grid" style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:14,flexShrink:0}}>
         {[
           {label:'Avg Revenue / Month',value:fmtUSD(avgRevenuePerMonth),color:'var(--primary)'},
+          {label:'Avg Expenses / Month',value:fmtUSD(avgExpensesPerMonth),color:'#ef4444'},
           {label:'Avg Profit / Month',value:fmtUSD(avgProfitPerMonth),color:avgProfitPerMonth>=0?'#22c55e':'#ef4444'},
-          {label:'Avg Lost / Month',value:fmtUSD(avgLostPerMonth),color:'#ef4444'},
         ].map(({label,value,color})=>(
           <Card key={label} style={{padding:'14px 18px'}}>
             <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',marginBottom:4}}>{label}</p>
@@ -4870,32 +4887,15 @@ function Financials({showToast}){
           {label:'Average',value:avgVal,fill:'#C4922A'},
           {label:'Highest',value:highestVal,fill:'#22c55e'},
         ];
-        // Leads by source — avg per month using quote_date
-        const totalLeadsWithSrc=activeDeals.filter(d=>d.leadSource).length||1;
+        const lostBarData=[
+          {label:'Lowest',value:lostLow,fill:'#3b82f6'},
+          {label:'Average',value:lostAvg,fill:'#C4922A'},
+          {label:'Highest',value:lostHigh,fill:'#ef4444'},
+        ];
         return (
           <div className="fin-grid" style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:14}}>
-            <Card style={{padding:'14px 18px',display:'flex',flexDirection:'column',gap:4}}>
-              <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',marginBottom:8}}>Leads by Source / Month</p>
-              <div style={{display:'flex',flexDirection:'column',gap:7}}>
-                {LEAD_SOURCES.map(source=>{
-                  const count=activeDeals.filter(d=>d.leadSource===source).length;
-                  const pct=Math.round((count/totalLeadsWithSrc)*100);
-                  return (
-                    <div key={source} style={{display:'flex',alignItems:'center',gap:7}}>
-                      <span style={{fontSize:10,fontWeight:700,width:80,textAlign:'center',flexShrink:0,padding:'1px 8px',borderRadius:20,background:(LEAD_COLORS[source]||{bg:'#f3f4f6'}).bg,color:(LEAD_COLORS[source]||{color:'#374151'}).color}}>{source}</span>
-                      <div style={{flex:1,height:7,background:'var(--muted)',borderRadius:9,overflow:'hidden'}}>
-                        <div style={{height:'100%',background:'var(--primary)',borderRadius:9,width:`${pct}%`,transition:'width .4s'}}/>
-                      </div>
-                      <span style={{fontSize:11,fontWeight:700,color:'var(--fg)',width:20,textAlign:'right'}}>{count}</span>
-                      <span style={{fontSize:10,color:'var(--muted-fg)',width:30,textAlign:'right'}}>{pct}%</span>
-                    </div>
-                  );
-                })}
-                {activeDeals.filter(d=>d.leadSource).length===0&&<p style={{fontSize:12,color:'var(--muted-fg)'}}>No lead sources yet.</p>}
-              </div>
-            </Card>
             <Card style={{padding:'14px 18px',display:'flex',flexDirection:'column',gap:8}}>
-              <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)'}}>Cost Breakdown (Avg)</p>
+              <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)'}}>Cost Breakdown (Average)</p>
               <div style={{display:'flex',alignItems:'center',gap:8,flex:1,flexWrap:'wrap'}}>
                 <div className="fin-pie-wrap" style={{width:150,height:150,flexShrink:0}}>
                   <PieChart width={150} height={150}>
@@ -4928,6 +4928,20 @@ function Financials({showToast}){
                 </BarChart>
               </ResponsiveContainer>
               <p style={{fontSize:11,color:'var(--primary)',fontWeight:700,textAlign:'center'}}>Avg: ${avgVal.toFixed(2)}</p>
+            </Card>
+            <Card style={{padding:'14px 18px',display:'flex',flexDirection:'column',gap:4}}>
+              <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)'}}>Lost Project Value Range</p>
+              <ResponsiveContainer width='100%' height={130}>
+                <BarChart data={lostBarData} margin={{top:4,right:4,left:0,bottom:4}}>
+                  <XAxis dataKey='label' tick={{fontSize:10,fontWeight:600}}/>
+                  <YAxis tick={{fontSize:9}} tickFormatter={v=>`$${(v/1000).toFixed(0)}k`} width={40}/>
+                  <Tooltip formatter={v=>['$'+v.toFixed(2),'Lost Value']} contentStyle={{background:'var(--card)',border:'1px solid var(--border)',borderRadius:8,fontSize:11}}/>
+                  <Bar dataKey='value' radius={[4,4,0,0]}>
+                    {lostBarData.map((e,i)=><Cell key={i} fill={e.fill}/>)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+              <p style={{fontSize:11,color:'#ef4444',fontWeight:700,textAlign:'center'}}>Avg lost: ${lostAvg.toFixed(2)}</p>
             </Card>
           </div>
         );

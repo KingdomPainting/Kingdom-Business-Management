@@ -4746,7 +4746,8 @@ function Financials({showToast}){
   // Monthly data for charts (last 6 months)
   const now=new Date();
   const monthlyData=Array.from({length:6},(_,i)=>{
-    const d=new Date(now); d.setMonth(d.getMonth()-5+i);
+    // Anchor to day 1 so short months don't roll over (was duplicating Mar/May/Jul).
+    const d=new Date(now.getFullYear(), now.getMonth()-5+i, 1);
     const yr=d.getFullYear(); const mo=d.getMonth();
     const month=d.toLocaleString('en',{month:'short'});
     const monthDeals=activeDeals.filter(dd=>{

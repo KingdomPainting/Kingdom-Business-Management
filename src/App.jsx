@@ -4877,13 +4877,14 @@ function Financials({showToast}){
 
       {/* ── Row 2: Leads by Source + Cost Breakdown pie + Avg Project Value bar ── */}
       {(()=>{
-        // Revenue split into Profit vs Expenses (expenses = Total Expenses card, from Bookkeeping).
-        const expensePct=totalRevenue>0?Math.min(100,Math.round(totalExpenses/totalRevenue*100)):(totalExpenses>0?100:0);
-        const profPct=Math.max(0,100-expensePct);
-        const costPieData=[
-          {name:'Profit',value:profPct,color:'#C4922A'},
-          {name:'Expenses',value:expensePct,color:'#3b82f6'},
-        ];
+        // Cost breakdown = Bookkeeping expenses grouped by category (share of total expenses).
+        const catSums={};
+        bkExpenses.forEach(e=>{const c=(e.category||'Other').trim()||'Other';catSums[c]=(catSums[c]||0)+(parseFloat(e.amount)||0);});
+        const catPalette=['#C4922A','#3b82f6','#22c55e','#ef4444','#8b5cf6','#f59e0b','#14b8a6','#ec4899','#64748b'];
+        const expTotal=Object.values(catSums).reduce((s,v)=>s+v,0)||1;
+        const costPieData=Object.entries(catSums)
+          .sort((a,b)=>b[1]-a[1])
+          .map(([name,val],i)=>({name,amount:val,value:Math.round(val/expTotal*100),color:catPalette[i%catPalette.length]}));
         const projectValues=activeDeals.map(d=>parseFloat(d.value)||0).filter(v=>v>0);
         const highestVal=projectValues.length?Math.max(...projectValues):0;
         const lowestVal=projectValues.length?Math.min(...projectValues):0;
@@ -4901,8 +4902,10 @@ function Financials({showToast}){
         return (
           <div className="fin-grid" style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:14}}>
             <Card style={{padding:'14px 18px',display:'flex',flexDirection:'column',gap:8}}>
-              <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)'}}>Cost Breakdown (Average)</p>
-              <div style={{display:'flex',alignItems:'center',gap:8,flex:1,flexWrap:'wrap'}}>
+              <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)'}}>Cost Breakdown (by Category)</p>
+              {costPieData.length===0
+                ? <p style={{fontSize:12,color:'var(--muted-fg)'}}>No expenses recorded.</p>
+                : <div style={{display:'flex',alignItems:'center',gap:8,flex:1,flexWrap:'wrap'}}>
                 <div className="fin-pie-wrap" style={{width:150,height:150,flexShrink:0}}>
                   <PieChart width={150} height={150}>
                     <Pie data={costPieData} cx={70} cy={70} innerRadius={42} outerRadius={68} dataKey='value' startAngle={90} endAngle={-270} strokeWidth={0}>
@@ -4910,16 +4913,16 @@ function Financials({showToast}){
                     </Pie>
                   </PieChart>
                 </div>
-                <div style={{display:'flex',flexDirection:'column',gap:10,flex:1}}>
+                <div style={{display:'flex',flexDirection:'column',gap:8,flex:1,minWidth:160}}>
                   {costPieData.map(d=>(
                     <div key={d.name} style={{display:'flex',alignItems:'center',gap:8}}>
-                      <span style={{width:12,height:12,borderRadius:'50%',background:d.color,flexShrink:0,display:'inline-block'}}/>
-                      <span style={{fontSize:13,color:'var(--muted-fg)',flex:1}}>{d.name}</span>
-                      <span style={{fontWeight:800,fontSize:18,color:d.color}}>{d.value}%</span>
+                      <span style={{width:11,height:11,borderRadius:'50%',background:d.color,flexShrink:0,display:'inline-block'}}/>
+                      <span style={{fontSize:12,color:'var(--muted-fg)',flex:1}}>{d.name} <span style={{fontSize:10}}>({fmtUSD(d.amount)})</span></span>
+                      <span style={{fontWeight:800,fontSize:15,color:d.color}}>{d.value}%</span>
                     </div>
                   ))}
                 </div>
-              </div>
+              </div>}
             </Card>
             <Card style={{padding:'14px 18px',display:'flex',flexDirection:'column',gap:4}}>
               <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)'}}>Project Value Range</p>

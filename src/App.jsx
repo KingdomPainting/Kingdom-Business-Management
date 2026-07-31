@@ -4760,7 +4760,6 @@ function Financials({showToast}){
 
   const monthsWithData=monthlyData.filter(m=>m.revenue>0);
   const avgRevenuePerMonth=monthsWithData.length>0?monthsWithData.reduce((s,m)=>s+m.revenue,0)/monthsWithData.length:0;
-  const avgProfitPerMonth=monthsWithData.length>0?monthsWithData.reduce((s,m)=>s+m.grossProfit,0)/monthsWithData.length:0;
 
   // Avg Lost / Month — total value of "Lost" projects averaged over the months that had losses
   const lostDeals=api.getDeals().filter(d=>(d.labels||[]).includes('Lost'));
@@ -4772,6 +4771,9 @@ function Financials({showToast}){
   const totalExpenses=bkExpenses.reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
   const expenseMonths=new Set(bkExpenses.map(e=>(e.date||'').slice(0,7)).filter(Boolean));
   const avgExpensesPerMonth=expenseMonths.size>0?totalExpenses/expenseMonths.size:0;
+  // Profit = revenue − expenses (both cards and their per-month averages).
+  const totalProfit=totalRevenue-totalExpenses;
+  const avgProfitPerMonth=avgRevenuePerMonth-avgExpensesPerMonth;
   // Lost project value range
   const lostValues=lostDeals.map(d=>parseFloat(d.value)||0).filter(v=>v>0);
   const lostLow=lostValues.length?Math.min(...lostValues):0;
@@ -4793,7 +4795,7 @@ function Financials({showToast}){
         {[
           {label:'Total Revenue',value:fmtUSD(totalRevenue),color:'var(--primary)'},
           {label:'Total Expenses',value:fmtUSD(totalExpenses),color:'#ef4444'},
-          {label:'Total Profit',value:fmtUSD(totalGP),color:totalGP>=0?'#22c55e':'#ef4444'},
+          {label:'Total Profit',value:fmtUSD(totalProfit),color:totalProfit>=0?'#22c55e':'#ef4444'},
         ].map(({label,value,color})=>(
           <Card key={label} style={{padding:'14px 18px'}}>
             <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',marginBottom:4}}>{label}</p>

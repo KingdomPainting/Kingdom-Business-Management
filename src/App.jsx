@@ -4882,13 +4882,17 @@ function Financials({showToast}){
         const materialsTotal=bkMaterials+manualMaterials;
         const wagesTotal=bkWages+manualWages;
         const othersTotal=Math.max(0,totalExpenses-materialsTotal-wagesTotal);
-        const expBase=totalExpenses||1;
-        const matPct=Math.round(materialsTotal/expBase*100);
-        const wagePct=Math.round(wagesTotal/expBase*100);
+        // Revenue split: Profit + Materials + Wages + Others (expenses broken down).
+        const profitVal=Math.max(0,totalProfit);
+        const pieBase=Math.max(profitVal+materialsTotal+wagesTotal+othersTotal,1);
+        const profPct=Math.round(profitVal/pieBase*100);
+        const matPct=Math.round(materialsTotal/pieBase*100);
+        const wagePct=Math.round(wagesTotal/pieBase*100);
         const costPieData=[
+          {name:'Profit',value:profPct,color:'#C4922A'},
           {name:'Materials',value:matPct,color:'#3b82f6'},
           {name:'Wages',value:wagePct,color:'#22c55e'},
-          {name:'Others',value:Math.max(0,100-matPct-wagePct),color:'#C4922A'},
+          {name:'Others',value:Math.max(0,100-profPct-matPct-wagePct),color:'#8b5cf6'},
         ];
         const projectValues=activeDeals.map(d=>parseFloat(d.value)||0).filter(v=>v>0);
         const highestVal=projectValues.length?Math.max(...projectValues):0;

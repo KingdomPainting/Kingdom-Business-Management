@@ -4745,27 +4745,17 @@ function Financials({showToast}){
 
   // Monthly data for charts (last 6 months)
   const now=new Date();
-  const monthlyData=Array.from({length:6},(_,i)=>{
-    // Anchor to day 1 so short months don't roll over (was duplicating Mar/May/Jul).
-    const d=new Date(now.getFullYear(), now.getMonth()-5+i, 1);
-    const yr=d.getFullYear(); const mo=d.getMonth();
+  // Current year, January through the current month.
+  const monthlyData=Array.from({length:now.getMonth()+1},(_,mo)=>{
+    const d=new Date(now.getFullYear(), mo, 1);
     const month=d.toLocaleString('en',{month:'short'});
-    const monthDeals=activeDeals.filter(dd=>{
-      const dt=dealDate(dd);
-      return dt && dt.getTime()!==0 && dt.getFullYear()===yr && dt.getMonth()===mo;
-    });
-    const revenue=monthDeals.reduce((s,dd)=>s+getRow(dd).quote,0);
-    const gp=monthDeals.reduce((s,dd)=>s+getRow(dd).grossProfit,0);
-    return {month,revenue,grossProfit:gp,projects:monthDeals.length};
-  });
-
-  // Projects per month across the full current year (Jan–Dec).
-  const projectsYear=Array.from({length:12},(_,mo)=>{
     const monthDeals=activeDeals.filter(dd=>{
       const dt=dealDate(dd);
       return dt && dt.getTime()!==0 && dt.getFullYear()===now.getFullYear() && dt.getMonth()===mo;
     });
-    return {month:new Date(now.getFullYear(),mo,1).toLocaleString('en',{month:'short'}),projects:monthDeals.length};
+    const revenue=monthDeals.reduce((s,dd)=>s+getRow(dd).quote,0);
+    const gp=monthDeals.reduce((s,dd)=>s+getRow(dd).grossProfit,0);
+    return {month,revenue,grossProfit:gp,projects:monthDeals.length};
   });
 
   const monthsWithData=monthlyData.filter(m=>m.revenue>0);
@@ -4862,7 +4852,7 @@ function Financials({showToast}){
           <div style={{padding:'10px 14px 4px',fontWeight:600,fontSize:12}}>Projects / Month</div>
           <div style={{padding:'0 14px 10px'}}>
             <ResponsiveContainer width='100%' height={160}>
-              <LineChart data={projectsYear} margin={{top:4,right:4,left:0,bottom:4}}>
+              <LineChart data={monthlyData} margin={{top:4,right:4,left:0,bottom:4}}>
                 <CartesianGrid strokeDasharray='3 3' stroke='var(--border)'/>
                 <XAxis dataKey='month' tick={{fontSize:9}}/>
                 <YAxis tick={{fontSize:9}} allowDecimals={false}/>

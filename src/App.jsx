@@ -4767,9 +4767,16 @@ function Financials({showToast}){
   const lostMonths=new Set(lostDeals.map(d=>{const dt=dealDate(d);return dt&&dt.getTime()!==0?`${dt.getFullYear()}-${dt.getMonth()}`:null;}).filter(Boolean));
   const avgLostPerMonth=lostMonths.size>0?totalLostValue/lostMonths.size:0;
 
-  // Expenses pulled from the Bookkeeping page (all expense-type entries).
-  const totalExpenses=bkExpenses.reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
+  // Total Expenses = Financials materials/wages + Bookkeeping expenses, de-duplicated.
+  // Project-linked bookkeeping entries (Materials/Subcontractor) are already folded into
+  // the Financials materials/wages via bkAgg, so only the *manual* deal materials/wages
+  // (deal.materials/deal.wages) are added on top of the full Bookkeeping expense total.
+  const manualMatWages=activeDeals.reduce((s,d)=>{const r=getRow(d);return s+(r.baseMaterials||0)+(r.baseWages||0);},0);
+  const bkExpenseTotal=bkExpenses.reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
+  const totalExpenses=manualMatWages+bkExpenseTotal;
+  // Months with any expense — a bookkeeping entry, or a deal carrying manual materials/wages.
   const expenseMonths=new Set(bkExpenses.map(e=>(e.date||'').slice(0,7)).filter(Boolean));
+  activeDeals.forEach(d=>{const r=getRow(d);if((r.baseMaterials||0)+(r.baseWages||0)>0){const dt=dealDate(d);if(dt&&dt.getTime()!==0)expenseMonths.add(`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}`);}});
   const avgExpensesPerMonth=expenseMonths.size>0?totalExpenses/expenseMonths.size:0;
   // Profit = revenue − expenses (both cards and their per-month averages).
   const totalProfit=totalRevenue-totalExpenses;

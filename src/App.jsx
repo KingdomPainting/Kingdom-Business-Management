@@ -4874,12 +4874,21 @@ function Financials({showToast}){
 
       {/* ── Row 2: Leads by Source + Cost Breakdown pie + Avg Project Value bar ── */}
       {(()=>{
-        // Revenue split into Profit vs Expenses (expenses = Total Expenses card, from Bookkeeping).
-        const expensePct=totalRevenue>0?Math.min(100,Math.round(totalExpenses/totalRevenue*100)):(totalExpenses>0?100:0);
-        const profPct=Math.max(0,100-expensePct);
+        // Split total expenses into Materials, Wages, and Others (everything else).
+        const bkMaterials=bkExpenses.filter(e=>e.category==='Materials').reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
+        const bkWages=bkExpenses.filter(e=>e.category==='Subcontractor').reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
+        const manualMaterials=activeDeals.reduce((s,d)=>s+(getRow(d).baseMaterials||0),0);
+        const manualWages=activeDeals.reduce((s,d)=>s+(getRow(d).baseWages||0),0);
+        const materialsTotal=bkMaterials+manualMaterials;
+        const wagesTotal=bkWages+manualWages;
+        const othersTotal=Math.max(0,totalExpenses-materialsTotal-wagesTotal);
+        const expBase=totalExpenses||1;
+        const matPct=Math.round(materialsTotal/expBase*100);
+        const wagePct=Math.round(wagesTotal/expBase*100);
         const costPieData=[
-          {name:'Profit',value:profPct,color:'#C4922A'},
-          {name:'Expenses',value:expensePct,color:'#3b82f6'},
+          {name:'Materials',value:matPct,color:'#3b82f6'},
+          {name:'Wages',value:wagePct,color:'#22c55e'},
+          {name:'Others',value:Math.max(0,100-matPct-wagePct),color:'#C4922A'},
         ];
         const projectValues=activeDeals.map(d=>parseFloat(d.value)||0).filter(v=>v>0);
         const highestVal=projectValues.length?Math.max(...projectValues):0;

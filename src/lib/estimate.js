@@ -203,7 +203,11 @@ export function calcRoom(room, settings){
   } else if(room.doors?.count > 0) hrs += (room.doors.count * 21) / (std.doors?.[room.doors.coats] || 42);
   if(room.windows?.enabled && winLF) hrs += winLF / (std.windows?.[room.windows.coats] || 60);
   hrs += (room.prepHrs || 0);
-  const cost = hrs * (settings.hourlyRate || 65) * (settings.labourBuffer || 1.25) + stuccoCost;
+  // Labour cost = (hours / field workers) × total-hourly-rate-all-workers × buffer.
+  // Hours are split across the active field workers so the cost matches the
+  // Breakdown tab (which shows per-worker hours); totalHrs stays raw (man-hours).
+  const workers = Math.max(1, settings.fieldWorkers || 1);
+  const cost = (hrs / workers) * (settings.hourlyRate || 65) * (settings.labourBuffer || 1.25) + stuccoCost;
   return { wallSqft, ceilSqft, perimLF, winLF, totalHrs: hrs + stuccoHrs, cost };
 }
 

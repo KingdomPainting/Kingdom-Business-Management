@@ -1839,7 +1839,7 @@ function Pipeline({showToast}){
                       {/* Value + ref */}
                       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:10,paddingTop:8,borderTop:'1px solid var(--border)'}}>
                         <div>
-                          <span style={{fontSize:16,fontWeight:700,color:'var(--fg)'}}>{deal.value!=null?fmtUSD(deal.value):''}</span>
+                          <span style={{fontSize:16,fontWeight:700,color:'var(--fg)'}}>{deal.value!=null?'$'+(parseFloat(deal.value)||0).toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2}):''}</span>
                           {deal.quote_date&&<span style={{fontSize:10,color:'var(--muted-fg)',marginLeft:6}}>{new Date(deal.quote_date+'T12:00:00').toLocaleDateString('en-CA',{month:'short',day:'numeric',year:'numeric'})}</span>}
                         </div>
                         {refName(deal)&&<span style={{fontSize:11,color:'var(--primary)'}}>Ref: {refName(deal)}</span>}

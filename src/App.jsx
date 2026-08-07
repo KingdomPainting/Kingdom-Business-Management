@@ -2703,6 +2703,7 @@ function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,swColour
     return {room:r,calc:c,lines:calcRoomLines(r,settings)};
   });
   const {hrs:totalProjectHrs,days:estDays}=projectHoursAndDays(tHrs,settings);
+  const nWorkers=fieldWorkerCount(settings); // per-room hours are shown per-worker to match the total
   const paintData=calcPaintCosts(rooms,paints||[],ceilPaints||[],primers||[],[...(colours||[]),...(swColours||[])],settings.matBuffer||1.25);
   const statStyle={background:'var(--card)',border:'1px solid var(--border)',borderRadius:10,padding:'14px 16px',textAlign:'center'};
   const statLabel={fontSize:10,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',fontWeight:600};
@@ -2738,7 +2739,7 @@ function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,swColour
                     <td style={tdStyle}>{fmtN(ln.area)} {ln.areaUnit}</td>
                     <td style={tdStyle}>{ln.coats}</td>
                     <td style={tdStyle}>{ln.coats>0?`${fmtN(ln.area*ln.coats)} ${ln.areaUnit}`:'—'}</td>
-                    <td style={tdStyle}>{ln.hours.toFixed(1)}</td>
+                    <td style={tdStyle}>{(ln.hours/nWorkers).toFixed(1)}</td>
                     <td style={{...tdStyle,textAlign:'right'}}>{fmtCAD(ln.cost)}</td>
                   </tr>
                 ))}</tbody>

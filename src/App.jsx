@@ -1829,6 +1829,13 @@ function Pipeline({showToast}){
                           </div>
                         </div>
                       )}
+                      {/* Start / End dates */}
+                      {(deal.startDate||deal.endDate)&&(
+                        <div style={{display:'flex',flexDirection:'column',gap:2,marginBottom:8,fontSize:11,color:'var(--muted-fg)'}}>
+                          {deal.startDate&&<span style={{display:'flex',alignItems:'center',gap:5}}><CalendarDays size={11} style={{flexShrink:0}}/>Start: {new Date(String(deal.startDate).slice(0,10)+'T12:00:00').toLocaleDateString('en-CA',{month:'short',day:'numeric',year:'numeric'})}</span>}
+                          {deal.endDate&&<span style={{display:'flex',alignItems:'center',gap:5}}><CalendarDays size={11} style={{flexShrink:0}}/>End: {new Date(String(deal.endDate).slice(0,10)+'T12:00:00').toLocaleDateString('en-CA',{month:'short',day:'numeric',year:'numeric'})}</span>}
+                        </div>
+                      )}
                       {/* Value + ref */}
                       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:10,paddingTop:8,borderTop:'1px solid var(--border)'}}>
                         <div>

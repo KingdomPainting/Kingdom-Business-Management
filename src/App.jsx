@@ -3074,7 +3074,9 @@ function ContractTab({rooms,settings,client,totals}){
           <div style={{fontSize:11,color:'#444',lineHeight:'1.7'}}>
             <p style={{fontWeight:600,marginBottom:4}}>Client</p>
             <p>{client.name||'—'}</p>
-            {client.address&&<p>{client.address}</p>}
+            {client.address&&(client.address.indexOf(',')>=0
+              ? <><p>{client.address.slice(0,client.address.indexOf(',')).trim()}</p><p>{client.address.slice(client.address.indexOf(',')+1).trim()}</p></>
+              : <p>{client.address}</p>)}
             {client.phone&&<p>{client.phone}</p>}
             {client.email&&<p>{client.email}</p>}
           </div>
@@ -4249,7 +4251,7 @@ function buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,pri
   html+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">1. Parties</p>`;
   html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:8px;font-size:11px;color:#444;line-height:1.7">';
   html+=`<div><p style="font-weight:600;margin-bottom:4px">Client</p><p>${client.name||'—'}</p>`;
-  if(clientAddr) html+=`<p>${clientAddr}</p>`;
+  if(clientAddr){ const ci=clientAddr.indexOf(','); if(ci>=0){ html+=`<p>${clientAddr.slice(0,ci).trim()}</p><p>${clientAddr.slice(ci+1).trim()}</p>`; } else { html+=`<p>${clientAddr}</p>`; } }
   if(client.phone) html+=`<p>${client.phone}</p>`;
   if(client.email) html+=`<p>${client.email}</p>`;
   html+='</div><div><p style="font-weight:600;margin-bottom:4px">Contractor</p><p>David Truong</p><p>25 Fieldview Crescent</p><p>Markham ON L3R 3H6</p><p>(647) 449-6611</p><p>info@kingdompainting.ca</p></div></div>';

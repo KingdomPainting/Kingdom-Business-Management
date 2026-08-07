@@ -216,9 +216,9 @@ export function calcTotals(rooms, settings, materialCost=0){
   const discounted = Math.max(0, labourSubtotal - (settings.discount||0));
   const taxAmt = discounted * ((settings.taxRate||13)/100);
   const total = discounted + taxAmt + materialCost;
-  const deposit = total * 0.50;
-  const balance = total - deposit; // 50% upon completion
-  const midway = 0; // retained for backward compatibility with older saved estimates
+  const deposit = total * 0.35;          // 35% deposit
+  const midway = total * 0.35;           // 35% halfway payment
+  const balance = total - deposit - midway; // 30% final payment
   return { labourSubtotal, discounted, taxAmt, total, deposit, midway, balance, materialCost };
 }
 

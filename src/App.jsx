@@ -370,13 +370,13 @@ function DrivePickerBtn({onAttach}){
 }
 
 // Default payment schedule mirrors the quote/contract terms: 50% deposit + 50%
-// on completion. Split by cents so the two halves always sum to the value exactly.
+// halfway, 30% final. Split by cents so the three parts always sum to the value.
 function defaultPaymentSchedule(value){
   const v=parseFloat(value)||0;
-  if(!v) return [{label:'Deposit (50%)',amount:''},{label:'Upon Completion (50%)',amount:''}];
+  if(!v) return [{label:'Deposit (35%)',amount:''},{label:'Halfway Payment (35%)',amount:''},{label:'Final Payment (30%)',amount:''}];
   const cents=Math.round(v*100);
-  const dep=Math.floor(cents/2), bal=cents-dep;
-  return [{label:'Deposit (50%)',amount:(dep/100).toFixed(2)},{label:'Upon Completion (50%)',amount:(bal/100).toFixed(2)}];
+  const dep=Math.round(cents*0.35), mid=Math.round(cents*0.35), fin=cents-dep-mid;
+  return [{label:'Deposit (35%)',amount:(dep/100).toFixed(2)},{label:'Halfway Payment (35%)',amount:(mid/100).toFixed(2)},{label:'Final Payment (30%)',amount:(fin/100).toFixed(2)}];
 }
 
 function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead',onAddContact}){
@@ -2981,17 +2981,26 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
         </div>
         <div style={{marginTop:32,paddingTop:20,borderTop:'1px solid #eee'}}>
           <p style={{fontSize:12,fontWeight:700,marginBottom:12,color:gold}}>Payment Terms</p>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12}}>
             <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:14,textAlign:'center'}}>
-              <p style={{fontSize:10,color:'#888',textTransform:'uppercase',fontWeight:600}}>50% Deposit</p>
+              <p style={{fontSize:10,color:'#888',textTransform:'uppercase',fontWeight:600}}>35% Deposit</p>
               <p style={{fontSize:16,fontWeight:700,marginTop:4}}>{fmtCAD(totals.deposit)}</p>
               <p style={{fontSize:9,color:'#888',marginTop:2}}>Due on first day</p>
             </div>
             <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:14,textAlign:'center'}}>
-              <p style={{fontSize:10,color:'#888',textTransform:'uppercase',fontWeight:600}}>50% Upon Completion</p>
+              <p style={{fontSize:10,color:'#888',textTransform:'uppercase',fontWeight:600}}>35% Halfway Payment</p>
+              <p style={{fontSize:16,fontWeight:700,marginTop:4}}>{fmtCAD(totals.midway)}</p>
+              <p style={{fontSize:9,color:'#888',marginTop:2}}>Due at the halfway point</p>
+            </div>
+            <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:14,textAlign:'center'}}>
+              <p style={{fontSize:10,color:'#888',textTransform:'uppercase',fontWeight:600}}>30% Final Payment</p>
               <p style={{fontSize:16,fontWeight:700,marginTop:4}}>{fmtCAD(totals.balance)}</p>
               <p style={{fontSize:9,color:'#888',marginTop:2}}>Due on completion</p>
             </div>
+          </div>
+          <div style={{marginTop:16}}>
+            <p style={{fontSize:10,color:'#888',textTransform:'uppercase',fontWeight:600,marginBottom:4}}>Notes</p>
+            <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:12,fontSize:12,color:'#444'}}>Different payment terms can be discussed.</div>
           </div>
         </div>
       </div>
@@ -3103,15 +3112,20 @@ function ContractTab({rooms,settings,client,totals}){
         <p style={bodyText}>The Contractor will commence work on the scheduled date and is expected to complete the work in approximately <strong>{estDays} day{estDays!==1?'(s)':''}</strong>, subject to any unforeseen delays.</p>
 
         <p style={sectionTitle}>Payment Terms</p>
-        <p style={bodyText}>The total cost for the Services shall be <strong>{fmtCAD(totals.total)}</strong>, which includes labour, materials, and any applicable taxes. A different payment plan can be discussed.</p>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:12}}>
+        <p style={bodyText}>The total cost for the Services shall be <strong>{fmtCAD(totals.total)}</strong>, which includes labour, materials, and any applicable taxes. Different payment terms can be discussed.</p>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:12}}>
           <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:12,textAlign:'center'}}>
-            <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>50% Deposit</p>
+            <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>35% Deposit</p>
             <p style={{fontSize:14,fontWeight:700,marginTop:2}}>{fmtCAD(totals.deposit)}</p>
             <p style={{fontSize:9,color:'#888',marginTop:2}}>Due on first day</p>
           </div>
           <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:12,textAlign:'center'}}>
-            <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>50% Upon Completion</p>
+            <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>35% Halfway Payment</p>
+            <p style={{fontSize:14,fontWeight:700,marginTop:2}}>{fmtCAD(totals.midway)}</p>
+            <p style={{fontSize:9,color:'#888',marginTop:2}}>Due at the halfway point</p>
+          </div>
+          <div style={{background:'#faf7f2',border:'1px solid #e8e0d4',borderRadius:8,padding:12,textAlign:'center'}}>
+            <p style={{fontSize:9,color:'#888',textTransform:'uppercase',fontWeight:600}}>30% Final Payment</p>
             <p style={{fontSize:14,fontWeight:700,marginTop:2}}>{fmtCAD(totals.balance)}</p>
             <p style={{fontSize:9,color:'#888',marginTop:2}}>Due on completion</p>
           </div>
@@ -3937,8 +3951,8 @@ function MasterEstimate(){
         chtml+=`<div style="font-size:11px;line-height:1.7;color:#444"><p>The Contractor will commence work on the scheduled date and is expected to complete the work in approximately <strong>${estDays} day${estDays!==1?'(s)':''}</strong>, subject to any unforeseen delays.</p></div>`;
       }
       chtml+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">4. Payment Terms</p>`;
-      chtml+=`<div style="font-size:11px;line-height:1.7;color:#444"><p style="margin-bottom:8px">The total cost for the Services shall be <strong>${fmtC(totals.total)}</strong>, which includes labour, materials, and any applicable taxes. A different payment plan can be discussed.</p>`;
-      chtml+=`<p>50% Deposit: ${fmtC(totals.deposit)} · 50% Upon Completion: ${fmtC(totals.balance)}</p></div>`;
+      chtml+=`<div style="font-size:11px;line-height:1.7;color:#444"><p style="margin-bottom:8px">The total cost for the Services shall be <strong>${fmtC(totals.total)}</strong>, which includes labour, materials, and any applicable taxes. Different payment terms can be discussed.</p>`;
+      chtml+=`<p>35% Deposit: ${fmtC(totals.deposit)} · 35% Halfway Payment: ${fmtC(totals.midway)} · 30% Final Payment: ${fmtC(totals.balance)}</p></div>`;
       chtml+=contractClausesHtml(gold,5);
       chtml+=contractSignatureBoxesHtml(gold,client);
       chtml+='</body></html>';
@@ -4345,8 +4359,8 @@ function buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,pri
   }
   html+='<div class="section">';
   html+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">4. Payment Terms</p>`;
-  html+=`<div style="font-size:11px;line-height:1.7;color:#444"><p style="margin-bottom:8px">The total cost for the Services shall be <strong>${fmtC(totals.total)}</strong>, which includes labour, materials, and any applicable taxes. A different payment plan can be discussed.</p>`;
-  html+=`<p>50% Deposit: ${fmtC(totals.deposit)} · 50% Upon Completion: ${fmtC(totals.balance)}</p></div></div>`;
+  html+=`<div style="font-size:11px;line-height:1.7;color:#444"><p style="margin-bottom:8px">The total cost for the Services shall be <strong>${fmtC(totals.total)}</strong>, which includes labour, materials, and any applicable taxes. Different payment terms can be discussed.</p>`;
+  html+=`<p>35% Deposit: ${fmtC(totals.deposit)} · 35% Halfway Payment: ${fmtC(totals.midway)} · 30% Final Payment: ${fmtC(totals.balance)}</p></div></div>`;
   html+=contractClausesHtml(gold,5);
   html+=contractSignatureBoxesHtml(gold,client);
   html+='</div>';

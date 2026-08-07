@@ -203,7 +203,11 @@ export function calcRoom(room, settings){
   } else if(room.doors?.count > 0) hrs += (room.doors.count * 21) / (std.doors?.[room.doors.coats] || 42);
   if(room.windows?.enabled && winLF) hrs += winLF / (std.windows?.[room.windows.coats] || 60);
   hrs += (room.prepHrs || 0);
-  const cost = hrs * (settings.hourlyRate || 65) * (settings.labourBuffer || 1.25) + stuccoCost;
+  // Labour cost = (hours / field workers) × total-hourly-rate-all-workers × buffer.
+  // Hours are split across the active field workers so the cost matches the
+  // Breakdown tab (which shows per-worker hours); totalHrs stays raw (man-hours).
+  const workers = Math.max(1, settings.fieldWorkers || 1);
+  const cost = (hrs / workers) * (settings.hourlyRate || 65) * (settings.labourBuffer || 1.25) + stuccoCost;
   return { wallSqft, ceilSqft, perimLF, winLF, totalHrs: hrs + stuccoHrs, cost };
 }
 
@@ -212,9 +216,9 @@ export function calcTotals(rooms, settings, materialCost=0){
   const discounted = Math.max(0, labourSubtotal - (settings.discount||0));
   const taxAmt = discounted * ((settings.taxRate||13)/100);
   const total = discounted + taxAmt + materialCost;
-  const deposit = total * 0.50;
-  const balance = total - deposit; // 50% upon completion
-  const midway = 0; // retained for backward compatibility with older saved estimates
+  const deposit = total * 0.35;          // 35% deposit
+  const midway = total * 0.35;           // 35% halfway payment
+  const balance = total - deposit - midway; // 30% final payment
   return { labourSubtotal, discounted, taxAmt, total, deposit, midway, balance, materialCost };
 }
 

@@ -2719,7 +2719,7 @@ function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,swColour
         <div style={statStyle}><p style={statLabel}>Total Doors</p><p style={statVal}>{tDoors}</p></div>
         <div style={statStyle}><p style={statLabel}>Total Project Hours</p><p style={statVal}>{fmtN(totalProjectHrs)}</p></div>
         <div style={statStyle}><p style={statLabel}>Est. Days</p><p style={statVal}>{estDays}</p></div>
-        <div style={statStyle}><p style={statLabel}>Labour Cost</p><p style={statVal}>{fmtCAD(tCost)}</p></div>
+        <div style={statStyle}><p style={statLabel}>Labour Cost</p><p style={statVal}>{fmtCAD((tHrs/nWorkers)*settings.hourlyRate)}</p></div>
         <div style={statStyle}><p style={statLabel}>Active Rooms</p><p style={statVal}>{activeRooms.length}</p></div>
       </div>
       <Card style={{marginBottom:24}}>
@@ -2727,7 +2727,7 @@ function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,swColour
           <p style={{fontSize:13,fontWeight:700,marginBottom:12}}>Per-Room Labour Breakdown</p>
           {roomCalcs.map(({room,calc,lines})=>(
             <div key={room.id} style={{marginBottom:16}}>
-              <p style={{fontSize:12,fontWeight:600,marginBottom:6}}>{room.name} <span style={{color:'var(--muted-fg)',fontWeight:400}}>({fmtCAD(calc.cost)})</span></p>
+              <p style={{fontSize:12,fontWeight:600,marginBottom:6}}>{room.name} <span style={{color:'var(--muted-fg)',fontWeight:400}}>({fmtCAD((calc.totalHrs/nWorkers)*settings.hourlyRate)})</span></p>
               <table style={{width:'100%',borderCollapse:'collapse'}}>
                 <thead><tr>
                   <th style={thStyle}>Surface</th><th style={thStyle}>Area</th><th style={thStyle}>Coats</th>
@@ -2740,7 +2740,7 @@ function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,swColour
                     <td style={tdStyle}>{ln.coats}</td>
                     <td style={tdStyle}>{ln.coats>0?`${fmtN(ln.area*ln.coats)} ${ln.areaUnit}`:'—'}</td>
                     <td style={tdStyle}>{(ln.hours/nWorkers).toFixed(1)}</td>
-                    <td style={{...tdStyle,textAlign:'right'}}>{fmtCAD(ln.cost)}</td>
+                    <td style={{...tdStyle,textAlign:'right'}}>{fmtCAD((ln.hours/nWorkers)*settings.hourlyRate)}</td>
                   </tr>
                 ))}</tbody>
               </table>

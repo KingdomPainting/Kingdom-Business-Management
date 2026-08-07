@@ -2902,7 +2902,9 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
           <div>
             <p style={{fontWeight:600,color:'#888',fontSize:10,textTransform:'uppercase',marginBottom:4}}>Prepared For</p>
             <p style={{fontWeight:600}}>{client.name||'—'}</p>
-            {client.address&&<p style={{color:'#666'}}>{client.address}</p>}
+            {client.address&&(client.address.indexOf(',')>=0
+              ? <><p style={{color:'#666'}}>{client.address.slice(0,client.address.indexOf(',')).trim()}</p><p style={{color:'#666'}}>{client.address.slice(client.address.indexOf(',')+1).trim()}</p></>
+              : <p style={{color:'#666'}}>{client.address}</p>)}
             {client.phone&&<p style={{color:'#666'}}>{client.phone}</p>}
             {client.email&&<p style={{color:'#666'}}>{client.email}</p>}
           </div>
@@ -4181,7 +4183,7 @@ function buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,pri
     html+='<p style="font-size:16px;font-weight:600;letter-spacing:0.08em;color:#555;margin-top:24px">BID PROPOSAL</p>';
     html+='<div style="margin-top:48px"><p style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:#999">PREPARED FOR</p>';
     html+=`<p style="font-size:18px;font-weight:600;margin-top:8px">${client.name||'Client Name'}</p>`;
-    if(clientAddr) html+=`<p style="font-size:12px;color:#666;margin-top:6px">${clientAddr}</p>`;
+    if(clientAddr){ const ci=clientAddr.indexOf(','); if(ci>=0){ html+=`<p style="font-size:12px;color:#666;margin-top:6px">${clientAddr.slice(0,ci).trim()}</p><p style="font-size:12px;color:#666;margin-top:2px">${clientAddr.slice(ci+1).trim()}</p>`; } else { html+=`<p style="font-size:12px;color:#666;margin-top:6px">${clientAddr}</p>`; } }
     if(client.phone) html+=`<p style="font-size:12px;color:#666;margin-top:4px">${client.phone}</p>`;
     if(client.email) html+=`<p style="font-size:12px;color:#666;margin-top:2px">${client.email}</p>`;
     html+='</div>';
@@ -4192,7 +4194,7 @@ function buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,pri
   html+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px" class="border-gold"><div style="display:flex;gap:12px;align-items:center"><img src="${LOGO_PNG}" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:2px">KINGDOM PAINTING INC. QUOTE</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p><p style="font-size:10px;color:#999;margin-top:4px">HST# 71164 5556 RT0001</p></div></div>`;
   html+='<div style="margin-bottom:24px;font-size:12px"><p style="font-weight:600;color:#888;font-size:10px;text-transform:uppercase;margin-bottom:4px">Prepared For</p>';
   html+=`<p style="font-weight:600">${client.name||'—'}</p>`;
-  if(clientAddr) html+=`<p style="color:#666">${clientAddr}</p>`;
+  if(clientAddr){ const ci=clientAddr.indexOf(','); if(ci>=0){ html+=`<p style="color:#666">${clientAddr.slice(0,ci).trim()}</p><p style="color:#666">${clientAddr.slice(ci+1).trim()}</p>`; } else { html+=`<p style="color:#666">${clientAddr}</p>`; } }
   if(client.phone) html+=`<p style="color:#666">${client.phone}</p>`;
   if(client.email) html+=`<p style="color:#666">${client.email}</p>`;
   html+='</div>';

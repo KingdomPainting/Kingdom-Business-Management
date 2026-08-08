@@ -213,7 +213,9 @@ export function calcRoom(room, settings){
 
 export function calcTotals(rooms, settings, materialCost=0){
   const labourSubtotal = rooms.reduce((s,r) => s + calcRoom(r,settings).cost, 0);
-  const discounted = Math.max(0, labourSubtotal - (settings.discount||0));
+  // Discount: percentage of the labour subtotal and/or a flat dollar amount.
+  const discount = labourSubtotal * ((settings.discountPct||0)/100) + (settings.discountFlat||0);
+  const discounted = Math.max(0, labourSubtotal - discount);
   const taxAmt = discounted * ((settings.taxRate||13)/100);
   const total = discounted + taxAmt + materialCost;
   const deposit = total * 0.35;          // 35% deposit

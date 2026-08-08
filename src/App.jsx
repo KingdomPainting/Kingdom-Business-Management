@@ -2971,7 +2971,7 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
         </table>
         <div style={{borderTop:'2px solid #e5e5e5',paddingTop:16,display:'flex',justifyContent:'flex-end'}}>
           <div style={{width:280}}>
-            {(settings.discount||0)>0&&(
+            {(totals.labourSubtotal-totals.discounted)>0.005&&(
               <div style={{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:6}}>
                 <span style={{color:'#888'}}>Discount</span>
                 <span style={{color:'#c00'}}>-{fmtCAD(totals.labourSubtotal-totals.discounted)}</span>
@@ -3717,7 +3717,8 @@ function MasterEstimate(){
     hourlyRate:hourlyRate||65,
     labourBuffer:ps.labour.buffer||1.25,
     taxRate:13,
-    discount:ps.labour.discount||0,
+    discountPct:ps.labour.discount?(ps.labour.discPct||0):0,
+    discountFlat:ps.labour.discountAmt?(ps.labour.discAmt||0):0,
     fieldWorkers:ps.labour.workers?.filter(w=>w.active).length||1,
     matBuffer:ps.labour.matBuffer||1.25,
     _standards:ps.standards

@@ -6144,11 +6144,9 @@ body{font-family:'Montserrat',Georgia,sans-serif;background:#fff;color:#1a1714;p
             </div>
             {balance<=0
               ? <div className="cp-pay-done">{'✅'} Paid in full</div>
-              : schedule.length>1
-                ? null
-                : <button className="cp-pay-btn" disabled={payingDeal===d.id} onClick={()=>payProject(d)}>
-                    {payingDeal===d.id?'Redirecting…':`Pay ${fmtMoney(balance)}`}
-                  </button>
+              : <button className="cp-pay-btn" disabled={payingDeal===d.id} onClick={()=>payProject(d)}>
+                  {payingDeal===d.id?'Redirecting…':(schedule.length>1?`Pay total (${fmtMoney(balance)})`:`Pay ${fmtMoney(balance)}`)}
+                </button>
             }
             <div className="cp-pay-secure">{'\u{1F512}'} Secure payment powered by Stripe</div>
           </div>

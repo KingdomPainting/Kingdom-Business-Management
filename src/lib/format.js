@@ -1,7 +1,7 @@
 // ─── Formatting & misc utilities ─────────────────────────────────────────────
 export const cn = (...cls) => cls.filter(Boolean).join(" ");
 export const fmtCAD = n => (n ?? 0).toLocaleString("en-CA", { style: "currency", currency: "CAD" });
-export const fmtUSD = n => `$${(n ?? 0).toLocaleString()}`;
+export const fmtUSD = n => `$${(n ?? 0).toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
 
 export function genId(){ return Math.random().toString(36).slice(2,10); }
 export function now(){ return new Date().toISOString(); }

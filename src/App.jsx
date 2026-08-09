@@ -4803,7 +4803,7 @@ function Financials({showToast}){
                 <CartesianGrid strokeDasharray='3 3' stroke='var(--border)'/>
                 <XAxis dataKey='month' tick={{fontSize:9}}/>
                 <YAxis tick={{fontSize:9}} tickFormatter={v=>`$${(v/1000).toFixed(0)}k`}/>
-                <Tooltip formatter={v=>[`$${v.toLocaleString()}`,'Revenue']} contentStyle={{background:'var(--card)',border:'1px solid var(--border)',borderRadius:8,fontSize:11}}/>
+                <Tooltip formatter={v=>[`$${v.toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2})}`,'Revenue']} contentStyle={{background:'var(--card)',border:'1px solid var(--border)',borderRadius:8,fontSize:11}}/>
                 <Bar dataKey='revenue' fill='var(--primary)' radius={[3,3,0,0]}/>
               </BarChart>
             </ResponsiveContainer>
@@ -4817,7 +4817,7 @@ function Financials({showToast}){
                 <CartesianGrid strokeDasharray='3 3' stroke='var(--border)'/>
                 <XAxis dataKey='month' tick={{fontSize:9}}/>
                 <YAxis tick={{fontSize:9}} tickFormatter={v=>`$${(v/1000).toFixed(0)}k`}/>
-                <Tooltip formatter={v=>[`$${v.toLocaleString()}`,'Gross Profit']} contentStyle={{background:'var(--card)',border:'1px solid var(--border)',borderRadius:8,fontSize:11}}/>
+                <Tooltip formatter={v=>[`$${v.toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2})}`,'Gross Profit']} contentStyle={{background:'var(--card)',border:'1px solid var(--border)',borderRadius:8,fontSize:11}}/>
                 <Bar dataKey='grossProfit' fill='#22c55e' radius={[3,3,0,0]}/>
               </BarChart>
             </ResponsiveContainer>

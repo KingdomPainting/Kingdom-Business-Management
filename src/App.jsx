@@ -414,11 +414,18 @@ function ContractorSignModal({open,deal,onClose,onSigned}){
     const now=new Date();
     const nowStr=now.toLocaleString('en-CA',{dateStyle:'long',timeStyle:'short'});
     const base=deal.contract_signed_html||deal.contract_html||'';
-    const sigMarkup=`<img src="${sigImg}" style="max-width:100%;max-height:96px;display:block;margin:0 auto"/><div style="font-size:10px;color:#555;margin-top:4px">Electronically signed by <strong>David Truong, Kingdom Painting Inc.</strong> on ${nowStr}</div>`;
+    // Signature markup uses only <img>/<span> (no <div>) so it drops cleanly
+    // inside the contractor signature box — even when re-signing over a prior one.
+    const sigMarkup=`<img src="${sigImg}" style="max-width:100%;max-height:96px;display:block;margin:0 auto"/><span style="display:block;font-size:10px;color:#555;margin-top:4px">Electronically signed by <strong>David Truong, Kingdom Painting Inc.</strong> on ${nowStr}</span>`;
+    const boxRe=/(<div id="contractor-sig-box"[^>]*>)[\s\S]*?(<\/div>)/;
     let signedHtml;
-    if(base.includes(CONTRACTOR_SIG_SLOT)){
+    if(boxRe.test(base)){
+      // Place the signature inside the document's Contractor Signature box.
+      signedHtml=base.replace(boxRe,`$1${sigMarkup}$2`);
+    } else if(base.includes(CONTRACTOR_SIG_SLOT)){
       signedHtml=base.replace(CONTRACTOR_SIG_SLOT,sigMarkup);
     } else {
+      // Older contracts without a signature box — append the signature block at the end.
       const block=`<div style="margin-top:24px;padding:16px 20px;border-top:2px solid #C4922A;font-family:sans-serif;font-size:12px"><p style="font-weight:600;margin-bottom:8px">Contractor Signature</p>${sigMarkup}</div>`;
       signedHtml=base.includes('</body>')?base.replace('</body>',block+'</body>'):base+block;
     }

@@ -5,7 +5,12 @@ export const SUPA_URL = 'https://cyzvmcmlpnozwrqifrdt.supabase.co';
 export const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN5enZtY21scG5vendycWlmcmR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2Mzk1MzEsImV4cCI6MjA5NDIxNTUzMX0.IeZRx5xcPddSQcL77vhKjOgAKFi8bKpj3dMfajHpV3c';
 export const ADMIN_EMAIL = 'info@kingdompainting.ca';
 export const DEMO_EMAIL = 'demo@kingdompainting.ca';
-export function isDemo(){ return (_session?.user?.email||'').toLowerCase() === DEMO_EMAIL; }
+// Client-portal demo: same in-memory store, but routes to the client portal.
+export const CLIENT_DEMO_EMAIL = 'clientdemo@kingdompainting.ca';
+export function isDemo(){
+  const e = (_session?.user?.email||'').toLowerCase();
+  return e === DEMO_EMAIL || e === CLIENT_DEMO_EMAIL;
+}
 
 // ─── Auth state ──────────────────────────────────────────────────────────────
 export let _session = null; // { access_token, user }
@@ -91,10 +96,12 @@ export async function functionFetch(name, body=null){
 
 // ─── Auth helpers ─────────────────────────────────────────────────────────────
 export async function signIn(email, password){
-  // Demo account — fully client-side, never touches the database
-  if((email||'').trim().toLowerCase()===DEMO_EMAIL && password==='password'){
+  // Demo accounts — fully client-side, never touch the database.
+  const em = (email||'').trim().toLowerCase();
+  if((em===DEMO_EMAIL || em===CLIENT_DEMO_EMAIL) && password==='password'){
     resetDemoStore();
-    const session = { access_token:'demo-token', refresh_token:'demo-refresh', user:{ id:'demo-user', email:DEMO_EMAIL } };
+    const isClient = em===CLIENT_DEMO_EMAIL;
+    const session = { access_token:'demo-token', refresh_token:'demo-refresh', user:{ id:isClient?'clientdemo-user':'demo-user', email:em } };
     setSession(session);
     localStorage.setItem('kp_session', JSON.stringify(session));
     return session;

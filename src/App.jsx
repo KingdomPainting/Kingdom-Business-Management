@@ -21,7 +21,7 @@ import {
   CLIENT_STATUS, STAGE_COLORS, LABEL_COLORS, TYPE_COLORS, LEAD_COLORS, STAGES, LEAD_SOURCES,
 } from "./lib/constants";
 import {
-  SUPA_URL, SUPA_KEY, ADMIN_EMAIL, DEMO_EMAIL, isDemo, _session,
+  SUPA_URL, SUPA_KEY, ADMIN_EMAIL, DEMO_EMAIL, CLIENT_DEMO_EMAIL, isDemo, _session,
   onAuthChange, setSession, supaHeaders, supaFetch, functionFetch,
   signIn, signUp, signOut, refreshSession,
   passwordGrant, commitSession, rpcWithToken, sendEmailOtp, verifyEmailOtp,
@@ -5912,6 +5912,7 @@ function ClientPortal({session}){
 
   const payProject = async(deal, installment=null)=>{
     const key = installment==null ? deal.id : `${deal.id}:${installment}`;
+    if(isDemo()){ showToast('This is a demo — online payments are disabled.'); return; }
     setPayingDeal(key);
     try{
       const body = { deal_id: deal.id, return_url: window.location.origin+window.location.pathname };
@@ -6492,8 +6493,9 @@ function LoginScreen(){
         }
         setLoading(false); return; // signup commits its own session
       }
-      // Demo account keeps its fully client-side bypass (no 2FA).
-      if(email.trim().toLowerCase()===DEMO_EMAIL){
+      // Demo accounts keep their fully client-side bypass (no 2FA).
+      const emLower=email.trim().toLowerCase();
+      if(emLower===DEMO_EMAIL || emLower===CLIENT_DEMO_EMAIL){
         await signIn(email, password); setLoading(false); return;
       }
       // Real login: verify the password, then require the second factor if enrolled.

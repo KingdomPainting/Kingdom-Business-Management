@@ -379,6 +379,76 @@ function defaultPaymentSchedule(value){
   return [{label:'Deposit (35%)',amount:(dep/100).toFixed(2)},{label:'Halfway Payment (35%)',amount:(mid/100).toFixed(2)},{label:'Final Payment (30%)',amount:(fin/100).toFixed(2)}];
 }
 
+// Contractor-side contract signing (from the pipeline project card). Draws a
+// signature, stamps the date/time, injects it into the contract's contractor box,
+// and saves it back onto contract_signed_html (kept as the single Contract file).
+function ContractorSignModal({open,deal,onClose,onSigned}){
+  const canvasRef=useRef(null);
+  const drawingRef=useRef(false);
+  const [saving,setSaving]=useState(false);
+  const [err,setErr]=useState('');
+  useEffect(()=>{
+    if(!open) return;
+    setErr('');
+    const t=setTimeout(()=>{
+      const canvas=canvasRef.current; if(!canvas) return;
+      const ctx=canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.strokeStyle='#1a1714';ctx.lineWidth=2.5;ctx.lineCap='round';ctx.lineJoin='round';
+      const pos=e=>{const r=canvas.getBoundingClientRect();const s=e.touches?e.touches[0]:e;return{x:(s.clientX-r.left)*(canvas.width/r.width),y:(s.clientY-r.top)*(canvas.height/r.height)};};
+      canvas.onmousedown=canvas.ontouchstart=e=>{e.preventDefault();drawingRef.current=true;const p=pos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);};
+      canvas.onmousemove=canvas.ontouchmove=e=>{if(!drawingRef.current)return;e.preventDefault();const p=pos(e);ctx.lineTo(p.x,p.y);ctx.stroke();};
+      canvas.onmouseup=canvas.ontouchend=()=>{drawingRef.current=false;};
+    },80);
+    return ()=>clearTimeout(t);
+  },[open]);
+  if(!open) return null;
+  const clear=()=>{const c=canvasRef.current;if(c){const x=c.getContext('2d');x.clearRect(0,0,c.width,c.height);}};
+  const review=()=>{const w=window.open('','_blank');if(w){w.document.write(deal.contract_signed_html||deal.contract_html||'');w.document.close();}};
+  const save=async()=>{
+    const canvas=canvasRef.current; if(!canvas) return;
+    const ctx=canvas.getContext('2d');
+    const px=ctx.getImageData(0,0,canvas.width,canvas.height).data;
+    if(!Array.from(px).some((v,i)=>i%4===3&&v>0)){ setErr('Please draw your signature first.'); return; }
+    setSaving(true);
+    const sigImg=canvas.toDataURL('image/png');
+    const now=new Date();
+    const nowStr=now.toLocaleString('en-CA',{dateStyle:'long',timeStyle:'short'});
+    const base=deal.contract_signed_html||deal.contract_html||'';
+    const sigMarkup=`<img src="${sigImg}" style="max-width:100%;max-height:96px;display:block;margin:0 auto"/><div style="font-size:10px;color:#555;margin-top:4px">Electronically signed by <strong>David Truong, Kingdom Painting Inc.</strong> on ${nowStr}</div>`;
+    let signedHtml;
+    if(base.includes(CONTRACTOR_SIG_SLOT)){
+      signedHtml=base.replace(CONTRACTOR_SIG_SLOT,sigMarkup);
+    } else {
+      const block=`<div style="margin-top:24px;padding:16px 20px;border-top:2px solid #C4922A;font-family:sans-serif;font-size:12px"><p style="font-weight:600;margin-bottom:8px">Contractor Signature</p>${sigMarkup}</div>`;
+      signedHtml=base.includes('</body>')?base.replace('</body>',block+'</body>'):base+block;
+    }
+    try{
+      await api.saveDeal({contract_signed_html:signedHtml,contract_signed_at:now.toISOString()},deal.id);
+      onSigned(signedHtml, now.toISOString());
+      onClose();
+    }catch(e){ setErr('Could not save. Please try again.'); }
+    setSaving(false);
+  };
+  return (
+    <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,.6)',zIndex:100000,display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
+      <div onClick={e=>e.stopPropagation()} style={{width:'100%',maxWidth:560,background:'var(--card)',borderRadius:14,padding:22,boxShadow:'0 10px 50px rgba(0,0,0,.4)'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+          <h3 style={{fontSize:16,fontWeight:700,color:'var(--fg)'}}>Sign Contract</h3>
+          <button onClick={onClose} style={{background:'none',border:'none',fontSize:20,cursor:'pointer',color:'var(--muted-fg)'}}>×</button>
+        </div>
+        <p style={{fontSize:12,color:'var(--muted-fg)',marginBottom:6}}>Draw your signature below — it's added to the contract with today's date &amp; time.</p>
+        <button onClick={review} style={{background:'none',border:'none',color:'var(--primary)',cursor:'pointer',fontWeight:600,fontSize:12,padding:0}}>Open contract to review {'↗'}</button>
+        <canvas ref={canvasRef} width={520} height={140} style={{width:'100%',height:140,border:'1.5px solid var(--border)',borderRadius:8,background:'#fff',marginTop:10,cursor:'crosshair',touchAction:'none',display:'block'}}/>
+        {err&&<p style={{fontSize:12,color:'var(--destructive)',marginTop:6}}>{err}</p>}
+        <div style={{display:'flex',gap:10,justifyContent:'flex-end',marginTop:12}}>
+          <button onClick={clear} style={{padding:'8px 16px',border:'1px solid var(--border)',borderRadius:8,background:'var(--card)',color:'var(--fg)',fontSize:13,cursor:'pointer'}}>Clear</button>
+          <button onClick={save} disabled={saving} style={{padding:'8px 20px',border:'none',borderRadius:8,background:'var(--primary)',color:'#fff',fontSize:13,fontWeight:700,cursor:'pointer',opacity:saving?0.7:1}}>{saving?'Saving…':'Sign & Save'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead',onAddContact}){
   const blank={dealName:'',value:'',description:'',contactId:'',referralContactId:'',labels:[],leadSource:'',
     startDate:'',startTime:'09:00',endDate:'',endTime:'17:00',
@@ -387,6 +457,7 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead',onAdd
     payment_schedule:defaultPaymentSchedule(''),scheduleAuto:true};
   const [f,setF]=useState(blank);
   const [syncing,setSyncing]=useState(false);
+  const [signOpen,setSignOpen]=useState(false);
 
   useEffect(()=>{
     if(deal) setF({
@@ -713,41 +784,31 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead',onAdd
             {key:'change_order_html',label:'Change Order',icon:'📝'},
             {key:'invoice_html',label:'Invoice',icon:'🧾'},
           ].filter(d=>f[d.key]).map(d=>{
-            const isSigned=d.key==='contract_html'&&!!f.contract_signed_html;
+            const isContract=d.key==='contract_html';
+            const isSigned=isContract&&!!f.contract_signed_html;
+            const viewHtml=isSigned?f.contract_signed_html:f[d.key];
             return (
             <div key={d.key} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'4px 8px',background:isSigned?'rgba(34,197,94,0.08)':'rgba(212,169,106,0.12)',borderRadius:6,border:isSigned?'1px solid rgba(34,197,94,0.25)':'1px solid transparent'}}>
               <span style={{fontSize:12,fontWeight:600,color:isSigned?'#16a34a':'var(--primary)',display:'flex',alignItems:'center',gap:5}}>
                 {d.icon} {d.label}
-                {isSigned&&<span title={f.contract_signed_at?`Signed ${new Date(f.contract_signed_at).toLocaleDateString()}`:'Signed'} style={{fontSize:13}}>✅</span>}
+                {isSigned&&<span style={{fontSize:11,fontWeight:600,color:'#16a34a',marginLeft:2}}>✅ Signed {f.contract_signed_at?new Date(f.contract_signed_at).toLocaleDateString('en-CA',{month:'short',day:'numeric',year:'numeric'}):''}</span>}
               </span>
               <div style={{display:'flex',gap:6,alignItems:'center'}}>
-                {isSigned&&(
-                  <button onClick={()=>{const w=window.open('','_blank');if(w){w.document.write(f.contract_signed_html);w.document.close();setTimeout(()=>w.print(),500);}}} style={{fontSize:11,padding:'2px 8px',borderRadius:5,border:'1px solid #16a34a',background:'transparent',color:'#16a34a',cursor:'pointer',fontWeight:600}}>⬇ Download</button>
+                {isContract&&(
+                  <button onClick={()=>setSignOpen(true)} style={{fontSize:11,padding:'2px 8px',borderRadius:5,border:'1px solid var(--primary)',background:'transparent',color:'var(--primary)',cursor:'pointer',fontWeight:600}}>✍ {isSigned?'Re-sign':'Sign'}</button>
                 )}
+                <button onClick={()=>{const w=window.open('','_blank');if(w){w.document.write(viewHtml);w.document.close();setTimeout(()=>w.print(),500);}}} style={{fontSize:11,padding:'2px 8px',borderRadius:5,border:`1px solid ${isSigned?'#16a34a':'var(--border)'}`,background:'transparent',color:isSigned?'#16a34a':'var(--muted-fg)',cursor:'pointer',fontWeight:600}}>⬇ Download</button>
                 <button onClick={async()=>{
                   if(!window.confirm(`Delete ${d.label}?`))return;
-                  setF(x=>({...x,[d.key]:null}));
-                  await api.saveDeal({[d.key]:null},f.id);
-                  DB.deals=DB.deals.map(x=>x.id===f.id?{...x,[d.key]:null}:x);
+                  const patch=isContract?{[d.key]:null,contract_signed_html:null,contract_signed_at:null}:{[d.key]:null};
+                  setF(x=>({...x,...patch,...(isContract?{contract_signed_html:'',contract_signed_at:''}:{})}));
+                  await api.saveDeal(patch,f.id);
+                  DB.deals=DB.deals.map(x=>x.id===f.id?{...x,...patch}:x);
                 }} style={{fontSize:11,padding:'2px 8px',borderRadius:5,border:'1px solid var(--border)',background:'var(--card)',color:'var(--muted-fg)',cursor:'pointer',fontWeight:500}}>🗑 Delete</button>
               </div>
             </div>
             );
           })}
-          {f.contract_signed_html&&(
-            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'4px 8px',background:'rgba(34,197,94,0.08)',borderRadius:6}}>
-              <span style={{fontSize:12,fontWeight:600,color:'#16a34a'}}>✅ Signed Contract</span>
-              <div style={{display:'flex',gap:6}}>
-                <button onClick={()=>{const w=window.open('','_blank');if(w){w.document.write(f.contract_signed_html);w.document.close();setTimeout(()=>w.print(),500);}}} style={{fontSize:11,padding:'2px 8px',borderRadius:5,border:'1px solid #16a34a',background:'transparent',color:'#16a34a',cursor:'pointer',fontWeight:600}}>⬇ Download</button>
-                <button onClick={async()=>{
-                  if(!window.confirm('Delete signed contract?'))return;
-                  setF(x=>({...x,contract_signed_html:'',contract_signed_at:''}));
-                  await api.saveDeal({contract_signed_html:null,contract_signed_at:null},f.id);
-                  DB.deals=DB.deals.map(x=>x.id===f.id?{...x,contract_signed_html:null,contract_signed_at:null}:x);
-                }} style={{fontSize:11,padding:'2px 8px',borderRadius:5,border:'1px solid var(--border)',background:'var(--card)',color:'var(--muted-fg)',cursor:'pointer',fontWeight:500}}>🗑 Delete</button>
-              </div>
-            </div>
-          )}
           {/* Google Drive attachments */}
           {(f.drive_files||[]).map((file,i)=>(
             <div key={file.id||i} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'4px 8px',background:'rgba(66,133,244,0.08)',borderRadius:6,border:'1px solid rgba(66,133,244,0.2)'}}>
@@ -770,6 +831,15 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead',onAdd
         <button onClick={onClose} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 14px',border:'1px solid var(--border)',borderRadius:6,background:'var(--card)',color:'var(--fg)',fontSize:12,fontWeight:500,cursor:'pointer'}}>Cancel</button>
         <button onClick={save} disabled={!f.dealName||syncing||!paymentValid} title={!paymentValid?'Payments must add up to the project value':''} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 14px',border:'1px solid var(--primary)',borderRadius:6,background:'var(--primary)',color:'#fff',fontSize:12,fontWeight:600,cursor:(!f.dealName||syncing||!paymentValid)?'not-allowed':'pointer',opacity:(!f.dealName||syncing||!paymentValid)?0.6:1}}>{syncing?'Syncing…':'Save Project'}</button>
       </div>
+      <ContractorSignModal
+        open={signOpen}
+        deal={f}
+        onClose={()=>setSignOpen(false)}
+        onSigned={(html,at)=>{
+          setF(x=>({...x,contract_signed_html:html,contract_signed_at:at}));
+          DB.deals=DB.deals.map(x=>x.id===f.id?{...x,contract_signed_html:html,contract_signed_at:at}:x);
+        }}
+      />
     </Modal>
   );
 }
@@ -4124,13 +4194,14 @@ function contractClausesHtml(gold,startNum){
 // The client box carries an id + slot marker so the portal signing flow can draw and save the
 // signature directly inside it.
 const CLIENT_SIG_SLOT='<!--CLIENT_SIGNATURE_SLOT-->';
+const CONTRACTOR_SIG_SLOT='<!--CONTRACTOR_SIGNATURE_SLOT-->';
 function contractSignatureBoxesHtml(gold,client){
   let h='<div class="section">';
   h+=`<p style="font-size:13px;font-weight:700;color:${gold};margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${gold}">12. Signatures</p>`;
   h+='<p style="font-size:11px;line-height:1.7;color:#444;margin-bottom:8px">By signing below, the parties agree to the terms and conditions outlined in this Agreement.</p>';
   h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:16px;font-size:11px">';
   h+=`<div><p style="font-weight:600;margin-bottom:6px">Client Signature</p><div id="client-sig-box" style="border:1px solid #ccc;border-radius:6px;background:#fafafa;min-height:110px;padding:6px;text-align:center">${CLIENT_SIG_SLOT}</div><p style="color:#888;margin-top:4px">${client?.name||'Client'}</p></div>`;
-  h+='<div><p style="font-weight:600;margin-bottom:6px">Contractor Signature</p><div id="contractor-sig-box" style="border:1px solid #ccc;border-radius:6px;background:#fafafa;min-height:110px;padding:6px"></div><p style="color:#888;margin-top:4px">David Truong, Kingdom Painting Inc.</p></div>';
+  h+=`<div><p style="font-weight:600;margin-bottom:6px">Contractor Signature</p><div id="contractor-sig-box" style="border:1px solid #ccc;border-radius:6px;background:#fafafa;min-height:110px;padding:6px;text-align:center">${CONTRACTOR_SIG_SLOT}</div><p style="color:#888;margin-top:4px">David Truong, Kingdom Painting Inc.</p></div>`;
   h+='</div></div>';
   return h;
 }
@@ -4803,7 +4874,7 @@ function Financials({showToast}){
                 <CartesianGrid strokeDasharray='3 3' stroke='var(--border)'/>
                 <XAxis dataKey='month' tick={{fontSize:9}}/>
                 <YAxis tick={{fontSize:9}} tickFormatter={v=>`$${(v/1000).toFixed(0)}k`}/>
-                <Tooltip formatter={v=>[`$${v.toLocaleString()}`,'Revenue']} contentStyle={{background:'var(--card)',border:'1px solid var(--border)',borderRadius:8,fontSize:11}}/>
+                <Tooltip formatter={v=>[`$${v.toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2})}`,'Revenue']} contentStyle={{background:'var(--card)',border:'1px solid var(--border)',borderRadius:8,fontSize:11}}/>
                 <Bar dataKey='revenue' fill='var(--primary)' radius={[3,3,0,0]}/>
               </BarChart>
             </ResponsiveContainer>
@@ -4817,7 +4888,7 @@ function Financials({showToast}){
                 <CartesianGrid strokeDasharray='3 3' stroke='var(--border)'/>
                 <XAxis dataKey='month' tick={{fontSize:9}}/>
                 <YAxis tick={{fontSize:9}} tickFormatter={v=>`$${(v/1000).toFixed(0)}k`}/>
-                <Tooltip formatter={v=>[`$${v.toLocaleString()}`,'Gross Profit']} contentStyle={{background:'var(--card)',border:'1px solid var(--border)',borderRadius:8,fontSize:11}}/>
+                <Tooltip formatter={v=>[`$${v.toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2})}`,'Gross Profit']} contentStyle={{background:'var(--card)',border:'1px solid var(--border)',borderRadius:8,fontSize:11}}/>
                 <Bar dataKey='grossProfit' fill='#22c55e' radius={[3,3,0,0]}/>
               </BarChart>
             </ResponsiveContainer>

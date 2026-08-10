@@ -379,6 +379,14 @@ function defaultPaymentSchedule(value){
   return [{label:'Deposit (35%)',amount:(dep/100).toFixed(2)},{label:'Halfway Payment (35%)',amount:(mid/100).toFixed(2)},{label:'Final Payment (30%)',amount:(fin/100).toFixed(2)}];
 }
 
+// Remove a legacy contractor-signature block appended at the very bottom of a
+// contract (from the earlier fallback flow, before signatures went into the box).
+// Anchored on the block's distinctive opening style, greedy to the final </div>.
+function stripAppendedContractorSig(html){
+  if(!html) return html;
+  return html.replace(/<div style="margin-top:24px;padding:16px 20px;border-top:2px solid #C4922A;[^"]*"><p style="font-weight:600;margin-bottom:8px">Contractor Signature<\/p>[\s\S]*<\/div>/,'');
+}
+
 // Contractor-side contract signing (from the pipeline project card). Draws a
 // signature, stamps the date/time, injects it into the contract's contractor box,
 // and saves it back onto contract_signed_html (kept as the single Contract file).
@@ -403,7 +411,7 @@ function ContractorSignModal({open,deal,onClose,onSigned}){
   },[open]);
   if(!open) return null;
   const clear=()=>{const c=canvasRef.current;if(c){const x=c.getContext('2d');x.clearRect(0,0,c.width,c.height);}};
-  const review=()=>{const w=window.open('','_blank');if(w){w.document.write(deal.contract_signed_html||deal.contract_html||'');w.document.close();}};
+  const review=()=>{const w=window.open('','_blank');if(w){w.document.write(stripAppendedContractorSig(deal.contract_signed_html||deal.contract_html||''));w.document.close();}};
   const save=async()=>{
     const canvas=canvasRef.current; if(!canvas) return;
     const ctx=canvas.getContext('2d');
@@ -413,7 +421,9 @@ function ContractorSignModal({open,deal,onClose,onSigned}){
     const sigImg=canvas.toDataURL('image/png');
     const now=new Date();
     const nowStr=now.toLocaleString('en-CA',{dateStyle:'long',timeStyle:'short'});
-    const base=deal.contract_signed_html||deal.contract_html||'';
+    // Strip any legacy contractor-signature block appended at the bottom of the
+    // page (from before the box-injection flow) so it isn't duplicated.
+    const base=stripAppendedContractorSig(deal.contract_signed_html||deal.contract_html||'');
     // Signature markup uses only <img>/<span> (no <div>) so it drops cleanly
     // inside the contractor signature box — even when re-signing over a prior one.
     const sigMarkup=`<img src="${sigImg}" style="max-width:100%;max-height:96px;display:block;margin:0 auto"/><span style="display:block;font-size:10px;color:#555;margin-top:4px">Electronically signed by <strong>David Truong, Kingdom Painting Inc.</strong> on ${nowStr}</span>`;
@@ -793,7 +803,7 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead',onAdd
           ].filter(d=>f[d.key]).map(d=>{
             const isContract=d.key==='contract_html';
             const isSigned=isContract&&!!f.contract_signed_html;
-            const viewHtml=isSigned?f.contract_signed_html:f[d.key];
+            const viewHtml=isSigned?stripAppendedContractorSig(f.contract_signed_html):f[d.key];
             return (
             <div key={d.key} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'4px 8px',background:isSigned?'rgba(34,197,94,0.08)':'rgba(212,169,106,0.12)',borderRadius:6,border:isSigned?'1px solid rgba(34,197,94,0.25)':'1px solid transparent'}}>
               <span style={{fontSize:12,fontWeight:600,color:isSigned?'#16a34a':'var(--primary)',display:'flex',alignItems:'center',gap:5}}>
@@ -5941,7 +5951,7 @@ body{font-family:'Montserrat',Georgia,sans-serif;background:#fff;color:#1a1714;p
   const openDoc = (key, label, dealId, signable)=>{
     const d = deals.find(x=>x.id===dealId);
     // Once a contract is signed, show the signed copy (with the client's signature and timestamp).
-    const src = key==='contract_html' && d?.contract_signed_html ? d.contract_signed_html : d?.[key];
+    const src = key==='contract_html' && d?.contract_signed_html ? stripAppendedContractorSig(d.contract_signed_html) : d?.[key];
     if(!d||!src) return;
     const wrapped = wrapDocHtml(src);
     const blob = new Blob([wrapped],{type:'text/html'});
@@ -5963,7 +5973,7 @@ body{font-family:'Montserrat',Georgia,sans-serif;background:#fff;color:#1a1714;p
 
   // Download a document as a self-contained HTML file the client can save / print to PDF.
   const downloadDoc = (d, key, label)=>{
-    const raw = key==='contract_html' && d.contract_signed_html ? d.contract_signed_html : d[key];
+    const raw = key==='contract_html' && d.contract_signed_html ? stripAppendedContractorSig(d.contract_signed_html) : d[key];
     if(!raw) return;
     const wrapped = wrapDocHtml(raw);
     const blob = new Blob([wrapped],{type:'text/html'});

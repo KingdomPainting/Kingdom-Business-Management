@@ -5705,6 +5705,13 @@ const PORTAL_STYLES = `
   .cp-doc-row:hover{background:#f5f3ef;border-color:#C4922A}
   .cp-doc-label{font-size:13px;font-weight:600;color:#262E4B;display:flex;align-items:center;gap:8px}
   .cp-section-sep{margin:28px 0 16px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af;border-bottom:1px solid #e5e1d8;padding-bottom:8px}
+  .cp-review{margin-top:36px;background:#fff;border:1px solid #e5e1d8;border-top:4px solid #C4922A;border-radius:14px;padding:32px 28px;text-align:center;box-shadow:0 2px 12px rgba(38,46,75,.06)}
+  .cp-review h2{font-size:20px;font-weight:800;color:#262E4B;margin-bottom:14px}
+  .cp-review p{font-size:13.5px;line-height:1.75;color:#5a5248;max-width:560px;margin:0 auto 14px}
+  .cp-review-stars{font-size:22px;letter-spacing:3px;color:#C4922A;margin-bottom:8px}
+  .cp-review-btn{display:inline-flex;align-items:center;gap:9px;background:#C4922A;color:#fff;font-family:inherit;font-size:14px;font-weight:700;text-decoration:none;padding:12px 26px;border-radius:8px;margin:8px 0 6px;transition:background .15s}
+  .cp-review-btn:hover{background:#b07e20}
+  .cp-review-thanks{font-size:12.5px;color:#7a6e65;margin-top:14px;font-style:italic}
   .cp-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;flex-direction:column}
   .cp-overlay-bar{background:#262E4B;padding:12px 20px;display:flex;align-items:center;gap:12px;flex-shrink:0}
   .cp-overlay-title{color:#fff;font-size:14px;font-weight:700;flex:1}
@@ -6277,6 +6284,18 @@ body{font-family:'Montserrat',Georgia,sans-serif;background:#fff;color:#1a1714;p
               {pastDeals.map(d=>renderCard(d,true))}
             </>
           )}
+
+          <div className="cp-review">
+            <div className="cp-review-stars">★★★★★</div>
+            <h2>Love Your New Space?</h2>
+            <p>At Kingdom Painting Inc., we take pride in delivering quality workmanship and an experience our clients can feel good about.</p>
+            <p>If you're happy with your painting project, we'd truly appreciate you taking a moment to share your experience on Google. Your feedback means a lot to our team and helps others feel confident choosing Kingdom Painting Inc. for their next project.</p>
+            <a className="cp-review-btn" href="https://g.page/r/CSfm73zprSOGEBM/review" target="_blank" rel="noopener noreferrer">
+              <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="#fff" d="M12 2l2.9 6.26L22 9.27l-5 4.87L18.18 22 12 18.56 5.82 22 7 14.14l-5-4.87 7.1-1.01z"/></svg>
+              Leave a Google Review
+            </a>
+            <p className="cp-review-thanks">Thank you for trusting Kingdom Painting Inc. with your home or business. We appreciate your support!</p>
+          </div>
         </div>
       </div>
 

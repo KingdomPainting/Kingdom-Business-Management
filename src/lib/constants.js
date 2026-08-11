@@ -18,3 +18,7 @@ export const LEAD_COLORS={
 };
 export const STAGES=['Lead','Proposal','Scheduled','Completed','Archive'];
 export const LEAD_SOURCES=['Referral','Repeat','Google','Site','Home Depot','MBT'];
+// Deal labels now cover both the lead source and the project category. Selected
+// on the project card; the dashboard "Leads by Source" card is built from these.
+export const DEAL_LABELS=[...LEAD_SOURCES,'Residential','Commercial','Exterior','Lost'];
+export const ALL_LABEL_COLORS={...LEAD_COLORS,...LABEL_COLORS};

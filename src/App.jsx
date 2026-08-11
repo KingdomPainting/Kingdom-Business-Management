@@ -18,7 +18,7 @@ import {
 import { STYLE } from "./styles";
 import { cn, fmtCAD, fmtUSD, genId, now, dateRange, fmtDateLabel } from "./lib/format";
 import {
-  CLIENT_STATUS, STAGE_COLORS, LABEL_COLORS, TYPE_COLORS, LEAD_COLORS, STAGES, LEAD_SOURCES,
+  CLIENT_STATUS, STAGE_COLORS, LABEL_COLORS, TYPE_COLORS, LEAD_COLORS, STAGES, DEAL_LABELS, ALL_LABEL_COLORS,
 } from "./lib/constants";
 import {
   SUPA_URL, SUPA_KEY, ADMIN_EMAIL, DEMO_EMAIL, CLIENT_DEMO_EMAIL, isDemo, _session,
@@ -480,7 +480,7 @@ function ContractorSignModal({open,deal,onClose,onSigned}){
 }
 
 function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead',onAddContact}){
-  const blank={dealName:'',value:'',description:'',contactId:'',referralContactId:'',labels:[],leadSource:'',
+  const blank={dealName:'',value:'',description:'',contactId:'',referralContactId:'',labels:[],
     startDate:'',startTime:'09:00',endDate:'',endTime:'17:00',
     scheduleDays:[], // [{date, startTime, endTime, calEventId}]
     address:'',notes:'',rooms:[],progress:0,contactFreeText:'',quote_html:'',contract_html:'',change_order_html:'',invoice_html:'',contract_signed_html:'',contract_signed_at:'',quote_date:'',drive_files:[],
@@ -493,7 +493,7 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead',onAdd
     if(deal) setF({
       dealName:deal.dealName||'',value:deal.value?.toString()||'',description:deal.description||'',
       contactId:(Array.isArray(deal.contact)?deal.contact[0]:deal.contact)||deal.contactId||'',
-      referralContactId:deal.referralName||'',labels:deal.labels||[],leadSource:deal.leadSource||'',
+      referralContactId:deal.referralName||'',labels:deal.labels||[],
       startDate:deal.startDate||'',startTime:deal.startTime||'09:00',
       endDate:deal.endDate||'',endTime:deal.endTime||'17:00',
       scheduleDays:deal.scheduleDays||[],address:deal.address||'',notes:deal.notes||'',
@@ -613,7 +613,7 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead',onAdd
       value:f.value?parseFloat(f.value):undefined,
       description:f.description||null,
       contact:f.contactId||null,contactFreeText:f.contactFreeText||null,referralName:f.referralContactId||undefined,
-      labels:f.labels.length?f.labels:undefined,leadSource:f.leadSource||undefined,
+      labels:f.labels.length?f.labels:undefined,
       startDate:f.startDate||undefined,startTime:f.startTime||undefined,
       endDate:f.endDate||undefined,endTime:f.endTime||undefined,
       scheduleDays:finalDays,address:f.address||null,notes:f.notes||null,
@@ -659,12 +659,7 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead',onAdd
     onSaved();onClose();
   };
 
-  const LABEL_OPTIONS=[
-    {v:'Residential', bg:'#dbeafe',color:'#1d4ed8'},
-    {v:'Commercial',  bg:'#ffedd5',color:'#ea580c'},
-    {v:'Exterior',    bg:'#d1fae5',color:'#065f46'},
-    {v:'Lost',        bg:'#fee2e2',color:'#dc2626'},
-  ];
+  const LABEL_OPTIONS=DEAL_LABELS.map(v=>({v,bg:(ALL_LABEL_COLORS[v]||{}).bg||'#f3f4f6',color:(ALL_LABEL_COLORS[v]||{}).color||'#374151'}));
   const inp={background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%'};
 
   const _projTotal=parseFloat(f.value)||0;
@@ -747,16 +742,15 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead',onAdd
       </div>
       <div style={{marginBottom:12}}>
         <Label>Labels</Label>
-        <div style={{display:'flex',gap:8}}>
+        <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
           {LABEL_OPTIONS.map(({v,bg,color})=>{
             const active=f.labels.includes(v);
-            return <button key={v} onClick={()=>toggleLabel(v)} style={{flex:1,fontSize:11,fontWeight:600,padding:'6px 4px',borderRadius:20,border:'2px solid '+(active?color:'transparent'),background:active?bg:'var(--muted)',color:active?color:'var(--muted-fg)',cursor:'pointer',transition:'all .15s',opacity:active?1:0.65}}>{v}</button>;
+            return <button key={v} onClick={()=>toggleLabel(v)} style={{fontSize:11,fontWeight:600,padding:'6px 12px',borderRadius:20,border:'2px solid '+(active?color:'transparent'),background:active?bg:'var(--muted)',color:active?color:'var(--muted-fg)',cursor:'pointer',transition:'all .15s',opacity:active?1:0.65}}>{v}</button>;
           })}
         </div>
       </div>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
-        <div><Label>Lead Source</Label><select value={f.leadSource||'__none'} onChange={e=>setF(x=>({...x,leadSource:e.target.value==='__none'?'':e.target.value}))} style={{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%',outline:'none'}}><option value='__none'>None</option>{LEAD_SOURCES.map(s=><option key={s}>{s}</option>)}</select></div>
-        <div><Label>Referral Contact</Label><select value={f.referralContactId||'__none'} onChange={e=>setF(x=>({...x,referralContactId:e.target.value==='__none'?'':e.target.value}))} style={{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%',outline:'none'}}><option value='__none'>None</option>{contacts.map(c=><option key={c.id} value={c.id}>{c.fullName}</option>)}</select></div>
+      <div style={{marginBottom:12}}>
+        <Label>Referral Contact</Label><select value={f.referralContactId||'__none'} onChange={e=>setF(x=>({...x,referralContactId:e.target.value==='__none'?'':e.target.value}))} style={{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%',outline:'none'}}><option value='__none'>None</option>{contacts.map(c=><option key={c.id} value={c.id}>{c.fullName}</option>)}</select>
       </div>
       <div style={{marginBottom:12}}><Label>Description / Notes (shows in calendar)</Label><textarea value={f.description} onChange={e=>setF(x=>({...x,description:e.target.value}))} rows={3} placeholder='Project details...' style={{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'8px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%',outline:'none',resize:'vertical',boxSizing:'border-box'}}/></div>
       {/* Rooms / Progress — pushed from Estimates page */}
@@ -1415,14 +1409,18 @@ function Dashboard({toast}){
           <div style={{display:'flex',flexDirection:'column',gap:8}}>
             {(()=>{
               const srcDeals=deals.filter(d=>['Scheduled','Completed','Archive'].includes(d.stage));
-              const total=srcDeals.filter(d=>d.leadSource).length||1;
-              // Sort sources highest→lowest by count so the order updates as leads change.
-              const ranked=LEAD_SOURCES.map(source=>({source,count:srcDeals.filter(d=>d.leadSource===source).length})).sort((a,b)=>b.count-a.count);
+              // Count each label across deals (bridging any legacy leadSource value).
+              const has=(d,l)=>(d.labels||[]).includes(l)||d.leadSource===l;
+              const labeled=srcDeals.filter(d=>DEAL_LABELS.some(l=>has(d,l)));
+              const total=labeled.length||1;
+              // Sort labels highest→lowest by count so the order updates as leads change.
+              const ranked=DEAL_LABELS.map(source=>({source,count:srcDeals.filter(d=>has(d,source)).length})).sort((a,b)=>b.count-a.count);
               return ranked.map(({source,count})=>{
                 const pct=Math.round((count/total)*100);
+                const c=ALL_LABEL_COLORS[source]||{bg:'#f3f4f6',color:'#374151'};
                 return (
                   <div key={source} style={{display:'flex',alignItems:'center',gap:8}}>
-                    <span style={{fontSize:11,fontWeight:700,width:84,textAlign:'center',flexShrink:0,padding:'2px 10px',borderRadius:20,background:(LEAD_COLORS[source]||{bg:'#f3f4f6'}).bg,color:(LEAD_COLORS[source]||{color:'#374151'}).color}}>{source}</span>
+                    <span style={{fontSize:11,fontWeight:700,width:96,textAlign:'center',flexShrink:0,padding:'2px 8px',borderRadius:20,background:c.bg,color:c.color,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{source}</span>
                     <div style={{flex:1,height:8,background:'var(--muted)',borderRadius:9,overflow:'hidden'}}>
                       <div style={{height:'100%',background:'var(--primary)',borderRadius:9,width:`${pct}%`,transition:'width .4s'}}/>
                     </div>
@@ -1432,8 +1430,8 @@ function Dashboard({toast}){
                 );
               });
             })()}
-            {deals.filter(d=>['Scheduled','Completed','Archive'].includes(d.stage)&&d.leadSource).length===0&&(
-              <p style={{fontSize:12,color:'var(--muted-fg)'}}>No lead sources assigned yet.</p>
+            {deals.filter(d=>['Scheduled','Completed','Archive'].includes(d.stage)&&(DEAL_LABELS.some(l=>(d.labels||[]).includes(l))||d.leadSource)).length===0&&(
+              <p style={{fontSize:12,color:'var(--muted-fg)'}}>No labels assigned yet.</p>
             )}
           </div>
         </div>
@@ -1889,8 +1887,8 @@ function Pipeline({showToast}){
                       {/* Labels + lead source */}
                       {(deal.labels?.length>0||deal.leadSource)&&(
                         <div style={{display:'flex',flexWrap:'wrap',gap:5,marginBottom:10}}>
-                          {(deal.labels||[]).map(l=><span key={l} style={{fontSize:11,fontWeight:600,padding:'2px 9px',borderRadius:20,background:(LABEL_COLORS[l]||{bg:'#f3f4f6'}).bg,color:(LABEL_COLORS[l]||{color:'#374151'}).color}}>{l}</span>)}
-                          {deal.leadSource&&<span style={{fontSize:11,fontWeight:700,padding:'2px 9px',borderRadius:20,background:(LEAD_COLORS[deal.leadSource]||{bg:'#f3f4f6'}).bg,color:(LEAD_COLORS[deal.leadSource]||{color:'#374151'}).color,letterSpacing:'0.01em'}}>{deal.leadSource}</span>}
+                          {(deal.labels||[]).map(l=><span key={l} style={{fontSize:11,fontWeight:600,padding:'2px 9px',borderRadius:20,background:(ALL_LABEL_COLORS[l]||{bg:'#f3f4f6'}).bg,color:(ALL_LABEL_COLORS[l]||{color:'#374151'}).color}}>{l}</span>)}
+                          {deal.leadSource&&!(deal.labels||[]).includes(deal.leadSource)&&<span style={{fontSize:11,fontWeight:700,padding:'2px 9px',borderRadius:20,background:(LEAD_COLORS[deal.leadSource]||{bg:'#f3f4f6'}).bg,color:(LEAD_COLORS[deal.leadSource]||{color:'#374151'}).color,letterSpacing:'0.01em'}}>{deal.leadSource}</span>}
                         </div>
                       )}
                       {/* Title + actions */}

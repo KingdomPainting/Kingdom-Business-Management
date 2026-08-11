@@ -490,7 +490,7 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead',onAdd
       invoice_html:deal.invoice_html||'',contract_signed_html:deal.contract_signed_html||'',contract_signed_at:deal.contract_signed_at||'',
       quote_date:deal.quote_date||'',
       payment_schedule:(Array.isArray(deal.payment_schedule)&&deal.payment_schedule.length)
-        ?deal.payment_schedule.map(b=>({label:b.label||'',amount:(b.amount??'').toString()}))
+        ?deal.payment_schedule.map(b=>({label:b.label||'',amount:(b.amount??'').toString(),paid:!!b.paid}))
         :defaultPaymentSchedule(deal.value),
       scheduleAuto:!(Array.isArray(deal.payment_schedule)&&deal.payment_schedule.length)
     });
@@ -605,7 +605,7 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead',onAdd
       endDate:f.endDate||undefined,endTime:f.endTime||undefined,
       scheduleDays:finalDays,address:f.address||null,notes:f.notes||null,
       rooms:f.rooms||undefined,progress:f.progress||0,
-      payment_schedule:(()=>{const ps=f.payment_schedule.filter(b=>String(b.amount).trim()!=='').map(b=>({label:b.label||'',amount:parseFloat(b.amount)||0}));return ps.length?ps:null;})(),
+      payment_schedule:(()=>{const ps=f.payment_schedule.filter(b=>String(b.amount).trim()!=='').map(b=>({label:b.label||'',amount:parseFloat(b.amount)||0,paid:!!b.paid}));return ps.length?ps:null;})(),
       quote_date:f.quote_date||undefined,
       quote_html:f.quote_html||null,
       contract_html:f.contract_html||null,
@@ -683,6 +683,10 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead',onAdd
                 <div key={i} style={{display:'flex',gap:8,alignItems:'center'}}>
                   <input value={b.label} onChange={e=>updateBox(i,'label',e.target.value)} placeholder={`Payment ${i+1}`} style={{...inp,flex:'1 1 auto'}}/>
                   <input type='number' value={b.amount} onChange={e=>updateBox(i,'amount',e.target.value)} placeholder='0.00' min='0' step='0.01' style={{...inp,width:120,textAlign:'right'}}/>
+                  <label title='Mark as paid (e.g. cash, cheque or e-transfer)' style={{flexShrink:0,display:'flex',alignItems:'center',gap:4,cursor:'pointer',padding:'0 2px'}}>
+                    <input type='checkbox' checked={!!b.paid} onChange={e=>updateBox(i,'paid',e.target.checked)} style={{width:16,height:16,accentColor:'#16a34a',cursor:'pointer'}}/>
+                    <span style={{fontSize:11,fontWeight:600,color:b.paid?'#16a34a':'var(--muted-fg)'}}>Paid</span>
+                  </label>
                   {f.payment_schedule.length>1
                     ? <button type='button' onClick={()=>removeBox(i)} title='Remove' style={{flexShrink:0,width:28,height:28,borderRadius:6,border:'1px solid var(--border)',background:'var(--card)',color:'var(--muted-fg)',cursor:'pointer',fontSize:14,lineHeight:1}}>×</button>
                     : <span style={{width:28,flexShrink:0}}/>}
@@ -6157,10 +6161,15 @@ body{font-family:'Montserrat',Georgia,sans-serif;background:#fff;color:#1a1714;p
     const hasDocs = d.quote_html||d.contract_html||d.change_order_html||d.invoice_html||(d.drive_files&&d.drive_files.length);
     const stObj = portalStageObj(d.stage);
     const dealValue = parseFloat(d.value)||0;
-    const dealPaid = parseFloat(d.invoicePaid)||0;
-    const balance = Math.max(0, dealValue - dealPaid);
+    const stripePaid = parseFloat(d.invoicePaid)||0;
     const fmtMoney = n=>'$'+n.toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2});
     const schedule = (Array.isArray(d.payment_schedule)?d.payment_schedule:[]).filter(b=>(parseFloat(b.amount)||0)>0);
+    // An installment counts as paid if it's covered by Stripe payments OR the
+    // contractor manually checked it off (cash / cheque / e-transfer, etc.).
+    let run=0; const paidArr = schedule.map(b=>{ run+=parseFloat(b.amount)||0; return (b.paid===true) || (run<=stripePaid+0.005); });
+    const schedPaid = schedule.reduce((s,b,i)=>s+(paidArr[i]?(parseFloat(b.amount)||0):0),0);
+    const dealPaid = schedule.length ? Math.max(stripePaid, schedPaid) : stripePaid;
+    const balance = Math.max(0, dealValue - dealPaid);
     return (
       <div key={d.id} className="cp-card" style={{position:'relative'}}>
         <div className="cp-card-head">
@@ -6205,15 +6214,12 @@ body{font-family:'Montserrat',Georgia,sans-serif;background:#fff;color:#1a1714;p
               <span>Payment</span>
             </div>
             {schedule.length>1&&(()=>{
-              const prefix=[]; let run=0;
-              schedule.forEach(b=>{ run+=parseFloat(b.amount)||0; prefix.push(run); });
-              let nextDue=schedule.length;
-              for(let i=0;i<schedule.length;i++){ if(prefix[i]>dealPaid+0.005){ nextDue=i; break; } }
+              let nextDue=paidArr.findIndex(p=>!p); if(nextDue<0) nextDue=schedule.length;
               return (
                 <div className="cp-pay-sched">
                   {schedule.map((b,i)=>{
                     const amt=parseFloat(b.amount)||0;
-                    const isPaid=i<nextDue;
+                    const isPaid=paidArr[i];
                     const isNext=i===nextDue;
                     const key=`${d.id}:${i}`;
                     return (

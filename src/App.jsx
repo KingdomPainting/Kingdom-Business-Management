@@ -1410,8 +1410,7 @@ function Dashboard({toast}){
             {(()=>{
               const srcDeals=deals.filter(d=>['Scheduled','Completed','Archive'].includes(d.stage));
               // Count each label across deals (bridging any legacy leadSource value).
-              // A Lost deal counts only toward "Lost" — its other labels are ignored.
-              const has=(d,l)=>(d.labels||[]).includes('Lost') ? l==='Lost' : ((d.labels||[]).includes(l)||d.leadSource===l);
+              const has=(d,l)=>(d.labels||[]).includes(l)||d.leadSource===l;
               const labeled=srcDeals.filter(d=>DEAL_LABELS.some(l=>has(d,l)));
               const total=labeled.length||1;
               // Sort labels highest→lowest by count so the order updates as leads change.

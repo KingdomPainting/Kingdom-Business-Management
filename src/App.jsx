@@ -379,6 +379,19 @@ function defaultPaymentSchedule(value){
   return [{label:'Deposit (35%)',amount:(dep/100).toFixed(2)},{label:'Halfway Payment (35%)',amount:(mid/100).toFixed(2)},{label:'Final Payment (30%)',amount:(fin/100).toFixed(2)}];
 }
 
+// Effective amount paid on a deal: Stripe/bookkeeping payments (deal.invoicepaid)
+// unioned with the payment-schedule installments the contractor manually checked
+// off as paid by another method. An installment counts once — whichever source
+// covers it — so the two never double-count, and Stripe is never lowered.
+function dealPaidAmount(deal){
+  const stripePaid=parseFloat(deal.invoicePaid ?? deal.invoicepaid)||0;
+  const sched=(Array.isArray(deal.payment_schedule)?deal.payment_schedule:[]).filter(b=>(parseFloat(b.amount)||0)>0);
+  if(!sched.length) return stripePaid;
+  let run=0, paidSum=0;
+  sched.forEach(b=>{ const amt=parseFloat(b.amount)||0; run+=amt; if(b.paid===true||run<=stripePaid+0.005) paidSum+=amt; });
+  return Math.max(stripePaid, paidSum);
+}
+
 // Remove a legacy contractor-signature block appended at the very bottom of a
 // contract (from the earlier fallback flow, before signatures went into the box).
 // Anchored on the block's distinctive opening style, greedy to the final </div>.
@@ -1263,9 +1276,9 @@ function Dashboard({toast}){
     ['Scheduled','Completed','Archive'].includes(d.stage) &&
     !(d.labels||[]).includes('Lost')
   );
-  const outstandingDeals = invoiceDeals.filter(d=>Math.max(0,(parseFloat(d.value)||0)-(parseFloat(d.invoicePaid)||0))>0);
+  const outstandingDeals = invoiceDeals.filter(d=>Math.max(0,(parseFloat(d.value)||0)-dealPaidAmount(d))>0);
   const outstandingCount = outstandingDeals.length;
-  const outstandingAmt = outstandingDeals.reduce((s,d)=>s+Math.max(0,(parseFloat(d.value)||0)-(parseFloat(d.invoicePaid)||0)),0);
+  const outstandingAmt = outstandingDeals.reduce((s,d)=>s+Math.max(0,(parseFloat(d.value)||0)-dealPaidAmount(d)),0);
 
   // Financials stats — same filter as Financials page: Scheduled + Completed + Archive, no Lost
   const revenueDeals = deals.filter(d=>['Scheduled','Completed','Archive'].includes(d.stage)&&!(d.labels||[]).includes('Lost'));
@@ -1279,7 +1292,7 @@ function Dashboard({toast}){
   const totalLostValue = lostDeals.reduce((s,d)=>s+(parseFloat(d.value)||0),0);
 
   // Conversion Rate: clients with $0 outstanding / Scheduled→Archive deals
-  const paidOffDeals = invoiceDeals.filter(d=>(parseFloat(d.value)||0)>0 && Math.max(0,(parseFloat(d.value)||0)-(parseFloat(d.invoicePaid)||0))===0);
+  const paidOffDeals = invoiceDeals.filter(d=>(parseFloat(d.value)||0)>0 && Math.max(0,(parseFloat(d.value)||0)-dealPaidAmount(d))===0);
   const allPipelineDeals = deals.filter(d=>['Scheduled','Completed','Archive'].includes(d.stage)); // Scheduled→Archive only
   const conversionRate = allPipelineDeals.length>0 ? (paidOffDeals.length/allPipelineDeals.length)*100 : 0;
 
@@ -4440,7 +4453,7 @@ async function generateInvoicePDF(deal, contactName, contactAddr){
   const invLabel = 'KGDM-' + (invNum || 1001);
 
   const revenue     = parseFloat(deal.value)||0;
-  const paid        = parseFloat(deal.invoicePaid)||0;
+  const paid        = dealPaidAmount(deal);
   const outstanding = Math.max(0, revenue - paid);
   const today       = new Date().toLocaleDateString('en-CA',{year:'numeric',month:'long',day:'numeric'});
   const addr        = contactAddr||deal.address||'—';
@@ -4566,7 +4579,7 @@ function InvoicePage({showToast}){
   const sortedDeals=[...deals].sort((a,b)=>{
     let av,bv;
     const rev=d=>parseFloat(d.value)||0;
-    const paid=d=>parseFloat(d.invoicePaid)||0;
+    const paid=d=>dealPaidAmount(d);
     const outstanding=d=>Math.max(0,rev(d)-paid(d));
     switch(sortKey){
       case 'project': av=(a.dealName||'').toLowerCase(); bv=(b.dealName||'').toLowerCase(); break;
@@ -4582,8 +4595,8 @@ function InvoicePage({showToast}){
     return 0;
   });
 
-  const totalOutstandingCount=sortedDeals.filter(d=>Math.max(0,(parseFloat(d.value)||0)-(parseFloat(d.invoicePaid)||0))>0).length;
-  const totalOutstandingAmt=sortedDeals.reduce((s,d)=>s+Math.max(0,(parseFloat(d.value)||0)-(parseFloat(d.invoicePaid)||0)),0);
+  const totalOutstandingCount=sortedDeals.filter(d=>Math.max(0,(parseFloat(d.value)||0)-dealPaidAmount(d))>0).length;
+  const totalOutstandingAmt=sortedDeals.reduce((s,d)=>s+Math.max(0,(parseFloat(d.value)||0)-dealPaidAmount(d)),0);
 
   const thStyle={padding:'8px 12px',textAlign:'left',fontSize:11,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--muted-fg)',whiteSpace:'nowrap',borderBottom:'1px solid var(--border)'};
   const tdStyle={padding:'10px 12px',fontSize:13,borderBottom:'1px solid var(--border)',verticalAlign:'middle'};
@@ -4635,7 +4648,8 @@ function InvoicePage({showToast}){
               )}
               {sortedDeals.map(deal=>{
                 const revenue=parseFloat(deal.value)||0;
-                const paid=parseFloat(deal.invoicePaid)||0;
+                const paid=dealPaidAmount(deal);
+                const manualPaid=paid>(parseFloat(deal.invoicePaid ?? deal.invoicepaid)||0)+0.005;
                 const outstanding=Math.max(0,revenue-paid);
                 const outColor=outstanding>0?'#ef4444':'#22c55e';
                 const dateStr=deal.endDate||(deal.scheduleDays?.length?deal.scheduleDays[deal.scheduleDays.length-1].date:null);
@@ -4650,8 +4664,9 @@ function InvoicePage({showToast}){
                     <td style={{...tdStyle,textAlign:'right',padding:'6px 8px'}}>
                       <input type='number' min='0' value={paid||''} placeholder='0.00'
                         onChange={ev=>savePaid(deal.id,ev.target.value)}
-                        title='Pulled from Bookkeeping income for this project — editable to override'
-                        style={inp}/>
+                        title={manualPaid?'Includes payments marked paid in the Pipeline payment schedule. Uncheck those to lower it below the marked amount.':'Pulled from Bookkeeping income for this project — editable to override'}
+                        style={{...inp,...(manualPaid?{borderColor:'#16a34a'}:{})}}/>
+                      {manualPaid&&<div style={{fontSize:9,color:'#16a34a',fontWeight:600,marginTop:2,textAlign:'right'}}>incl. marked paid</div>}
                     </td>
                     <td style={{...tdStyle,textAlign:'right',fontWeight:700,color:outColor}}>{fmtUSD(outstanding)}</td>
                     <td style={{...tdStyle,textAlign:'center'}}>
@@ -4669,7 +4684,7 @@ function InvoicePage({showToast}){
                 <tr style={{background:'var(--muted)'}}>
                   <td colSpan={3} style={{...tdStyle,fontWeight:600,fontSize:11,color:'var(--muted-fg)'}}>Totals — {sortedDeals.length} project{sortedDeals.length!==1?'s':''}</td>
                   <td style={{...tdStyle,textAlign:'right',fontWeight:700}}>{fmtUSD(sortedDeals.reduce((s,d)=>s+(parseFloat(d.value)||0),0))}</td>
-                  <td style={{...tdStyle,textAlign:'right',fontWeight:700}}>{fmtUSD(sortedDeals.reduce((s,d)=>s+(parseFloat(d.invoicePaid)||0),0))}</td>
+                  <td style={{...tdStyle,textAlign:'right',fontWeight:700}}>{fmtUSD(sortedDeals.reduce((s,d)=>s+dealPaidAmount(d),0))}</td>
                   <td style={{...tdStyle,textAlign:'right',fontWeight:700,color:'#ef4444'}}>{fmtUSD(totalOutstandingAmt)}</td>
                   <td style={tdStyle}/>
                 </tr>
@@ -4800,7 +4815,7 @@ function Financials({showToast}){
   // Conversion Rate — Scheduled→Archive only
   const allDeals = api.getDeals().filter(d=>['Scheduled','Completed','Archive'].includes(d.stage));
   const invoiceDealsF = allDeals.filter(d=>!(d.labels||[]).includes('Lost'));
-  const paidOffDealsF = invoiceDealsF.filter(d=>(parseFloat(d.value)||0)>0 && Math.max(0,(parseFloat(d.value)||0)-(parseFloat(d.invoicePaid)||0))===0);
+  const paidOffDealsF = invoiceDealsF.filter(d=>(parseFloat(d.value)||0)>0 && Math.max(0,(parseFloat(d.value)||0)-dealPaidAmount(d))===0);
   const conversionRateF = allDeals.length>0 ? (paidOffDealsF.length/allDeals.length)*100 : 0;
 
   // Monthly data for charts (last 6 months)

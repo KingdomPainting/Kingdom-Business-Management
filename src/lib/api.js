@@ -138,9 +138,10 @@ export const api = {
     const winRate=closedDeals.length>0?(deals.filter(d=>d.stage==='Completed').length/closedDeals.length)*100:0;
     const now2=new Date(); const months=[];
     for(let i=5;i>=0;i--){const d=new Date(now2);d.setMonth(d.getMonth()-i);months.push({month:d.toLocaleString('en',{month:'short'}),projects:deals.filter(d2=>{if(!d2.created_at)return false;const dc=new Date(d2.created_at);return dc.getFullYear()===d.getFullYear()&&dc.getMonth()===d.getMonth();}).length,grossProfit:deals.filter(d2=>{if(!d2.created_at)return false;const dc=new Date(d2.created_at);return dc.getFullYear()===d.getFullYear()&&dc.getMonth()===d.getMonth()&&d2.stage==='Completed';}).reduce((s,d2)=>s+(d2.value||0),0)});}
-    const LEAD_SOURCES=['Referral','Repeat','Google','Site','Home Depot','MBT'];
-    const leadSourceCounts=LEAD_SOURCES.map(source=>({source,count:deals.filter(d=>d.leadSource===source).length}));
-    const totalLeads=deals.filter(d=>d.leadSource).length;
+    const DEAL_LABELS=['Referral','Repeat','Google','Site','Home Depot','MBT','Residential','Commercial','Exterior','Lost'];
+    const hasLabel=(d,l)=>(d.labels||[]).includes(l)||d.leadSource===l;
+    const leadSourceCounts=DEAL_LABELS.map(source=>({source,count:deals.filter(d=>hasLabel(d,source)).length}));
+    const totalLeads=deals.filter(d=>DEAL_LABELS.some(l=>hasLabel(d,l))).length;
     const recentActivities=DB.activities.slice(0,8);
     return {totalDeals:deals.length,pipelineValue,closedWonValue,dealsByStage,recentActivities,winRate,monthlyStats:months,leadSourceCounts,totalLeads};
   },

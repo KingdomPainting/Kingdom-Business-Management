@@ -18,7 +18,7 @@ import {
 import { STYLE } from "./styles";
 import { cn, fmtCAD, fmtUSD, genId, now, dateRange, fmtDateLabel } from "./lib/format";
 import {
-  CLIENT_STATUS, STAGE_COLORS, LABEL_COLORS, TYPE_COLORS, LEAD_COLORS, STAGES, LEAD_SOURCES,
+  CLIENT_STATUS, STAGE_COLORS, LABEL_COLORS, TYPE_COLORS, LEAD_COLORS, STAGES, DEAL_LABELS, ALL_LABEL_COLORS,
 } from "./lib/constants";
 import {
   SUPA_URL, SUPA_KEY, ADMIN_EMAIL, DEMO_EMAIL, CLIENT_DEMO_EMAIL, isDemo, _session,
@@ -379,6 +379,19 @@ function defaultPaymentSchedule(value){
   return [{label:'Deposit (35%)',amount:(dep/100).toFixed(2)},{label:'Halfway Payment (35%)',amount:(mid/100).toFixed(2)},{label:'Final Payment (30%)',amount:(fin/100).toFixed(2)}];
 }
 
+// Effective amount paid on a deal: Stripe/bookkeeping payments (deal.invoicepaid)
+// unioned with the payment-schedule installments the contractor manually checked
+// off as paid by another method. An installment counts once — whichever source
+// covers it — so the two never double-count, and Stripe is never lowered.
+function dealPaidAmount(deal){
+  const stripePaid=parseFloat(deal.invoicePaid ?? deal.invoicepaid)||0;
+  const sched=(Array.isArray(deal.payment_schedule)?deal.payment_schedule:[]).filter(b=>(parseFloat(b.amount)||0)>0);
+  if(!sched.length) return stripePaid;
+  let run=0, paidSum=0;
+  sched.forEach(b=>{ const amt=parseFloat(b.amount)||0; run+=amt; if(b.paid===true||run<=stripePaid+0.005) paidSum+=amt; });
+  return Math.max(stripePaid, paidSum);
+}
+
 // Remove a legacy contractor-signature block appended at the very bottom of a
 // contract (from the earlier fallback flow, before signatures went into the box).
 // Anchored on the block's distinctive opening style, greedy to the final </div>.
@@ -467,7 +480,7 @@ function ContractorSignModal({open,deal,onClose,onSigned}){
 }
 
 function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead',onAddContact}){
-  const blank={dealName:'',value:'',description:'',contactId:'',referralContactId:'',labels:[],leadSource:'',
+  const blank={dealName:'',value:'',description:'',contactId:'',referralContactId:'',labels:[],
     startDate:'',startTime:'09:00',endDate:'',endTime:'17:00',
     scheduleDays:[], // [{date, startTime, endTime, calEventId}]
     address:'',notes:'',rooms:[],progress:0,contactFreeText:'',quote_html:'',contract_html:'',change_order_html:'',invoice_html:'',contract_signed_html:'',contract_signed_at:'',quote_date:'',drive_files:[],
@@ -480,7 +493,7 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead',onAdd
     if(deal) setF({
       dealName:deal.dealName||'',value:deal.value?.toString()||'',description:deal.description||'',
       contactId:(Array.isArray(deal.contact)?deal.contact[0]:deal.contact)||deal.contactId||'',
-      referralContactId:deal.referralName||'',labels:deal.labels||[],leadSource:deal.leadSource||'',
+      referralContactId:deal.referralName||'',labels:deal.labels||[],
       startDate:deal.startDate||'',startTime:deal.startTime||'09:00',
       endDate:deal.endDate||'',endTime:deal.endTime||'17:00',
       scheduleDays:deal.scheduleDays||[],address:deal.address||'',notes:deal.notes||'',
@@ -600,7 +613,7 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead',onAdd
       value:f.value?parseFloat(f.value):undefined,
       description:f.description||null,
       contact:f.contactId||null,contactFreeText:f.contactFreeText||null,referralName:f.referralContactId||undefined,
-      labels:f.labels.length?f.labels:undefined,leadSource:f.leadSource||undefined,
+      labels:f.labels.length?f.labels:undefined,
       startDate:f.startDate||undefined,startTime:f.startTime||undefined,
       endDate:f.endDate||undefined,endTime:f.endTime||undefined,
       scheduleDays:finalDays,address:f.address||null,notes:f.notes||null,
@@ -646,12 +659,7 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead',onAdd
     onSaved();onClose();
   };
 
-  const LABEL_OPTIONS=[
-    {v:'Residential', bg:'#dbeafe',color:'#1d4ed8'},
-    {v:'Commercial',  bg:'#ffedd5',color:'#ea580c'},
-    {v:'Exterior',    bg:'#d1fae5',color:'#065f46'},
-    {v:'Lost',        bg:'#fee2e2',color:'#dc2626'},
-  ];
+  const LABEL_OPTIONS=DEAL_LABELS.map(v=>({v,bg:(ALL_LABEL_COLORS[v]||{}).bg||'#f3f4f6',color:(ALL_LABEL_COLORS[v]||{}).color||'#374151'}));
   const inp={background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%'};
 
   const _projTotal=parseFloat(f.value)||0;
@@ -734,16 +742,15 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead',onAdd
       </div>
       <div style={{marginBottom:12}}>
         <Label>Labels</Label>
-        <div style={{display:'flex',gap:8}}>
+        <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
           {LABEL_OPTIONS.map(({v,bg,color})=>{
             const active=f.labels.includes(v);
-            return <button key={v} onClick={()=>toggleLabel(v)} style={{flex:1,fontSize:11,fontWeight:600,padding:'6px 4px',borderRadius:20,border:'2px solid '+(active?color:'transparent'),background:active?bg:'var(--muted)',color:active?color:'var(--muted-fg)',cursor:'pointer',transition:'all .15s',opacity:active?1:0.65}}>{v}</button>;
+            return <button key={v} onClick={()=>toggleLabel(v)} style={{fontSize:11,fontWeight:600,padding:'6px 12px',borderRadius:20,border:'2px solid '+(active?color:'transparent'),background:active?bg:'var(--muted)',color:active?color:'var(--muted-fg)',cursor:'pointer',transition:'all .15s',opacity:active?1:0.65}}>{v}</button>;
           })}
         </div>
       </div>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
-        <div><Label>Lead Source</Label><select value={f.leadSource||'__none'} onChange={e=>setF(x=>({...x,leadSource:e.target.value==='__none'?'':e.target.value}))} style={{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%',outline:'none'}}><option value='__none'>None</option>{LEAD_SOURCES.map(s=><option key={s}>{s}</option>)}</select></div>
-        <div><Label>Referral Contact</Label><select value={f.referralContactId||'__none'} onChange={e=>setF(x=>({...x,referralContactId:e.target.value==='__none'?'':e.target.value}))} style={{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%',outline:'none'}}><option value='__none'>None</option>{contacts.map(c=><option key={c.id} value={c.id}>{c.fullName}</option>)}</select></div>
+      <div style={{marginBottom:12}}>
+        <Label>Referral Contact</Label><select value={f.referralContactId||'__none'} onChange={e=>setF(x=>({...x,referralContactId:e.target.value==='__none'?'':e.target.value}))} style={{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%',outline:'none'}}><option value='__none'>None</option>{contacts.map(c=><option key={c.id} value={c.id}>{c.fullName}</option>)}</select>
       </div>
       <div style={{marginBottom:12}}><Label>Description / Notes (shows in calendar)</Label><textarea value={f.description} onChange={e=>setF(x=>({...x,description:e.target.value}))} rows={3} placeholder='Project details...' style={{background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'8px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%',outline:'none',resize:'vertical',boxSizing:'border-box'}}/></div>
       {/* Rooms / Progress — pushed from Estimates page */}
@@ -1263,9 +1270,9 @@ function Dashboard({toast}){
     ['Scheduled','Completed','Archive'].includes(d.stage) &&
     !(d.labels||[]).includes('Lost')
   );
-  const outstandingDeals = invoiceDeals.filter(d=>Math.max(0,(parseFloat(d.value)||0)-(parseFloat(d.invoicePaid)||0))>0);
+  const outstandingDeals = invoiceDeals.filter(d=>Math.max(0,(parseFloat(d.value)||0)-dealPaidAmount(d))>0);
   const outstandingCount = outstandingDeals.length;
-  const outstandingAmt = outstandingDeals.reduce((s,d)=>s+Math.max(0,(parseFloat(d.value)||0)-(parseFloat(d.invoicePaid)||0)),0);
+  const outstandingAmt = outstandingDeals.reduce((s,d)=>s+Math.max(0,(parseFloat(d.value)||0)-dealPaidAmount(d)),0);
 
   // Financials stats — same filter as Financials page: Scheduled + Completed + Archive, no Lost
   const revenueDeals = deals.filter(d=>['Scheduled','Completed','Archive'].includes(d.stage)&&!(d.labels||[]).includes('Lost'));
@@ -1279,7 +1286,7 @@ function Dashboard({toast}){
   const totalLostValue = lostDeals.reduce((s,d)=>s+(parseFloat(d.value)||0),0);
 
   // Conversion Rate: clients with $0 outstanding / Scheduled→Archive deals
-  const paidOffDeals = invoiceDeals.filter(d=>(parseFloat(d.value)||0)>0 && Math.max(0,(parseFloat(d.value)||0)-(parseFloat(d.invoicePaid)||0))===0);
+  const paidOffDeals = invoiceDeals.filter(d=>(parseFloat(d.value)||0)>0 && Math.max(0,(parseFloat(d.value)||0)-dealPaidAmount(d))===0);
   const allPipelineDeals = deals.filter(d=>['Scheduled','Completed','Archive'].includes(d.stage)); // Scheduled→Archive only
   const conversionRate = allPipelineDeals.length>0 ? (paidOffDeals.length/allPipelineDeals.length)*100 : 0;
 
@@ -1402,14 +1409,18 @@ function Dashboard({toast}){
           <div style={{display:'flex',flexDirection:'column',gap:8}}>
             {(()=>{
               const srcDeals=deals.filter(d=>['Scheduled','Completed','Archive'].includes(d.stage));
-              const total=srcDeals.filter(d=>d.leadSource).length||1;
-              // Sort sources highest→lowest by count so the order updates as leads change.
-              const ranked=LEAD_SOURCES.map(source=>({source,count:srcDeals.filter(d=>d.leadSource===source).length})).sort((a,b)=>b.count-a.count);
+              // Count each label across deals (bridging any legacy leadSource value).
+              const has=(d,l)=>(d.labels||[]).includes(l)||d.leadSource===l;
+              const labeled=srcDeals.filter(d=>DEAL_LABELS.some(l=>has(d,l)));
+              const total=labeled.length||1;
+              // Sort labels highest→lowest by count so the order updates as leads change.
+              const ranked=DEAL_LABELS.map(source=>({source,count:srcDeals.filter(d=>has(d,source)).length})).sort((a,b)=>b.count-a.count);
               return ranked.map(({source,count})=>{
                 const pct=Math.round((count/total)*100);
+                const c=ALL_LABEL_COLORS[source]||{bg:'#f3f4f6',color:'#374151'};
                 return (
                   <div key={source} style={{display:'flex',alignItems:'center',gap:8}}>
-                    <span style={{fontSize:11,fontWeight:700,width:84,textAlign:'center',flexShrink:0,padding:'2px 10px',borderRadius:20,background:(LEAD_COLORS[source]||{bg:'#f3f4f6'}).bg,color:(LEAD_COLORS[source]||{color:'#374151'}).color}}>{source}</span>
+                    <span style={{fontSize:11,fontWeight:700,width:96,textAlign:'center',flexShrink:0,padding:'2px 8px',borderRadius:20,background:c.bg,color:c.color,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{source}</span>
                     <div style={{flex:1,height:8,background:'var(--muted)',borderRadius:9,overflow:'hidden'}}>
                       <div style={{height:'100%',background:'var(--primary)',borderRadius:9,width:`${pct}%`,transition:'width .4s'}}/>
                     </div>
@@ -1419,8 +1430,8 @@ function Dashboard({toast}){
                 );
               });
             })()}
-            {deals.filter(d=>['Scheduled','Completed','Archive'].includes(d.stage)&&d.leadSource).length===0&&(
-              <p style={{fontSize:12,color:'var(--muted-fg)'}}>No lead sources assigned yet.</p>
+            {deals.filter(d=>['Scheduled','Completed','Archive'].includes(d.stage)&&(DEAL_LABELS.some(l=>(d.labels||[]).includes(l))||d.leadSource)).length===0&&(
+              <p style={{fontSize:12,color:'var(--muted-fg)'}}>No labels assigned yet.</p>
             )}
           </div>
         </div>
@@ -1876,8 +1887,8 @@ function Pipeline({showToast}){
                       {/* Labels + lead source */}
                       {(deal.labels?.length>0||deal.leadSource)&&(
                         <div style={{display:'flex',flexWrap:'wrap',gap:5,marginBottom:10}}>
-                          {(deal.labels||[]).map(l=><span key={l} style={{fontSize:11,fontWeight:600,padding:'2px 9px',borderRadius:20,background:(LABEL_COLORS[l]||{bg:'#f3f4f6'}).bg,color:(LABEL_COLORS[l]||{color:'#374151'}).color}}>{l}</span>)}
-                          {deal.leadSource&&<span style={{fontSize:11,fontWeight:700,padding:'2px 9px',borderRadius:20,background:(LEAD_COLORS[deal.leadSource]||{bg:'#f3f4f6'}).bg,color:(LEAD_COLORS[deal.leadSource]||{color:'#374151'}).color,letterSpacing:'0.01em'}}>{deal.leadSource}</span>}
+                          {(deal.labels||[]).map(l=><span key={l} style={{fontSize:11,fontWeight:600,padding:'2px 9px',borderRadius:20,background:(ALL_LABEL_COLORS[l]||{bg:'#f3f4f6'}).bg,color:(ALL_LABEL_COLORS[l]||{color:'#374151'}).color}}>{l}</span>)}
+                          {deal.leadSource&&!(deal.labels||[]).includes(deal.leadSource)&&<span style={{fontSize:11,fontWeight:700,padding:'2px 9px',borderRadius:20,background:(LEAD_COLORS[deal.leadSource]||{bg:'#f3f4f6'}).bg,color:(LEAD_COLORS[deal.leadSource]||{color:'#374151'}).color,letterSpacing:'0.01em'}}>{deal.leadSource}</span>}
                         </div>
                       )}
                       {/* Title + actions */}
@@ -4440,7 +4451,7 @@ async function generateInvoicePDF(deal, contactName, contactAddr){
   const invLabel = 'KGDM-' + (invNum || 1001);
 
   const revenue     = parseFloat(deal.value)||0;
-  const paid        = parseFloat(deal.invoicePaid)||0;
+  const paid        = dealPaidAmount(deal);
   const outstanding = Math.max(0, revenue - paid);
   const today       = new Date().toLocaleDateString('en-CA',{year:'numeric',month:'long',day:'numeric'});
   const addr        = contactAddr||deal.address||'—';
@@ -4566,7 +4577,7 @@ function InvoicePage({showToast}){
   const sortedDeals=[...deals].sort((a,b)=>{
     let av,bv;
     const rev=d=>parseFloat(d.value)||0;
-    const paid=d=>parseFloat(d.invoicePaid)||0;
+    const paid=d=>dealPaidAmount(d);
     const outstanding=d=>Math.max(0,rev(d)-paid(d));
     switch(sortKey){
       case 'project': av=(a.dealName||'').toLowerCase(); bv=(b.dealName||'').toLowerCase(); break;
@@ -4582,8 +4593,8 @@ function InvoicePage({showToast}){
     return 0;
   });
 
-  const totalOutstandingCount=sortedDeals.filter(d=>Math.max(0,(parseFloat(d.value)||0)-(parseFloat(d.invoicePaid)||0))>0).length;
-  const totalOutstandingAmt=sortedDeals.reduce((s,d)=>s+Math.max(0,(parseFloat(d.value)||0)-(parseFloat(d.invoicePaid)||0)),0);
+  const totalOutstandingCount=sortedDeals.filter(d=>Math.max(0,(parseFloat(d.value)||0)-dealPaidAmount(d))>0).length;
+  const totalOutstandingAmt=sortedDeals.reduce((s,d)=>s+Math.max(0,(parseFloat(d.value)||0)-dealPaidAmount(d)),0);
 
   const thStyle={padding:'8px 12px',textAlign:'left',fontSize:11,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--muted-fg)',whiteSpace:'nowrap',borderBottom:'1px solid var(--border)'};
   const tdStyle={padding:'10px 12px',fontSize:13,borderBottom:'1px solid var(--border)',verticalAlign:'middle'};
@@ -4635,7 +4646,8 @@ function InvoicePage({showToast}){
               )}
               {sortedDeals.map(deal=>{
                 const revenue=parseFloat(deal.value)||0;
-                const paid=parseFloat(deal.invoicePaid)||0;
+                const paid=dealPaidAmount(deal);
+                const manualPaid=paid>(parseFloat(deal.invoicePaid ?? deal.invoicepaid)||0)+0.005;
                 const outstanding=Math.max(0,revenue-paid);
                 const outColor=outstanding>0?'#ef4444':'#22c55e';
                 const dateStr=deal.endDate||(deal.scheduleDays?.length?deal.scheduleDays[deal.scheduleDays.length-1].date:null);
@@ -4650,8 +4662,9 @@ function InvoicePage({showToast}){
                     <td style={{...tdStyle,textAlign:'right',padding:'6px 8px'}}>
                       <input type='number' min='0' value={paid||''} placeholder='0.00'
                         onChange={ev=>savePaid(deal.id,ev.target.value)}
-                        title='Pulled from Bookkeeping income for this project — editable to override'
-                        style={inp}/>
+                        title={manualPaid?'Includes payments marked paid in the Pipeline payment schedule. Uncheck those to lower it below the marked amount.':'Pulled from Bookkeeping income for this project — editable to override'}
+                        style={{...inp,...(manualPaid?{borderColor:'#16a34a'}:{})}}/>
+                      {manualPaid&&<div style={{fontSize:9,color:'#16a34a',fontWeight:600,marginTop:2,textAlign:'right'}}>incl. marked paid</div>}
                     </td>
                     <td style={{...tdStyle,textAlign:'right',fontWeight:700,color:outColor}}>{fmtUSD(outstanding)}</td>
                     <td style={{...tdStyle,textAlign:'center'}}>
@@ -4669,7 +4682,7 @@ function InvoicePage({showToast}){
                 <tr style={{background:'var(--muted)'}}>
                   <td colSpan={3} style={{...tdStyle,fontWeight:600,fontSize:11,color:'var(--muted-fg)'}}>Totals — {sortedDeals.length} project{sortedDeals.length!==1?'s':''}</td>
                   <td style={{...tdStyle,textAlign:'right',fontWeight:700}}>{fmtUSD(sortedDeals.reduce((s,d)=>s+(parseFloat(d.value)||0),0))}</td>
-                  <td style={{...tdStyle,textAlign:'right',fontWeight:700}}>{fmtUSD(sortedDeals.reduce((s,d)=>s+(parseFloat(d.invoicePaid)||0),0))}</td>
+                  <td style={{...tdStyle,textAlign:'right',fontWeight:700}}>{fmtUSD(sortedDeals.reduce((s,d)=>s+dealPaidAmount(d),0))}</td>
                   <td style={{...tdStyle,textAlign:'right',fontWeight:700,color:'#ef4444'}}>{fmtUSD(totalOutstandingAmt)}</td>
                   <td style={tdStyle}/>
                 </tr>
@@ -4800,7 +4813,7 @@ function Financials({showToast}){
   // Conversion Rate — Scheduled→Archive only
   const allDeals = api.getDeals().filter(d=>['Scheduled','Completed','Archive'].includes(d.stage));
   const invoiceDealsF = allDeals.filter(d=>!(d.labels||[]).includes('Lost'));
-  const paidOffDealsF = invoiceDealsF.filter(d=>(parseFloat(d.value)||0)>0 && Math.max(0,(parseFloat(d.value)||0)-(parseFloat(d.invoicePaid)||0))===0);
+  const paidOffDealsF = invoiceDealsF.filter(d=>(parseFloat(d.value)||0)>0 && Math.max(0,(parseFloat(d.value)||0)-dealPaidAmount(d))===0);
   const conversionRateF = allDeals.length>0 ? (paidOffDealsF.length/allDeals.length)*100 : 0;
 
   // Monthly data for charts (last 6 months)

@@ -1380,15 +1380,17 @@ function Dashboard({toast}){
                       </div>
                       <span style={{fontSize:12,fontWeight:700,color:'var(--primary)',flexShrink:0}}>{fmtUSD(deal.value||0)}</span>
                     </div>
-                    <div style={{marginTop:6}}>
-                      <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
-                        <span style={{fontSize:10,color:'var(--muted-fg)',fontWeight:500}}>{(deal.rooms||[]).filter(r=>r.done).length}/{(deal.rooms||[]).length} rooms</span>
-                        <span style={{fontSize:10,fontWeight:700,color:'var(--primary)'}}>{pct}%</span>
+                    {deal.rooms&&deal.rooms.length>0&&(
+                      <div style={{marginTop:6}}>
+                        <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
+                          <span style={{fontSize:10,color:'var(--muted-fg)',fontWeight:500}}>{deal.rooms.filter(r=>r.done).length}/{deal.rooms.length} rooms</span>
+                          <span style={{fontSize:10,fontWeight:700,color:'var(--primary)'}}>{pct}%</span>
+                        </div>
+                        <div style={{height:5,background:'var(--border)',borderRadius:9,overflow:'hidden'}}>
+                          <div style={{height:'100%',background:'var(--primary)',borderRadius:9,width:`${pct}%`,transition:'width .3s'}}/>
+                        </div>
                       </div>
-                      <div style={{height:5,background:'var(--border)',borderRadius:9,overflow:'hidden'}}>
-                        <div style={{height:'100%',background:'var(--primary)',borderRadius:9,width:`${pct}%`,transition:'width .3s'}}/>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 );
               })}

@@ -1370,13 +1370,25 @@ function Dashboard({toast}){
               {scheduledDeals.map(deal=>{
                 const days=deal.scheduleDays||[];
                 const nextDay=days.find(d=>new Date(d.date)>=new Date());
+                const pct=Math.min(100,Math.max(0,deal.progress||0));
                 return(
-                  <div key={deal.id} style={{padding:'7px 14px',borderBottom:'1px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
-                    <div style={{minWidth:0}}>
-                      <p style={{fontSize:12,fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{deal.dealName}</p>
-                      {nextDay&&<p style={{fontSize:10,color:'var(--muted-fg)',marginTop:1}}>{nextDay.date} · {nextDay.startTime}–{nextDay.endTime}</p>}
+                  <div key={deal.id} style={{padding:'7px 14px',borderBottom:'1px solid var(--border)'}}>
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
+                      <div style={{minWidth:0}}>
+                        <p style={{fontSize:12,fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{deal.dealName}</p>
+                        {nextDay&&<p style={{fontSize:10,color:'var(--muted-fg)',marginTop:1}}>{nextDay.date} · {nextDay.startTime}–{nextDay.endTime}</p>}
+                      </div>
+                      <span style={{fontSize:12,fontWeight:700,color:'var(--primary)',flexShrink:0}}>{fmtUSD(deal.value||0)}</span>
                     </div>
-                    <span style={{fontSize:12,fontWeight:700,color:'var(--primary)',flexShrink:0}}>{fmtUSD(deal.value||0)}</span>
+                    <div style={{marginTop:6}}>
+                      <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
+                        <span style={{fontSize:10,color:'var(--muted-fg)',fontWeight:500}}>{(deal.rooms||[]).filter(r=>r.done).length}/{(deal.rooms||[]).length} rooms</span>
+                        <span style={{fontSize:10,fontWeight:700,color:'var(--primary)'}}>{pct}%</span>
+                      </div>
+                      <div style={{height:5,background:'var(--border)',borderRadius:9,overflow:'hidden'}}>
+                        <div style={{height:'100%',background:'var(--primary)',borderRadius:9,width:`${pct}%`,transition:'width .3s'}}/>
+                      </div>
+                    </div>
                   </div>
                 );
               })}

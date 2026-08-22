@@ -604,9 +604,20 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead',onAdd
       projectCalEventId=await gcalCreateProjectEvent(gcalTitle,f.startDate,f.startTime,f.endDate,f.endTime,f.address,notesTxt);
     }
 
-    // Auto-archive if Lost label is selected
+    const schedule=f.payment_schedule
+      .filter(b=>String(b.amount).trim()!=='')
+      .map(b=>({label:b.label||'',amount:parseFloat(b.amount)||0,paid:!!b.paid}));
+
+    // Auto-archive if Lost label is selected; otherwise move to Completed once the
+    // payment schedule is fully paid (matching the Stripe webhook's behaviour).
     const isLost = f.labels.includes('Lost');
-    const stage = isLost ? 'Archive' : (deal?.stage||defaultStage);
+    const currentStage = deal?.stage||defaultStage;
+    const projValue = parseFloat(f.value)||0;
+    const paidNow = dealPaidAmount({value:projValue,invoicePaid:deal?.invoicePaid??deal?.invoicepaid,payment_schedule:schedule});
+    const fullyPaid = projValue>0 && paidNow >= projValue-0.005;
+    const stage = isLost ? 'Archive'
+      : (fullyPaid && currentStage!=='Archive' && currentStage!=='Completed') ? 'Completed'
+      : currentStage;
 
     await api.saveDeal({
       dealName:f.dealName,stage,
@@ -618,7 +629,7 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead',onAdd
       endDate:f.endDate||undefined,endTime:f.endTime||undefined,
       scheduleDays:finalDays,address:f.address||null,notes:f.notes||null,
       rooms:f.rooms||undefined,progress:f.progress||0,
-      payment_schedule:(()=>{const ps=f.payment_schedule.filter(b=>String(b.amount).trim()!=='').map(b=>({label:b.label||'',amount:parseFloat(b.amount)||0,paid:!!b.paid}));return ps.length?ps:null;})(),
+      payment_schedule:schedule.length?schedule:null,
       quote_date:f.quote_date||undefined,
       quote_html:f.quote_html||null,
       contract_html:f.contract_html||null,
@@ -709,6 +720,14 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead',onAdd
               <span style={{fontWeight:700,color:matches?'#16a34a':'var(--destructive)'}}>{fmt(schedSum)} / {fmt(projTotal)}</span>
             </div>
             {!matches&&projTotal>0&&<p style={{marginTop:4,fontSize:11,color:'var(--destructive)'}}>Payments must add up to the project value ({fmt(projTotal)}).</p>}
+            {(()=>{
+              if(!(projTotal>0)) return null;
+              const paidNow=dealPaidAmount({value:projTotal,invoicePaid:deal?.invoicePaid??deal?.invoicepaid,payment_schedule:f.payment_schedule.filter(b=>String(b.amount).trim()!=='').map(b=>({amount:parseFloat(b.amount)||0,paid:!!b.paid}))});
+              if(paidNow<projTotal-0.005) return null;
+              const st=deal?.stage;
+              if(st==='Completed'||st==='Archive'||f.labels.includes('Lost')) return null;
+              return <p style={{marginTop:6,fontSize:11,color:'#16a34a',fontWeight:600}}>✅ Paid in full — this project moves to Completed when you save.</p>;
+            })()}
           </div>
         );
       })()}

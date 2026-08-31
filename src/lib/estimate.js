@@ -126,7 +126,7 @@ export const DEFAULT_SETTINGS = { hourlyRate:65, labourBuffer:1.25, taxRate:13, 
 export function newRoom(id, number){
   return {
     id, name:`Room ${number}`, length:0, width:0, height:'', irregular:false, irregularSqft:0, prepHrs:0,
-    wallSegs:[{l:0},{l:0},{l:0},{l:0},{l:0},{l:0}],
+    wallSegs:[{l:0,h:''},{l:0,h:''},{l:0,h:''},{l:0,h:''}],
     ceilSegs:[{l:0,w:0},{l:0,w:0}],
     walls:{enabled:true,coats:2}, ceiling:{enabled:false,coats:2,type:'flat',removeStucco:false},
     baseboards:{enabled:false,coats:2}, crown:{enabled:false,coats:2},
@@ -141,8 +141,9 @@ export function newRoom(id, number){
 
 export function roomWallSqft(room){
   if(room.irregular){
+    // Each wall segment carries its own height; fall back to the room height when blank.
     const h = room.height||0;
-    return Math.max(0,(room.wallSegs||[]).reduce((s,seg)=>s+((+seg.l)||0)*h,0)) || (room.irregularSqft||0);
+    return Math.max(0,(room.wallSegs||[]).reduce((s,seg)=>s+((+seg.l)||0)*(((+seg.h)||h)||0),0)) || (room.irregularSqft||0);
   }
   return Math.max(0, 2*(room.length+room.width)*(room.height||0));
 }

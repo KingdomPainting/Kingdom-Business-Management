@@ -2545,7 +2545,15 @@ function RoomCard({room,settings,onChange,onRemove,primers,paints,ceilPaints,col
             <p style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--muted-fg)',marginBottom:10}}>Dimensions</p>
             <div style={{display:'flex',flexDirection:'column',gap:8}}>
               {[['Length (ft)','length'],['Width (ft)','width'],['Height (ft)','height']].map(([l,k])=>(
-                <div key={k}><Label>{l}</Label><Input type='number' value={room[k]||''} onChange={e=>u({[k]:+e.target.value})} style={{padding:'6px 8px',minWidth:0}}/></div>
+                <div key={k}><Label>{l}</Label><Input type='number' value={room[k]||''} onChange={e=>{
+                  const v=+e.target.value;
+                  if(k!=='height'){ u({[k]:v}); return; }
+                  // Typing the room height fills the wall-segment height boxes: blank ones and
+                  // any still matching the previous room height (per-segment overrides are kept).
+                  const prev=room.height;
+                  const segs=(room.wallSegs||[]).map(s=>(s.h===''||s.h==null||+s.h===+prev)?{...s,h:v}:s);
+                  u({height:v,wallSegs:segs});
+                }} style={{padding:'6px 8px',minWidth:0}}/></div>
               ))}
             </div>
             <div style={{marginTop:8,display:'flex',gap:8,alignItems:'center'}}>
@@ -2555,15 +2563,24 @@ function RoomCard({room,settings,onChange,onRemove,primers,paints,ceilPaints,col
             {room.irregular&&(
               <div style={{marginTop:8,padding:12,background:'rgba(0,0,0,0.02)',borderRadius:8,border:'1px solid var(--border)'}}>
                 <p style={{fontSize:11,fontWeight:600,color:'var(--muted-fg)',marginBottom:8}}>Wall Segments (length × height)</p>
-                <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(90px,1fr))',gap:6}}>
-                  {(room.wallSegs||[]).map((seg,i)=>(
-                    <div key={i}>
-                      <Label>Seg {i+1}</Label>
-                      <Input type='number' value={seg.l||''} onChange={e=>{const segs=[...(room.wallSegs||[])];segs[i]={...segs[i],l:+e.target.value};u({wallSegs:segs});}} placeholder='L' style={{padding:'4px 8px',fontSize:11,minWidth:0}}/>
-                      {seg.l>0&&room.height>0&&<p style={{fontSize:10,color:'var(--muted-fg)',marginTop:2}}>{Math.round(seg.l*(room.height||0))} sqft</p>}
-                    </div>
-                  ))}
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+                  {(room.wallSegs||[]).map((seg,i)=>{
+                    const segH=(+seg.h)||(room.height||0);
+                    return (
+                      <div key={i} style={{display:'flex',gap:6,alignItems:'flex-end'}}>
+                        <div style={{flex:1}}><Label>Seg {i+1} · L</Label><Input type='number' value={seg.l||''} onChange={e=>{const segs=[...(room.wallSegs||[])];segs[i]={...segs[i],l:+e.target.value};u({wallSegs:segs});}} placeholder='L' style={{padding:'4px 8px',fontSize:11,minWidth:0}}/></div>
+                        <div style={{flex:1}}><Label>H</Label><Input type='number' value={seg.h===''||seg.h==null?'':seg.h} onChange={e=>{const segs=[...(room.wallSegs||[])];segs[i]={...segs[i],h:e.target.value===''?'':+e.target.value};u({wallSegs:segs});}} placeholder={room.height||'H'} style={{padding:'4px 8px',fontSize:11,minWidth:0}}/></div>
+                        <p style={{fontSize:10,color:'var(--muted-fg)',whiteSpace:'nowrap',paddingBottom:4,minWidth:38}}>{seg.l>0&&segH>0?`${Math.round(seg.l*segH)} sqft`:''}</p>
+                        {(room.wallSegs||[]).length>1&&(
+                          <button type='button' onClick={()=>u({wallSegs:(room.wallSegs||[]).filter((_,j)=>j!==i)})} title='Remove segment'
+                            style={{background:'none',border:'none',cursor:'pointer',color:'var(--destructive)',fontSize:14,lineHeight:1,padding:'0 2px 5px'}}>×</button>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
+                <button type='button' onClick={()=>u({wallSegs:[...(room.wallSegs||[]),{l:0,h:room.height||''}]})}
+                  style={{marginTop:8,display:'inline-flex',alignItems:'center',gap:5,padding:'4px 10px',border:'1px dashed var(--primary)',borderRadius:6,background:'transparent',color:'var(--primary)',fontSize:11,fontWeight:600,cursor:'pointer'}}>+ Add more</button>
                 {calc.wallSqft>0&&<p style={{fontSize:11,fontWeight:600,color:'var(--primary)',marginTop:6}}>Total: ~{Math.round(calc.wallSqft)} sqft</p>}
               </div>
             )}

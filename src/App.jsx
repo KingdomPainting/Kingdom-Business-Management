@@ -4924,10 +4924,21 @@ function Financials({showToast}){
     }
     return 0;
   };
-  const jobHours=activeDeals.map(dealJobHours).filter(h=>h>0);
-  const hrsLow=jobHours.length?Math.min(...jobHours):0;
-  const hrsHigh=jobHours.length?Math.max(...jobHours):0;
-  const hrsAvg=jobHours.length?jobHours.reduce((a,b)=>a+b,0)/jobHours.length:0;
+  // Working days actually scheduled for a project (used alongside the hours).
+  const dealJobDays=d=>{
+    const days=Array.isArray(d.scheduleDays)?d.scheduleDays:[];
+    if(days.length) return days.length;
+    if(d.startDate) return dateRange(String(d.startDate).slice(0,10),String(d.endDate||d.startDate).slice(0,10)).length;
+    return 0;
+  };
+  // Pair each project's hours with its days so the shortest/longest bars report both
+  // figures for the same project.
+  const jobStats=activeDeals.map(d=>({h:dealJobHours(d),d:dealJobDays(d)})).filter(x=>x.h>0).sort((a,b)=>a.h-b.h);
+  const lowStat=jobStats[0]||{h:0,d:0};
+  const highStat=jobStats[jobStats.length-1]||{h:0,d:0};
+  const hrsLow=lowStat.h, hrsHigh=highStat.h;
+  const hrsAvg=jobStats.length?jobStats.reduce((s,x)=>s+x.h,0)/jobStats.length:0;
+  const daysAvg=jobStats.length?jobStats.reduce((s,x)=>s+x.d,0)/jobStats.length:0;
 
   const inp={background:'var(--muted)',border:'1px solid var(--border)',borderRadius:6,padding:'5px 8px',fontSize:12,color:'var(--fg)',width:'100%',textAlign:'right'};
   const tdStyle={padding:'8px 10px',borderBottom:'1px solid var(--border)',fontSize:12,verticalAlign:'middle'};
@@ -5045,10 +5056,11 @@ function Financials({showToast}){
           {label:'Average',value:avgVal,fill:'#C4922A'},
           {label:'Highest',value:highestVal,fill:'#22c55e'},
         ];
+        const fmtDays=n=>`${(Math.round(n*10)/10)} ${Math.abs(n-1)<0.05?'day':'days'}`;
         const hoursBarData=[
-          {label:'Shortest',value:+hrsLow.toFixed(1),fill:'#3b82f6'},
-          {label:'Average',value:+hrsAvg.toFixed(1),fill:'#C4922A'},
-          {label:'Longest',value:+hrsHigh.toFixed(1),fill:'#22c55e'},
+          {label:'Shortest',value:+hrsLow.toFixed(1),days:lowStat.d,fill:'#3b82f6'},
+          {label:'Average',value:+hrsAvg.toFixed(1),days:daysAvg,fill:'#C4922A'},
+          {label:'Longest',value:+hrsHigh.toFixed(1),days:highStat.d,fill:'#22c55e'},
         ];
         return (
           <div className="fin-grid" style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:14}}>
@@ -5093,13 +5105,16 @@ function Financials({showToast}){
                 <BarChart data={hoursBarData} margin={{top:4,right:4,left:0,bottom:4}}>
                   <XAxis dataKey='label' tick={{fontSize:10,fontWeight:600}}/>
                   <YAxis tick={{fontSize:9}} tickFormatter={v=>`${v}h`} width={40}/>
-                  <Tooltip formatter={v=>[v.toFixed(1)+' hrs','Job time']} contentStyle={{background:'var(--card)',border:'1px solid var(--border)',borderRadius:8,fontSize:11}}/>
+                  <Tooltip formatter={(v,n,p)=>[`${v.toFixed(1)} hrs · ${fmtDays(p?.payload?.days||0)}`,'Job time']} contentStyle={{background:'var(--card)',border:'1px solid var(--border)',borderRadius:8,fontSize:11}}/>
                   <Bar dataKey='value' radius={[4,4,0,0]}>
                     {hoursBarData.map((e,i)=><Cell key={i} fill={e.fill}/>)}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
-              <p style={{fontSize:11,color:'var(--primary)',fontWeight:700,textAlign:'center'}}>Avg: {hrsAvg.toFixed(1)} hrs</p>
+              <div style={{display:'flex',marginTop:-2}}>
+                {hoursBarData.map(b=><span key={b.label} style={{flex:1,textAlign:'center',fontSize:10,color:'var(--muted-fg)',fontWeight:600}}>{fmtDays(b.days)}</span>)}
+              </div>
+              <p style={{fontSize:11,color:'var(--primary)',fontWeight:700,textAlign:'center'}}>Avg: {hrsAvg.toFixed(1)} hrs · {fmtDays(daysAvg)}</p>
             </Card>
           </div>
         );

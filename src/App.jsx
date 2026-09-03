@@ -5185,7 +5185,7 @@ function Financials({showToast}){
               <tfoot>
                 <tr style={{background:'var(--muted)'}}>
                   <td style={{...tdStyle,fontWeight:700,fontSize:12}}>
-                    <span style={{background:'rgba(212,169,106,0.15)',color:'var(--primary)',padding:'2px 8px',borderRadius:6,fontSize:11,fontWeight:700}}>{totalProjects} project{totalProjects!==1?'s':''}</span>
+                    <span style={{background:'rgba(212,169,106,0.15)',color:'var(--fg)',padding:'2px 8px',borderRadius:6,fontSize:11,fontWeight:700}}>{totalProjects} project{totalProjects!==1?'s':''}</span>
                   </td>
                   <td style={{...tdStyle,fontWeight:600,color:'var(--muted-fg)',fontSize:11}}>Totals</td>
                   <td style={tdStyle}/>

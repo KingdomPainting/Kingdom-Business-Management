@@ -1977,7 +1977,12 @@ function Pipeline({showToast}){
                           <span style={{fontSize:16,fontWeight:700,color:'var(--fg)'}}>{deal.value!=null?'$'+(parseFloat(deal.value)||0).toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2}):''}</span>
                           {deal.quote_date&&<span style={{fontSize:10,color:'var(--muted-fg)',marginLeft:6}}>{new Date(deal.quote_date+'T12:00:00').toLocaleDateString('en-CA',{month:'short',day:'numeric',year:'numeric'})}</span>}
                         </div>
-                        {refName(deal)&&<span style={{fontSize:11,color:'var(--primary)'}}>Ref: {refName(deal)}</span>}
+                        <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
+                          {refName(deal)&&<span style={{fontSize:11,color:'var(--primary)'}}>Ref: {refName(deal)}</span>}
+                          {(parseFloat(deal.value)||0)>0&&dealPaidAmount(deal)>=(parseFloat(deal.value)||0)-0.005&&(
+                            <span title='Paid in full' style={{display:'inline-flex',alignItems:'center',justifyContent:'center',width:18,height:18,borderRadius:999,background:'#16a34a',color:'#fff',fontSize:11,fontWeight:700,lineHeight:1,flexShrink:0}}>✓</span>
+                          )}
+                        </div>
                       </div>
                       {/* Advance */}
                       {!isLast&&(

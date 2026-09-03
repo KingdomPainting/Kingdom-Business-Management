@@ -4909,11 +4909,25 @@ function Financials({showToast}){
   // Profit = revenue − expenses (both cards and their per-month averages).
   const totalProfit=totalRevenue-totalExpenses;
   const avgProfitPerMonth=avgRevenuePerMonth-avgExpensesPerMonth;
-  // Lost project value range
-  const lostValues=lostDeals.map(d=>parseFloat(d.value)||0).filter(v=>v>0);
-  const lostLow=lostValues.length?Math.min(...lostValues):0;
-  const lostHigh=lostValues.length?Math.max(...lostValues):0;
-  const lostAvg=lostValues.length?lostValues.reduce((a,b)=>a+b,0)/lostValues.length:0;
+  // Job time per project — summed from the scheduled work days, falling back to the
+  // project's overall start/end dates × daily hours when no per-day schedule exists.
+  const dealJobHours=d=>{
+    const toMin=t=>{const p=String(t||'').split(':');return (+p[0]||0)*60+(+p[1]||0);};
+    const days=Array.isArray(d.scheduleDays)?d.scheduleDays:[];
+    let mins=0;
+    days.forEach(x=>{const s=toMin(x.startTime||d.startTime||'09:00'),e=toMin(x.endTime||d.endTime||'17:00');if(e>s)mins+=e-s;});
+    if(mins>0) return mins/60;
+    if(d.startDate){
+      const n=dateRange(String(d.startDate).slice(0,10),String(d.endDate||d.startDate).slice(0,10)).length;
+      const s=toMin(d.startTime||'09:00'),e=toMin(d.endTime||'17:00');
+      if(n>0&&e>s) return n*(e-s)/60;
+    }
+    return 0;
+  };
+  const jobHours=activeDeals.map(dealJobHours).filter(h=>h>0);
+  const hrsLow=jobHours.length?Math.min(...jobHours):0;
+  const hrsHigh=jobHours.length?Math.max(...jobHours):0;
+  const hrsAvg=jobHours.length?jobHours.reduce((a,b)=>a+b,0)/jobHours.length:0;
 
   const inp={background:'var(--muted)',border:'1px solid var(--border)',borderRadius:6,padding:'5px 8px',fontSize:12,color:'var(--fg)',width:'100%',textAlign:'right'};
   const tdStyle={padding:'8px 10px',borderBottom:'1px solid var(--border)',fontSize:12,verticalAlign:'middle'};
@@ -5031,10 +5045,10 @@ function Financials({showToast}){
           {label:'Average',value:avgVal,fill:'#C4922A'},
           {label:'Highest',value:highestVal,fill:'#22c55e'},
         ];
-        const lostBarData=[
-          {label:'Lowest',value:lostLow,fill:'#3b82f6'},
-          {label:'Average',value:lostAvg,fill:'#C4922A'},
-          {label:'Highest',value:lostHigh,fill:'#ef4444'},
+        const hoursBarData=[
+          {label:'Shortest',value:+hrsLow.toFixed(1),fill:'#3b82f6'},
+          {label:'Average',value:+hrsAvg.toFixed(1),fill:'#C4922A'},
+          {label:'Longest',value:+hrsHigh.toFixed(1),fill:'#22c55e'},
         ];
         return (
           <div className="fin-grid" style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:14}}>
@@ -5074,18 +5088,18 @@ function Financials({showToast}){
               <p style={{fontSize:11,color:'var(--primary)',fontWeight:700,textAlign:'center'}}>Avg: ${avgVal.toFixed(2)}</p>
             </Card>
             <Card style={{padding:'14px 18px',display:'flex',flexDirection:'column',gap:4}}>
-              <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)'}}>Lost Project Value Range</p>
+              <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)'}}>Average Job Time</p>
               <ResponsiveContainer width='100%' height={130}>
-                <BarChart data={lostBarData} margin={{top:4,right:4,left:0,bottom:4}}>
+                <BarChart data={hoursBarData} margin={{top:4,right:4,left:0,bottom:4}}>
                   <XAxis dataKey='label' tick={{fontSize:10,fontWeight:600}}/>
-                  <YAxis tick={{fontSize:9}} tickFormatter={v=>`$${(v/1000).toFixed(0)}k`} width={40}/>
-                  <Tooltip formatter={v=>['$'+v.toFixed(2),'Lost Value']} contentStyle={{background:'var(--card)',border:'1px solid var(--border)',borderRadius:8,fontSize:11}}/>
+                  <YAxis tick={{fontSize:9}} tickFormatter={v=>`${v}h`} width={40}/>
+                  <Tooltip formatter={v=>[v.toFixed(1)+' hrs','Job time']} contentStyle={{background:'var(--card)',border:'1px solid var(--border)',borderRadius:8,fontSize:11}}/>
                   <Bar dataKey='value' radius={[4,4,0,0]}>
-                    {lostBarData.map((e,i)=><Cell key={i} fill={e.fill}/>)}
+                    {hoursBarData.map((e,i)=><Cell key={i} fill={e.fill}/>)}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
-              <p style={{fontSize:11,color:'#ef4444',fontWeight:700,textAlign:'center'}}>Avg lost: ${lostAvg.toFixed(2)}</p>
+              <p style={{fontSize:11,color:'var(--primary)',fontWeight:700,textAlign:'center'}}>Avg: {hrsAvg.toFixed(1)} hrs</p>
             </Card>
           </div>
         );

@@ -1444,12 +1444,21 @@ function Dashboard({toast}){
               const srcDeals=deals.filter(d=>['Scheduled','Completed','Archive'].includes(d.stage));
               // Count each label across deals (bridging any legacy leadSource value).
               const has=(d,l)=>(d.labels||[]).includes(l)||d.leadSource===l;
-              const labeled=srcDeals.filter(d=>LEADS_BY_SOURCE_LABELS.some(l=>has(d,l)));
-              const total=labeled.length||1;
               // Sort labels highest→lowest by count so the order updates as leads change.
               const ranked=LEADS_BY_SOURCE_LABELS.map(source=>({source,count:srcDeals.filter(d=>has(d,source)).length})).sort((a,b)=>b.count-a.count);
-              return ranked.map(({source,count})=>{
-                const pct=Math.round((count/total)*100);
+              // Share of all label assignments (a deal can carry several labels), rounded by
+              // largest remainder so the displayed percentages add up to exactly 100%.
+              const totalCount=ranked.reduce((s,r)=>s+r.count,0);
+              const exact=ranked.map(r=>totalCount>0?(r.count/totalCount)*100:0);
+              const pcts=exact.map(p=>Math.floor(p));
+              if(totalCount>0){
+                let rem=100-pcts.reduce((a,b)=>a+b,0);
+                const order=exact.map((p,i)=>({i,frac:p-Math.floor(p)}))
+                  .filter(o=>exact[o.i]>0).sort((a,b)=>b.frac-a.frac);
+                for(let k=0;rem>0&&order.length;k++){ pcts[order[k%order.length].i]++; rem--; }
+              }
+              return ranked.map(({source,count},idx)=>{
+                const pct=pcts[idx];
                 const c=ALL_LABEL_COLORS[source]||{bg:'#f3f4f6',color:'#374151'};
                 return (
                   <div key={source} style={{display:'flex',alignItems:'center',gap:8}}>

@@ -15,10 +15,15 @@ export const LEAD_COLORS={
   Site:      {bg:'#fef9c3',color:'#a16207'},
   'Home Depot':{bg:'#ffedd5',color:'#ea580c'},
   MBT:       {bg:'#ccfbf1',color:'#0f766e'},
+  BNI:       {bg:'#fce7f3',color:'#be185d'},
+  LeTip:     {bg:'#ecfccb',color:'#4d7c0f'},
 };
 export const STAGES=['Lead','Proposal','Scheduled','Completed','Archive'];
-export const LEAD_SOURCES=['Referral','Repeat','Google','Site','Home Depot','MBT'];
-// Deal labels now cover both the lead source and the project category. Selected
-// on the project card; the dashboard "Leads by Source" card is built from these.
+export const LEAD_SOURCES=['Referral','Repeat','Google','Site','Home Depot','MBT','BNI','LeTip'];
+// Deal labels cover both the lead source and the project category, and are
+// selected on the project card.
 export const DEAL_LABELS=[...LEAD_SOURCES,'Residential','Commercial','Exterior','Lost'];
+// The dashboard "Leads by Source" card tracks these — the category labels
+// Exterior and Lost are deliberately left out.
+export const LEADS_BY_SOURCE_LABELS=DEAL_LABELS.filter(l=>l!=='Exterior'&&l!=='Lost');
 export const ALL_LABEL_COLORS={...LEAD_COLORS,...LABEL_COLORS};

@@ -18,7 +18,7 @@ import {
 import { STYLE } from "./styles";
 import { cn, fmtCAD, fmtUSD, genId, now, dateRange, fmtDateLabel } from "./lib/format";
 import {
-  CLIENT_STATUS, STAGE_COLORS, LABEL_COLORS, TYPE_COLORS, LEAD_COLORS, STAGES, DEAL_LABELS, ALL_LABEL_COLORS,
+  CLIENT_STATUS, STAGE_COLORS, LABEL_COLORS, TYPE_COLORS, LEAD_COLORS, STAGES, DEAL_LABELS, LEADS_BY_SOURCE_LABELS, ALL_LABEL_COLORS,
 } from "./lib/constants";
 import {
   SUPA_URL, SUPA_KEY, ADMIN_EMAIL, DEMO_EMAIL, CLIENT_DEMO_EMAIL, isDemo, _session,
@@ -1444,10 +1444,10 @@ function Dashboard({toast}){
               const srcDeals=deals.filter(d=>['Scheduled','Completed','Archive'].includes(d.stage));
               // Count each label across deals (bridging any legacy leadSource value).
               const has=(d,l)=>(d.labels||[]).includes(l)||d.leadSource===l;
-              const labeled=srcDeals.filter(d=>DEAL_LABELS.some(l=>has(d,l)));
+              const labeled=srcDeals.filter(d=>LEADS_BY_SOURCE_LABELS.some(l=>has(d,l)));
               const total=labeled.length||1;
               // Sort labels highest→lowest by count so the order updates as leads change.
-              const ranked=DEAL_LABELS.map(source=>({source,count:srcDeals.filter(d=>has(d,source)).length})).sort((a,b)=>b.count-a.count);
+              const ranked=LEADS_BY_SOURCE_LABELS.map(source=>({source,count:srcDeals.filter(d=>has(d,source)).length})).sort((a,b)=>b.count-a.count);
               return ranked.map(({source,count})=>{
                 const pct=Math.round((count/total)*100);
                 const c=ALL_LABEL_COLORS[source]||{bg:'#f3f4f6',color:'#374151'};
@@ -1463,7 +1463,7 @@ function Dashboard({toast}){
                 );
               });
             })()}
-            {deals.filter(d=>['Scheduled','Completed','Archive'].includes(d.stage)&&(DEAL_LABELS.some(l=>(d.labels||[]).includes(l))||d.leadSource)).length===0&&(
+            {deals.filter(d=>['Scheduled','Completed','Archive'].includes(d.stage)&&(LEADS_BY_SOURCE_LABELS.some(l=>(d.labels||[]).includes(l))||d.leadSource)).length===0&&(
               <p style={{fontSize:12,color:'var(--muted-fg)'}}>No labels assigned yet.</p>
             )}
           </div>

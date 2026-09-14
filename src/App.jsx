@@ -544,11 +544,26 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead',onAdd
   const toggleLabel=l=>setF(x=>({...x,labels:x.labels.includes(l)?x.labels.filter(v=>v!==l):[...x.labels,l]}));
 
   // Payment schedule (up to 4 boxes; amounts must sum to the project value).
-  // Defaults to the 50% deposit / 50% on-completion terms and re-splits as the
-  // value changes — until the user edits the schedule, after which it's left alone.
+  // Changing the project value always re-splits the schedule so deposit / halfway /
+  // final reflect the new total. An untouched schedule falls back to the standard
+  // 35/35/30 terms; a customised one keeps its labels and ratios, rescaled in cents
+  // so the parts still add up exactly.
   const handleValue=v=>setF(x=>{
-    if(x.scheduleAuto) return {...x,value:v,payment_schedule:defaultPaymentSchedule(v)};
-    return {...x,value:v};
+    const newTotal=parseFloat(v)||0;
+    const ps=x.payment_schedule||[];
+    if(x.scheduleAuto||!ps.length) return {...x,value:v,payment_schedule:defaultPaymentSchedule(v)};
+    if(!(newTotal>0)) return {...x,value:v,payment_schedule:ps.map(b=>({...b,amount:''}))};
+    const oldCents=ps.map(b=>Math.round((parseFloat(b.amount)||0)*100));
+    const oldTotal=oldCents.reduce((a,b)=>a+b,0);
+    if(!(oldTotal>0)) return {...x,value:v,payment_schedule:defaultPaymentSchedule(v)};
+    const cents=Math.round(newTotal*100);
+    const next=[]; let acc=0;
+    for(let i=0;i<oldCents.length;i++){
+      const c=i===oldCents.length-1?cents-acc:Math.round(cents*oldCents[i]/oldTotal);
+      if(i<oldCents.length-1) acc+=c;
+      next.push({...ps[i],amount:(c/100).toFixed(2)});
+    }
+    return {...x,value:v,payment_schedule:next};
   });
   const updateBox=(i,key,val)=>setF(x=>{const ps=[...x.payment_schedule];ps[i]={...ps[i],[key]:val};return {...x,payment_schedule:ps,scheduleAuto:false};});
   const addBox=()=>setF(x=>x.payment_schedule.length>=4?x:{...x,payment_schedule:[...x.payment_schedule,{label:`Payment ${x.payment_schedule.length+1}`,amount:''}],scheduleAuto:false});

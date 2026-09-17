@@ -23,7 +23,7 @@ export const LEAD_SOURCES=['Referral','Repeat','Google','Site','Home Depot','MBT
 // Deal labels cover both the lead source and the project category, and are
 // selected on the project card.
 export const DEAL_LABELS=[...LEAD_SOURCES,'Residential','Commercial','Exterior','Lost'];
-// The dashboard "Leads by Source" card tracks these — the category labels
-// Exterior and Lost are deliberately left out.
-export const LEADS_BY_SOURCE_LABELS=DEAL_LABELS.filter(l=>l!=='Exterior'&&l!=='Lost');
+// The dashboard "Leads by Source" card tracks the lead sources only — the
+// category labels (Residential, Commercial, Exterior, Lost) are left out.
+export const LEADS_BY_SOURCE_LABELS=[...LEAD_SOURCES];
 export const ALL_LABEL_COLORS={...LEAD_COLORS,...LABEL_COLORS};

@@ -119,7 +119,27 @@ export const DEFAULT_STANDARDS = {
   doorsFlat:{1:84,2:42,3:21},
   doors6Panel:{1:70,2:35,3:18},
   doorsCustom:{1:60,2:30,3:15},
+  // Stairs — pieces per hour, except the landing which is sqft per hour.
+  stairsTread:{1:12,2:8,3:5},
+  stairsRisers:{1:16,2:10,3:6},
+  stairsStringer:{1:10,2:6,3:4},
+  stairsLanding:{1:150,2:90,3:55},
+  stairsHandrail:{1:40,2:25,3:15},
+  stairsBaluster:{1:30,2:20,3:12},
+  stairsPost:{1:8,2:5,3:3},
 };
+
+// Stair components, in the order they appear on the room card and the Standards
+// page. `dims` marks the landing, which is measured L × W instead of counted.
+export const STAIR_ITEMS = [
+  {k:'tread',    label:'Tread',    std:'stairsTread'},
+  {k:'risers',   label:'Risers',   std:'stairsRisers'},
+  {k:'stringer', label:'Stringer', std:'stairsStringer'},
+  {k:'landing',  label:'Landing',  std:'stairsLanding', dims:true},
+  {k:'handrail', label:'Handrail', std:'stairsHandrail'},
+  {k:'baluster', label:'Baluster', std:'stairsBaluster'},
+  {k:'post',     label:'Post',     std:'stairsPost'},
+];
 export const DEFAULT_SETTINGS = { hourlyRate:65, labourBuffer:1.25, taxRate:13, discount:0 };
 
 // ─── ESTIMATE HELPER FUNCTIONS ───────────────────────────────────────────────
@@ -133,6 +153,10 @@ export function newRoom(id, number){
     doorFrames:{enabled:false,coats:2},
     doors:{enabled:false,flat:{count:0,coats:2},sixPanel:{count:0,coats:2},custom:{count:0,coats:2}},
     windows:{enabled:false,coats:2,dims:[{l:0,w:0}]},
+    stairs:{enabled:false,
+      tread:{count:0,coats:2}, risers:{count:0,coats:2}, stringer:{count:0,coats:2},
+      landing:{coats:2,dims:[{l:0,w:0}]},
+      handrail:{count:0,coats:2}, baluster:{count:0,coats:2}, post:{count:0,coats:2}},
     prep:{furniture:false,plastic:false,outlets:false,drywall:false,caulking:false,cleanup:false,custom:''},
     paint:{wallProduct:'',wallColour:'',wallSheen:'',ceilProduct:'',ceilColour:'',ceilSheen:'',trimProduct:'',trimColour:'',trimSheen:'',wallsPrimer:'',ceilingPrimer:'',trimPrimer:''},
     notes:'', supplies:[],
@@ -159,6 +183,11 @@ export function roomWindowLF(room){
   if(!room.windows?.enabled) return 0;
   const dims = room.windows?.dims || [{l:0,w:0}];
   return dims.reduce((t,d)=>t+2*(((+d.l)||0)+((+d.w)||0)),0);
+}
+// Total landing area (L × W per landing) across a room's stairs.
+export function roomLandingSqft(room){
+  if(!room.stairs?.enabled) return 0;
+  return (room.stairs.landing?.dims||[]).reduce((t,d)=>t+((+d.l)||0)*((+d.w)||0),0);
 }
 export function roomDoorCount(room){
   if(!room.doors?.enabled) return 0;
@@ -203,6 +232,19 @@ export function calcRoom(room, settings){
     if(cu.count>0) hrs+=(cu.count*21)/(std.doorsCustom?.[cu.coats]||std.doors?.[cu.coats]||42);
   } else if(room.doors?.count > 0) hrs += (room.doors.count * 21) / (std.doors?.[room.doors.coats] || 42);
   if(room.windows?.enabled && winLF) hrs += winLF / (std.windows?.[room.windows.coats] || 60);
+  if(room.stairs?.enabled){
+    STAIR_ITEMS.forEach(it=>{
+      if(it.dims) return;
+      const item = room.stairs[it.k] || {};
+      const n = +item.count || 0;
+      if(n>0) hrs += n / (std[it.std]?.[item.coats||2] || DEFAULT_STANDARDS[it.std][item.coats||2]);
+    });
+    const landSqft = roomLandingSqft(room);
+    if(landSqft>0){
+      const lc = room.stairs.landing?.coats || 2;
+      hrs += landSqft / (std.stairsLanding?.[lc] || DEFAULT_STANDARDS.stairsLanding[lc]);
+    }
+  }
   hrs += (room.prepHrs || 0);
   // Labour cost = (hours / field workers) × total-hourly-rate-all-workers × buffer.
   // Hours are split across the active field workers so the cost matches the
@@ -283,6 +325,25 @@ export function calcRoomLines(room, settings){
     const r = std.windows?.[room.windows.coats]||60;
     const h = winLF/r;
     lines.push({surface:`Windows (${room.windows.dims?.length||0})`,area:Math.round(winLF),areaUnit:'lf',coats:room.windows.coats,rate:r,rateLabel:'lf/hr',hours:h,cost:h*rate});
+  }
+  if(room.stairs?.enabled){
+    STAIR_ITEMS.forEach(it=>{
+      if(it.dims) return;
+      const item = room.stairs[it.k] || {};
+      const n = +item.count || 0;
+      if(!(n>0)) return;
+      const c = item.coats||2;
+      const r = std[it.std]?.[c] || DEFAULT_STANDARDS[it.std][c];
+      const h = n/r;
+      lines.push({surface:`Stairs — ${it.label}`,area:n,areaUnit:'ea',coats:c,rate:r,rateLabel:'ea/hr',hours:h,cost:h*rate});
+    });
+    const landSqft = roomLandingSqft(room);
+    if(landSqft>0){
+      const c = room.stairs.landing?.coats || 2;
+      const r = std.stairsLanding?.[c] || DEFAULT_STANDARDS.stairsLanding[c];
+      const h = landSqft/r;
+      lines.push({surface:`Stairs — Landing (${room.stairs.landing?.dims?.length||0})`,area:Math.round(landSqft),areaUnit:'sqft',coats:c,rate:r,rateLabel:'sqft/hr',hours:h,cost:h*rate});
+    }
   }
   if(room.prepHrs > 0){
     const h = room.prepHrs;

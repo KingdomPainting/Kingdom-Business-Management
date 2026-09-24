@@ -41,6 +41,7 @@ import {
   DEFAULT_SW_COLOURS, DEFAULT_SUPPLIES, DEFAULT_OVERHEAD_ITEMS, DEFAULT_WORKERS,
   DEFAULT_STANDARDS, DEFAULT_SETTINGS, newRoom,
   roomWallSqft, roomCeilSqft, roomPerimLF, roomWindowLF, roomDoorCount, roomTrimLF,
+  STAIR_ITEMS, roomLandingSqft,
   calcRoom, calcTotals, calcRoomLines, calcPaintCosts, calcRoomSupplyCost,
   WALL_PAINTS, TRIM_PAINTS, CEILING_PAINTS, COLOURS, CEILING_COLOURS,
 } from "./lib/estimate";
@@ -398,6 +399,27 @@ function dealPaidAmount(deal){
 function stripAppendedContractorSig(html){
   if(!html) return html;
   return html.replace(/<div style="margin-top:24px;padding:16px 20px;border-top:2px solid #C4922A;[^"]*"><p style="font-weight:600;margin-bottom:8px">Contractor Signature<\/p>[\s\S]*<\/div>/,'');
+}
+
+// Scope-of-work lines for a room's stairs, shared by the quote and contract
+// generators. Counted components first, then the landing by area.
+function stairScopeLines(r){
+  const out=[];
+  if(!r.stairs?.enabled) return out;
+  STAIR_ITEMS.forEach(it=>{
+    if(it.dims) return;
+    const p=r.stairs[it.k]||{};
+    const n=+p.count||0;
+    if(!(n>0)) return;
+    const c=p.coats||2;
+    out.push(`Painting ${c} coat${c>1?'s':''} on ${n} stair ${it.label.toLowerCase()}${n>1&&!it.label.endsWith('s')?'s':''}`);
+  });
+  const ls=roomLandingSqft(r);
+  if(ls>0){
+    const c=r.stairs.landing?.coats||2;
+    out.push(`Painting ${c} coat${c>1?'s':''} on ${Math.round(ls)} sqft of stair landing`);
+  }
+  return out;
 }
 
 // Contractor-side contract signing (from the pipeline project card). Draws a
@@ -2706,6 +2728,54 @@ function RoomCard({room,settings,onChange,onRemove,primers,paints,ceilPaints,col
                 </div>
               )}
             </div>
+            <div style={{padding:'4px 0'}}>
+              <label style={{fontSize:12,display:'flex',gap:6,alignItems:'center'}}>
+                <input type='checkbox' checked={room.stairs?.enabled||false} onChange={e=>u({stairs:{...room.stairs,enabled:e.target.checked}})} style={cbStyle}/>
+                Stairs
+              </label>
+              {room.stairs?.enabled&&(
+                <div style={{marginLeft:22,marginTop:6,padding:10,background:'rgba(0,0,0,0.02)',borderRadius:6,border:'1px solid var(--border)'}}>
+                  {STAIR_ITEMS.map(it=>{
+                    const part=room.stairs?.[it.k]||{};
+                    const setPart=patch=>u({stairs:{...room.stairs,[it.k]:{...part,...patch}}});
+                    const coatSel=(
+                      <select value={part.coats||2} onChange={e=>setPart({coats:+e.target.value})} style={{fontSize:11,padding:'2px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}>
+                        <option value={1}>1 coat</option><option value={2}>2 coats</option><option value={3}>Primer & 2 coats</option>
+                      </select>
+                    );
+                    if(!it.dims) return (
+                      <div key={it.k} style={{display:'flex',gap:8,alignItems:'center',marginBottom:6}}>
+                        <span style={{fontSize:11,fontWeight:500,width:64}}>{it.label}</span>
+                        <Input type='number' min={0} value={part.count||''} onChange={e=>setPart({count:+e.target.value})} placeholder='#' style={{width:45,padding:'4px 6px',fontSize:11,minWidth:0}}/>
+                        {coatSel}
+                      </div>
+                    );
+                    // Rooms saved before stairs existed have no dims — show one blank row.
+                    const dims=part.dims?.length?part.dims:[{l:0,w:0}];
+                    return (
+                      <div key={it.k} style={{marginBottom:6,paddingTop:4,borderTop:'1px solid var(--border)'}}>
+                        <div style={{display:'flex',gap:8,alignItems:'center',marginBottom:4}}>
+                          <span style={{fontSize:11,fontWeight:500,width:64}}>{it.label}</span>
+                          {coatSel}
+                        </div>
+                        {dims.map((d,i)=>(
+                          <div key={i} style={{display:'flex',gap:6,alignItems:'center',marginBottom:4}}>
+                            <span style={{fontSize:11,fontWeight:500,color:'var(--muted-fg)',width:16}}>{i+1}.</span>
+                            <div style={{flex:1}}><Input type='number' value={d.l||''} onChange={e=>{const nd=[...dims];nd[i]={...nd[i],l:+e.target.value};setPart({dims:nd});}} placeholder='L' style={{padding:'4px 6px',fontSize:11,minWidth:0}}/></div>
+                            <span style={{fontSize:11,color:'var(--muted-fg)'}}>×</span>
+                            <div style={{flex:1}}><Input type='number' value={d.w||''} onChange={e=>{const nd=[...dims];nd[i]={...nd[i],w:+e.target.value};setPart({dims:nd});}} placeholder='W' style={{padding:'4px 6px',fontSize:11,minWidth:0}}/></div>
+                            <span style={{fontSize:10,color:'var(--muted-fg)',whiteSpace:'nowrap',minWidth:40}}>{Math.round((d.l||0)*(d.w||0))} sqft</span>
+                            {dims.length>1&&<button onClick={()=>setPart({dims:dims.filter((_,j)=>j!==i)})} style={{background:'none',border:'none',cursor:'pointer',color:'var(--destructive)',padding:2,fontSize:12}}>×</button>}
+                          </div>
+                        ))}
+                        <button onClick={()=>setPart({dims:[...dims,{l:0,w:0}]})} style={{fontSize:11,padding:'4px 10px',borderRadius:4,border:'1px dashed var(--border)',background:'none',cursor:'pointer',color:'var(--primary)',fontWeight:500,marginTop:2}}>+ More</button>
+                      </div>
+                    );
+                  })}
+                  {roomLandingSqft(room)>0&&<p style={{fontSize:10,color:'var(--primary)',fontWeight:600,marginTop:4}}>Landing total: {Math.round(roomLandingSqft(room))} sqft</p>}
+                </div>
+              )}
+            </div>
           </div>
           <div style={{padding:'14px 16px',borderBottom:'1px solid rgba(0,0,0,0.05)'}}>
             <p style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--muted-fg)',marginBottom:8}}>Prep Work</p>
@@ -2883,7 +2953,7 @@ function projectHoursAndDays(totalHrs, settings){
 // ─── BREAKDOWN TAB ────────────────────────────────────────────────────────────
 function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,swColours,supplies}){
   const fmtN=n=>Math.round(n).toLocaleString('en-CA');
-  const activeRooms=rooms.filter(r=>r.walls.enabled||r.ceiling.enabled||r.baseboards.enabled||r.doors?.enabled||roomDoorCount(r)>0);
+  const activeRooms=rooms.filter(r=>r.walls.enabled||r.ceiling.enabled||r.baseboards.enabled||r.doors?.enabled||roomDoorCount(r)>0||r.stairs?.enabled);
   let tWalls=0,tCeil=0,tTrim=0,tDoors=0,tHrs=0,tCost=0;
   const roomCalcs=rooms.map(r=>{
     const c=calcRoom(r,settings);
@@ -3114,6 +3184,7 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
               } else if(r.doors?.count>0) surfaces.push(`${r.doors.count} door${r.doors.count>1?'s':''} — ${r.doors.coats} coat${r.doors.coats>1?'s':''}`);
               if(r.windows?.enabled&&roomWindowLF(r)>0) surfaces.push(`${r.windows.dims?.length||0} window${(r.windows.dims?.length||0)>1?'s':''} — ${r.windows.coats} coat${r.windows.coats>1?'s':''}`);
               else if(r.windows?.count>0) surfaces.push(`${r.windows.count} window${r.windows.count>1?'s':''} — ${r.windows.coats} coat${r.windows.coats>1?'s':''}`);
+              stairScopeLines(r).forEach(l=>surfaces.push(l));
               const mats=roomMaterials(r);
               const supplyCost=calcRoomSupplyCost(r,supplies||[]);
               const matTotal=mats.reduce((s,m)=>s+m.lineCost,0)+supplyCost;
@@ -3807,6 +3878,15 @@ function StandardsTab({standards,setStandards,onSave}){
     </>
   );
 
+  // Same shape as trimTable, but spelling the coat options out in full.
+  const stairsTable = (surface,label)=>(
+    <>
+      <tr style={{borderBottom:'1px solid rgba(0,0,0,0.05)'}}><td rowSpan={3} style={{padding:'6px 8px',verticalAlign:'top',fontWeight:500}}>{label}</td><td style={{padding:'6px 8px'}}>1 coat</td><td style={{padding:'6px 8px',textAlign:'right'}}><input type='number' min={0} value={standards[surface]?.[1]||''} onChange={e=>upd(surface,1,+e.target.value)} style={{...numS,width:70}}/></td></tr>
+      <tr style={{borderBottom:'1px solid rgba(0,0,0,0.05)'}}><td style={{padding:'6px 8px'}}>2 coats</td><td style={{padding:'6px 8px',textAlign:'right'}}><input type='number' min={0} value={standards[surface]?.[2]||''} onChange={e=>upd(surface,2,+e.target.value)} style={{...numS,width:70}}/></td></tr>
+      <tr style={{borderBottom:'1px solid var(--border)'}}><td style={{padding:'6px 8px'}}>Primer &amp; 2 Coats</td><td style={{padding:'6px 8px',textAlign:'right'}}><input type='number' min={0} value={standards[surface]?.[3]||''} onChange={e=>upd(surface,3,+e.target.value)} style={{...numS,width:70}}/></td></tr>
+    </>
+  );
+
   return (
     <div style={{padding:24,overflowY:'auto',height:'100%'}}>
       <div style={{display:'flex',alignItems:'center',justifyContent:'flex-end',gap:12,marginBottom:14}}>
@@ -3862,6 +3942,27 @@ function StandardsTab({standards,setStandards,onSave}){
           {coatTable('doors6Panel','6 Panel')}
           <div style={{borderTop:'1px solid var(--border)',margin:'12px 0 10px'}}/>
           {coatTable('doorsCustom','Custom')}
+        </Card>
+
+        <Card className='p-5'>
+          <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--primary)',marginBottom:4}}>Stairs — pieces per hour</p>
+          <p style={{fontSize:11,color:'var(--muted-fg)',marginBottom:12}}>Landing is measured in sqft per hour.</p>
+          <table style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
+            <thead><tr style={{borderBottom:'1px solid var(--border)'}}>
+              <th style={{textAlign:'left',padding:'6px 8px',fontSize:11,color:'var(--muted-fg)',fontWeight:600}}>Component</th>
+              <th style={{textAlign:'left',padding:'6px 8px',fontSize:11,color:'var(--muted-fg)',fontWeight:600}}>Coats</th>
+              <th style={{textAlign:'right',padding:'6px 8px',fontSize:11,color:'var(--muted-fg)',fontWeight:600}}>Rate/Hr</th>
+            </tr></thead>
+            <tbody>
+              {stairsTable('stairsTread','Tread')}
+              {stairsTable('stairsRisers','Risers')}
+              {stairsTable('stairsStringer','Stringer')}
+              {stairsTable('stairsLanding','Landing (sqft)')}
+              {stairsTable('stairsHandrail','Handrail')}
+              {stairsTable('stairsBaluster','Baluster')}
+              {stairsTable('stairsPost','Post')}
+            </tbody>
+          </table>
         </Card>
       </div>
     </div>
@@ -4401,6 +4502,7 @@ function buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,pri
     const wc=r.windows?.dims?.length||0;
     if(r.windows?.enabled && wc>0) lines.push(`Painting ${r.windows.coats||2} coat${(r.windows.coats||2)>1?'s':''} on ${wc} window${wc>1?'s':''}`);
     if(r.doorFrames?.enabled && c.perimLF) lines.push(`Painting ${r.doorFrames.coats||2} coat${(r.doorFrames.coats||2)>1?'s':''} on door frames`);
+    stairScopeLines(r).forEach(l=>lines.push(l));
     Object.entries(prepLabelsMap).forEach(([k,v])=>{if(r.prep?.[k])prepItems.push(v);});
     if(r.prep?.custom) prepItems.push(r.prep.custom);
     const mats=roomMaterials(r);
@@ -4462,6 +4564,7 @@ function buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,pri
     const wc=r.windows?.dims?.length||0;
     if(r.windows?.enabled && wc>0) scopeLines.push(`Painting ${r.windows.coats||2} coat${(r.windows.coats||2)>1?'s':''} on ${wc} window${wc>1?'s':''}`);
     if(r.doorFrames?.enabled && c.perimLF) scopeLines.push(`Painting ${r.doorFrames.coats||2} coat${(r.doorFrames.coats||2)>1?'s':''} on door frames`);
+    stairScopeLines(r).forEach(l=>scopeLines.push(l));
     html+='<div class="scope-room">';
     html+=`<p style="font-size:12px;font-weight:600;color:#1a1a1a;margin-top:14px;margin-bottom:6px">${r.name}</p>`;
     html+='<div style="font-size:11px;color:#444;line-height:1.8;padding-left:10px;border-left:2px solid #e5ddd0;margin-bottom:6px">';

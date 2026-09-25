@@ -127,6 +127,7 @@ export const DEFAULT_STANDARDS = {
   stairsHandrail:{1:40,2:25,3:15},
   stairsBaluster:{1:30,2:20,3:12},
   stairsPost:{1:8,2:5,3:3},
+  floor:{1:250,2:150,3:95},
 };
 
 // Stair components, in the order they appear on the room card and the Standards
@@ -157,8 +158,11 @@ export function newRoom(id, number){
       tread:{count:0,coats:2}, risers:{count:0,coats:2}, stringer:{count:0,coats:2},
       landing:{coats:2,dims:[{l:0,w:0}]},
       handrail:{count:0,coats:2}, baluster:{count:0,coats:2}, post:{count:0,coats:2}},
+    floor:{enabled:false,coats:2,dims:[{l:0,w:0}]},
     prep:{furniture:false,plastic:false,outlets:false,drywall:false,caulking:false,cleanup:false,custom:''},
-    paint:{wallProduct:'',wallColour:'',wallSheen:'',ceilProduct:'',ceilColour:'',ceilSheen:'',trimProduct:'',trimColour:'',trimSheen:'',wallsPrimer:'',ceilingPrimer:'',trimPrimer:''},
+    paint:{wallProduct:'',wallColour:'',wallSheen:'',ceilProduct:'',ceilColour:'',ceilSheen:'',trimProduct:'',trimColour:'',trimSheen:'',wallsPrimer:'',ceilingPrimer:'',trimPrimer:'',
+      stairsProduct:'',stairsColour:'',stairsSheen:'',stairsPrimer:'',
+      floorProduct:'',floorColour:'',floorSheen:'',floorPrimer:''},
     notes:'', supplies:[],
   };
 }
@@ -188,6 +192,11 @@ export function roomWindowLF(room){
 export function roomLandingSqft(room){
   if(!room.stairs?.enabled) return 0;
   return (room.stairs.landing?.dims||[]).reduce((t,d)=>t+((+d.l)||0)*((+d.w)||0),0);
+}
+// Total floor area (L × W per section) for a room.
+export function roomFloorSqft(room){
+  if(!room.floor?.enabled) return 0;
+  return (room.floor.dims||[]).reduce((t,d)=>t+((+d.l)||0)*((+d.w)||0),0);
 }
 export function roomDoorCount(room){
   if(!room.doors?.enabled) return 0;
@@ -244,6 +253,11 @@ export function calcRoom(room, settings){
       const lc = room.stairs.landing?.coats || 2;
       hrs += landSqft / (std.stairsLanding?.[lc] || DEFAULT_STANDARDS.stairsLanding[lc]);
     }
+  }
+  const floorSqft = roomFloorSqft(room);
+  if(floorSqft>0){
+    const fc = room.floor?.coats || 2;
+    hrs += floorSqft / (std.floor?.[fc] || DEFAULT_STANDARDS.floor[fc]);
   }
   hrs += (room.prepHrs || 0);
   // Labour cost = (hours / field workers) × total-hourly-rate-all-workers × buffer.
@@ -345,6 +359,13 @@ export function calcRoomLines(room, settings){
       lines.push({surface:`Stairs — Landing (${room.stairs.landing?.dims?.length||0})`,area:Math.round(landSqft),areaUnit:'sqft',coats:c,rate:r,rateLabel:'sqft/hr',hours:h,cost:h*rate});
     }
   }
+  const floorSqft = roomFloorSqft(room);
+  if(floorSqft>0){
+    const c = room.floor?.coats || 2;
+    const r = std.floor?.[c] || DEFAULT_STANDARDS.floor[c];
+    const h = floorSqft/r;
+    lines.push({surface:`Floor (${room.floor?.dims?.length||0})`,area:Math.round(floorSqft),areaUnit:'sqft',coats:c,rate:r,rateLabel:'sqft/hr',hours:h,cost:h*rate});
+  }
   if(room.prepHrs > 0){
     const h = room.prepHrs;
     lines.push({surface:'Prep Work',area:h,areaUnit:'hrs',coats:0,rate:1,rateLabel:'hr',hours:h,cost:h*rate});
@@ -383,6 +404,20 @@ export function calcPaintCosts(rooms, allPaints, allCeilPaints, allPrimers, allC
       const needsPrimer = (r.baseboards?.coats===3||r.crown?.coats===3||r.doorFrames?.coats===3||r.doors?.coats===3||r.windows?.coats===3||r.doors?.flat?.coats===3||r.doors?.sixPanel?.coats===3||r.doors?.custom?.coats===3) && r.paint?.trimPrimer;
       if(needsPrimer){ addCol(r.paint.trimPrimer,'','','Trim (Primer)',trimLF); addCol(r.paint.trimProduct,r.paint.trimColour,r.paint.trimSheen,'Trim (2 Coats)',trimLF*2); }
       else addCol(r.paint?.trimProduct,r.paint?.trimColour,r.paint?.trimSheen,'Trim',trimCoated);
+    }
+    // Stairs: only the landing has a measured area, so paint quantity is based on
+    // that; the counted components (treads, balusters, …) carry no sqft figure.
+    const landSqft = roomLandingSqft(r);
+    if(r.stairs?.enabled && landSqft){
+      const lc = r.stairs.landing?.coats||2;
+      if(lc===3 && r.paint?.stairsPrimer){ addCol(r.paint.stairsPrimer,'','','Stairs (Primer)',landSqft); addCol(r.paint.stairsProduct,r.paint.stairsColour,r.paint.stairsSheen,'Stairs (2 Coats)',landSqft*2); }
+      else addCol(r.paint?.stairsProduct,r.paint?.stairsColour,r.paint?.stairsSheen,'Stairs',landSqft*lc);
+    }
+    const flSqft = roomFloorSqft(r);
+    if(flSqft){
+      const fc = r.floor?.coats||2;
+      if(fc===3 && r.paint?.floorPrimer){ addCol(r.paint.floorPrimer,'','','Floor (Primer)',flSqft); addCol(r.paint.floorProduct,r.paint.floorColour,r.paint.floorSheen,'Floor (2 Coats)',flSqft*2); }
+      else addCol(r.paint?.floorProduct,r.paint?.floorColour,r.paint?.floorSheen,'Floor',flSqft*fc);
     }
   });
   const allProducts = [...(allPaints||[]),...(allCeilPaints||[]),...(allPrimers||[])];

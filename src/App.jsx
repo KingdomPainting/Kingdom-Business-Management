@@ -41,7 +41,7 @@ import {
   DEFAULT_SW_COLOURS, DEFAULT_SUPPLIES, DEFAULT_OVERHEAD_ITEMS, DEFAULT_WORKERS,
   DEFAULT_STANDARDS, DEFAULT_SETTINGS, newRoom,
   roomWallSqft, roomCeilSqft, roomPerimLF, roomWindowLF, roomDoorCount, roomTrimLF,
-  STAIR_ITEMS, roomLandingSqft,
+  STAIR_ITEMS, roomLandingSqft, roomFloorSqft,
   calcRoom, calcTotals, calcRoomLines, calcPaintCosts, calcRoomSupplyCost,
   WALL_PAINTS, TRIM_PAINTS, CEILING_PAINTS, COLOURS, CEILING_COLOURS,
 } from "./lib/estimate";
@@ -420,6 +420,14 @@ function stairScopeLines(r){
     out.push(`Painting ${c} coat${c>1?'s':''} on ${Math.round(ls)} sqft of stair landing`);
   }
   return out;
+}
+
+// Scope-of-work line for a room's floor.
+function floorScopeLines(r){
+  const sq=roomFloorSqft(r);
+  if(!(sq>0)) return [];
+  const c=r.floor?.coats||2;
+  return [`Painting ${c} coat${c>1?'s':''} on ${Math.round(sq)} sqft of floor`];
 }
 
 // Contractor-side contract signing (from the pipeline project card). Draws a
@@ -2776,6 +2784,37 @@ function RoomCard({room,settings,onChange,onRemove,primers,paints,ceilPaints,col
                 </div>
               )}
             </div>
+            <div style={{padding:'4px 0'}}>
+              <div style={{display:'flex',alignItems:'center',gap:10}}>
+                <label style={{fontSize:12,display:'flex',gap:6,alignItems:'center'}}>
+                  <input type='checkbox' checked={room.floor?.enabled||false} onChange={e=>u({floor:{...room.floor,enabled:e.target.checked}})} style={cbStyle}/>
+                  Floor
+                </label>
+                {room.floor?.enabled&&<select value={room.floor.coats||2} onChange={e=>u({floor:{...room.floor,coats:+e.target.value}})} style={{fontSize:11,padding:'2px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}>
+                  <option value={1}>1 coat</option><option value={2}>2 coats</option><option value={3}>Primer & 2 coats</option>
+                </select>}
+              </div>
+              {room.floor?.enabled&&(()=>{
+                const dims=room.floor.dims?.length?room.floor.dims:[{l:0,w:0}];
+                const setDims=nd=>u({floor:{...room.floor,dims:nd}});
+                return (
+                  <div style={{marginLeft:22,marginTop:6,padding:10,background:'rgba(0,0,0,0.02)',borderRadius:6,border:'1px solid var(--border)'}}>
+                    {dims.map((d,i)=>(
+                      <div key={i} style={{display:'flex',gap:6,alignItems:'center',marginBottom:6}}>
+                        <span style={{fontSize:11,fontWeight:500,color:'var(--muted-fg)',width:16}}>{i+1}.</span>
+                        <div style={{flex:1}}><Input type='number' value={d.l||''} onChange={e=>{const nd=[...dims];nd[i]={...nd[i],l:+e.target.value};setDims(nd);}} placeholder='L' style={{padding:'4px 6px',fontSize:11,minWidth:0}}/></div>
+                        <span style={{fontSize:11,color:'var(--muted-fg)'}}>×</span>
+                        <div style={{flex:1}}><Input type='number' value={d.w||''} onChange={e=>{const nd=[...dims];nd[i]={...nd[i],w:+e.target.value};setDims(nd);}} placeholder='W' style={{padding:'4px 6px',fontSize:11,minWidth:0}}/></div>
+                        <span style={{fontSize:10,color:'var(--muted-fg)',whiteSpace:'nowrap',minWidth:40}}>{Math.round((d.l||0)*(d.w||0))} sqft</span>
+                        {dims.length>1&&<button onClick={()=>setDims(dims.filter((_,j)=>j!==i))} style={{background:'none',border:'none',cursor:'pointer',color:'var(--destructive)',padding:2,fontSize:12}}>×</button>}
+                      </div>
+                    ))}
+                    <button onClick={()=>setDims([...dims,{l:0,w:0}])} style={{fontSize:11,padding:'4px 10px',borderRadius:4,border:'1px dashed var(--border)',background:'none',cursor:'pointer',color:'var(--primary)',fontWeight:500,marginTop:2}}>+ More</button>
+                    {roomFloorSqft(room)>0&&<p style={{fontSize:10,color:'var(--primary)',fontWeight:600,marginTop:4}}>Total: {Math.round(roomFloorSqft(room))} sqft</p>}
+                  </div>
+                );
+              })()}
+            </div>
           </div>
           <div style={{padding:'14px 16px',borderBottom:'1px solid rgba(0,0,0,0.05)'}}>
             <p style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--muted-fg)',marginBottom:8}}>Prep Work</p>
@@ -2808,6 +2847,14 @@ function RoomCard({room,settings,onChange,onRemove,primers,paints,ceilPaints,col
             {(room.baseboards.enabled||room.doors?.enabled||roomDoorCount(room)>0||room.crown.enabled)&&<>
               <PaintRow label='Trim / Doors' prod={room.paint.trimProduct} colour={room.paint.trimColour} sheen={room.paint.trimSheen} products={(paints||[]).map(p=>p.n)} colours={coloursForProd(room.paint.trimProduct)} onProd={v=>up({trimProduct:v})} onColour={v=>up({trimColour:v})} onSheen={v=>up({trimSheen:v})}/>
               {(room.baseboards?.coats===3||room.crown?.coats===3||room.doorFrames?.coats===3||room.windows?.coats===3||(room.doors?.flat?.coats===3)||(room.doors?.sixPanel?.coats===3)||(room.doors?.custom?.coats===3))&&<div style={{marginTop:-6,marginBottom:10}}><p style={{fontSize:11,fontWeight:500,color:'var(--muted-fg)',marginBottom:4}}>Trim Primer</p><select value={room.paint.trimPrimer||''} onChange={e=>up({trimPrimer:e.target.value})} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Select Primer —</option>{(primers||[]).map(p=><option key={p.n} value={p.n}>{p.n}</option>)}</select></div>}
+            </>}
+            {room.stairs?.enabled&&<>
+              <PaintRow label='Stairs' prod={room.paint.stairsProduct} colour={room.paint.stairsColour} sheen={room.paint.stairsSheen} products={(paints||[]).map(p=>p.n)} colours={coloursForProd(room.paint.stairsProduct)} onProd={v=>up({stairsProduct:v})} onColour={v=>up({stairsColour:v})} onSheen={v=>up({stairsSheen:v})}/>
+              {STAIR_ITEMS.some(it=>(room.stairs?.[it.k]?.coats)===3)&&<div style={{marginTop:-6,marginBottom:10}}><p style={{fontSize:11,fontWeight:500,color:'var(--muted-fg)',marginBottom:4}}>Stairs Primer</p><select value={room.paint.stairsPrimer||''} onChange={e=>up({stairsPrimer:e.target.value})} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Select Primer —</option>{(primers||[]).map(p=><option key={p.n} value={p.n}>{p.n}</option>)}</select></div>}
+            </>}
+            {room.floor?.enabled&&<>
+              <PaintRow label='Floor' prod={room.paint.floorProduct} colour={room.paint.floorColour} sheen={room.paint.floorSheen} products={(paints||[]).map(p=>p.n)} colours={coloursForProd(room.paint.floorProduct)} onProd={v=>up({floorProduct:v})} onColour={v=>up({floorColour:v})} onSheen={v=>up({floorSheen:v})}/>
+              {room.floor?.coats===3&&<div style={{marginTop:-6,marginBottom:10}}><p style={{fontSize:11,fontWeight:500,color:'var(--muted-fg)',marginBottom:4}}>Floor Primer</p><select value={room.paint.floorPrimer||''} onChange={e=>up({floorPrimer:e.target.value})} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Select Primer —</option>{(primers||[]).map(p=><option key={p.n} value={p.n}>{p.n}</option>)}</select></div>}
             </>}
           </div>
           <div style={{padding:'14px 16px',borderTop:'1px solid rgba(0,0,0,0.05)'}}>
@@ -2953,7 +3000,7 @@ function projectHoursAndDays(totalHrs, settings){
 // ─── BREAKDOWN TAB ────────────────────────────────────────────────────────────
 function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,swColours,supplies}){
   const fmtN=n=>Math.round(n).toLocaleString('en-CA');
-  const activeRooms=rooms.filter(r=>r.walls.enabled||r.ceiling.enabled||r.baseboards.enabled||r.doors?.enabled||roomDoorCount(r)>0||r.stairs?.enabled);
+  const activeRooms=rooms.filter(r=>r.walls.enabled||r.ceiling.enabled||r.baseboards.enabled||r.doors?.enabled||roomDoorCount(r)>0||r.stairs?.enabled||r.floor?.enabled);
   let tWalls=0,tCeil=0,tTrim=0,tDoors=0,tHrs=0,tCost=0;
   const roomCalcs=rooms.map(r=>{
     const c=calcRoom(r,settings);
@@ -3185,6 +3232,7 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
               if(r.windows?.enabled&&roomWindowLF(r)>0) surfaces.push(`${r.windows.dims?.length||0} window${(r.windows.dims?.length||0)>1?'s':''} — ${r.windows.coats} coat${r.windows.coats>1?'s':''}`);
               else if(r.windows?.count>0) surfaces.push(`${r.windows.count} window${r.windows.count>1?'s':''} — ${r.windows.coats} coat${r.windows.coats>1?'s':''}`);
               stairScopeLines(r).forEach(l=>surfaces.push(l));
+    floorScopeLines(r).forEach(l=>surfaces.push(l));
               const mats=roomMaterials(r);
               const supplyCost=calcRoomSupplyCost(r,supplies||[]);
               const matTotal=mats.reduce((s,m)=>s+m.lineCost,0)+supplyCost;
@@ -3964,6 +4012,11 @@ function StandardsTab({standards,setStandards,onSave}){
             </tbody>
           </table>
         </Card>
+
+        <Card className='p-5'>
+          <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--primary)',marginBottom:12}}>Floor — sqft per hour</p>
+          {coatTable('floor')}
+        </Card>
       </div>
     </div>
   );
@@ -4503,6 +4556,7 @@ function buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,pri
     if(r.windows?.enabled && wc>0) lines.push(`Painting ${r.windows.coats||2} coat${(r.windows.coats||2)>1?'s':''} on ${wc} window${wc>1?'s':''}`);
     if(r.doorFrames?.enabled && c.perimLF) lines.push(`Painting ${r.doorFrames.coats||2} coat${(r.doorFrames.coats||2)>1?'s':''} on door frames`);
     stairScopeLines(r).forEach(l=>lines.push(l));
+    floorScopeLines(r).forEach(l=>lines.push(l));
     Object.entries(prepLabelsMap).forEach(([k,v])=>{if(r.prep?.[k])prepItems.push(v);});
     if(r.prep?.custom) prepItems.push(r.prep.custom);
     const mats=roomMaterials(r);
@@ -4565,6 +4619,7 @@ function buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,pri
     if(r.windows?.enabled && wc>0) scopeLines.push(`Painting ${r.windows.coats||2} coat${(r.windows.coats||2)>1?'s':''} on ${wc} window${wc>1?'s':''}`);
     if(r.doorFrames?.enabled && c.perimLF) scopeLines.push(`Painting ${r.doorFrames.coats||2} coat${(r.doorFrames.coats||2)>1?'s':''} on door frames`);
     stairScopeLines(r).forEach(l=>scopeLines.push(l));
+    floorScopeLines(r).forEach(l=>scopeLines.push(l));
     html+='<div class="scope-room">';
     html+=`<p style="font-size:12px;font-weight:600;color:#1a1a1a;margin-top:14px;margin-bottom:6px">${r.name}</p>`;
     html+='<div style="font-size:11px;color:#444;line-height:1.8;padding-left:10px;border-left:2px solid #e5ddd0;margin-bottom:6px">';

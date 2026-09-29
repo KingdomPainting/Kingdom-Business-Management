@@ -15,11 +15,12 @@ export const LEAD_COLORS={
   Site:      {bg:'#fef9c3',color:'#a16207'},
   'Home Depot':{bg:'#ffedd5',color:'#ea580c'},
   MBT:       {bg:'#ccfbf1',color:'#0f766e'},
-  BNI:       {bg:'#fce7f3',color:'#be185d'},
+  Yelp:      {bg:'#fce7f3',color:'#be185d'},
   LeTip:     {bg:'#ecfccb',color:'#4d7c0f'},
+  BNI:       {bg:'#fce7f3',color:'#be185d'}, // retired — kept so older deals still render
 };
 export const STAGES=['Lead','Proposal','Scheduled','Completed','Archive'];
-export const LEAD_SOURCES=['Referral','Repeat','Google','Site','Home Depot','MBT','BNI','LeTip'];
+export const LEAD_SOURCES=['Referral','Repeat','Google','Site','Home Depot','MBT','Yelp','LeTip'];
 // Deal labels cover both the lead source and the project category, and are
 // selected on the project card.
 export const DEAL_LABELS=[...LEAD_SOURCES,'Residential','Commercial','Exterior','Lost'];

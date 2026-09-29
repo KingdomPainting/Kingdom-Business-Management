@@ -16,7 +16,7 @@ export const LEAD_COLORS={
   'Home Depot':{bg:'#ffedd5',color:'#ea580c'},
   MBT:       {bg:'#ccfbf1',color:'#0f766e'},
   Yelp:      {bg:'#fce7f3',color:'#be185d'},
-  LeTip:     {bg:'#ecfccb',color:'#4d7c0f'},
+  LeTip:     {bg:'#e0f2fe',color:'#0369a1'},
   BNI:       {bg:'#fce7f3',color:'#be185d'}, // retired — kept so older deals still render
 };
 export const STAGES=['Lead','Proposal','Scheduled','Completed','Archive'];

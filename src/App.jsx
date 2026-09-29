@@ -715,7 +715,9 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead',onAdd
     onSaved();onClose();
   };
 
-  const LABEL_OPTIONS=DEAL_LABELS.map(v=>({v,bg:(ALL_LABEL_COLORS[v]||{}).bg||'#f3f4f6',color:(ALL_LABEL_COLORS[v]||{}).color||'#374151'}));
+  // Standard labels, plus any retired label still on this deal so it stays removable.
+  const LABEL_OPTIONS=[...DEAL_LABELS,...(f.labels||[]).filter(l=>!DEAL_LABELS.includes(l))]
+    .map(v=>({v,bg:(ALL_LABEL_COLORS[v]||{}).bg||'#f3f4f6',color:(ALL_LABEL_COLORS[v]||{}).color||'#374151'}));
   const inp={background:'var(--card)',color:'var(--fg)',fontFamily:'inherit',fontSize:13,padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',width:'100%'};
 
   const _projTotal=parseFloat(f.value)||0;

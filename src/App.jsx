@@ -3519,7 +3519,17 @@ function ChangeOrderTab({client,items,setItems}){
             <p style={{fontSize:10,color:'#999',marginTop:4}}>HST# 71164 5556 RT0001</p>
           </div>
         </div>
-        <p style={{fontSize:12,marginBottom:20}}><strong>Client:</strong> {client.name||'—'}</p>
+        <div style={{display:'flex',justifyContent:'space-between',marginBottom:20,fontSize:12}}>
+          <div>
+            <p style={{fontWeight:600,color:'#888',fontSize:10,textTransform:'uppercase',marginBottom:4}}>Prepared For</p>
+            <p style={{fontWeight:600}}>{client.name||'—'}</p>
+            {client.address&&(client.address.indexOf(',')>=0
+              ? <><p style={{color:'#666'}}>{client.address.slice(0,client.address.indexOf(',')).trim()}</p><p style={{color:'#666'}}>{client.address.slice(client.address.indexOf(',')+1).trim()}</p></>
+              : <p style={{color:'#666'}}>{client.address}</p>)}
+            {client.phone&&<p style={{color:'#666'}}>{client.phone}</p>}
+            {client.email&&<p style={{color:'#666'}}>{client.email}</p>}
+          </div>
+        </div>
         <table style={{width:'100%',borderCollapse:'collapse',marginBottom:16}}>
           <thead><tr>
             <th style={{fontSize:11,fontWeight:600,textAlign:'left',padding:'8px 10px',borderBottom:'2px solid #e5e5e5',color:'#888',width:60}}>Item</th>
@@ -4679,7 +4689,13 @@ function buildChangeOrderHtml(client, items){
   const today=new Date().toLocaleDateString('en-CA',{year:'numeric',month:'long',day:'numeric'});
   let h='<!DOCTYPE html><html><head><meta charset="utf-8"><title>Change Order</title><style>'+css+'</style></head><body style="padding:40px 48px;max-width:900px;margin:0 auto">';
   h+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid ${gold}"><div style="display:flex;gap:12px;align-items:center"><img src="${LOGO_PNG}" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:2px">KINGDOM PAINTING INC. CHANGE ORDER</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p><p style="font-size:10px;color:#999;margin-top:4px">HST# 71164 5556 RT0001</p></div></div>`;
-  h+=`<p style="font-size:12px;margin-bottom:20px"><strong>Client:</strong> ${client?.name||'\u2014'}</p>`;
+  h+='<div style="margin-bottom:24px;font-size:12px"><p style="font-weight:600;color:#888;font-size:10px;text-transform:uppercase;margin-bottom:4px">Prepared For</p>';
+  h+=`<p style="font-weight:600">${client?.name||'\u2014'}</p>`;
+  const addr=client?.address||'';
+  if(addr){ const ci=addr.indexOf(','); if(ci>=0){ h+=`<p style="color:#666">${addr.slice(0,ci).trim()}</p><p style="color:#666">${addr.slice(ci+1).trim()}</p>`; } else { h+=`<p style="color:#666">${addr}</p>`; } }
+  if(client?.phone) h+=`<p style="color:#666">${client.phone}</p>`;
+  if(client?.email) h+=`<p style="color:#666">${client.email}</p>`;
+  h+='</div>';
   h+='<table><thead><tr><th style="width:60px">Item</th><th>Description</th><th style="text-align:right;width:120px">Amount</th></tr></thead><tbody>';
   rows.forEach(it=>{h+=`<tr><td>${it.num||''}</td><td>${it.desc||''}</td><td style="text-align:right">${fmtC(parseFloat(it.amount)||0)}</td></tr>`;});
   h+=`</tbody></table><div style="margin-top:16px;padding-top:12px;border-top:2px solid #e5e5e5;text-align:right"><p style="font-size:12px;margin-bottom:4px">Subtotal: ${fmtC(sub)}</p><p style="font-size:12px;margin-bottom:4px">HST (13%): ${fmtC(tax)}</p><p style="font-size:14px;font-weight:700;color:${gold}">Total: ${fmtC(total)}</p></div></body></html>`;

@@ -4073,6 +4073,7 @@ function MasterEstimate(){
 
   const saveTimerRef=useRef(null);
   const roomNameFocusedRef=useRef(false); // one-time autofocus of the first room's name on Rooms tab
+  const tabContentRef=useRef(null); // the active tab's panel, for Export PDF
   const buildTitle=useCallback(()=>{
     const deal=deals.find(d=>d.id===selectedDealId);
     const project=deal?.dealName||'';
@@ -4304,11 +4305,17 @@ function MasterEstimate(){
         <button onClick={pushToProject} style={actionBtnStyle}>Push</button>
         <button onClick={newEstimate} style={actionBtnStyle}>New</button>
         <button onClick={()=>{const deal=deals.find(d=>d.id===selectedDealId);exportBidPDF(client,rooms,settings,totals,ps.paints,ps.ceilPaints,ps.primers,ps.colours,ps.swColours,ps.supplies,deal?.dealName||'');}} style={actionBtnStyle}>Export Bid</button>
+        <button onClick={()=>{
+          const deal=deals.find(d=>d.id===selectedDealId);
+          const tabLabel=(TABS.find(t=>t.k===activeTab)||{}).l||'Estimate';
+          const name=deal?.dealName||client?.name||'';
+          exportTabPDF(tabContentRef.current, name?`${tabLabel} - ${name}`:tabLabel);
+        }} style={actionBtnStyle}>Export PDF</button>
         <div style={{flex:1}}/>
         {saving&&<Loader2 size={14} style={{animation:'spin 1s linear infinite',color:'var(--muted-fg)'}}/>}
         {saveMsg&&<span style={{fontSize:11,fontWeight:600,color:saveMsg==='Saved'||saveMsg==='Pushed!'?'#22c55e':'#ef4444'}}>{saveMsg}</span>}
       </div>
-      <div style={{flex:1,overflow:'hidden',position:'relative'}}>
+      <div ref={tabContentRef} style={{flex:1,overflow:'hidden',position:'relative'}}>
         {activeTab==='cover'&&(
           <CoverTab client={client} setClient={setClient} deals={deals} contacts={contacts} onSelectDeal={onSelectDeal} selectedDealId={selectedDealId}/>
         )}
@@ -4662,6 +4669,56 @@ function buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,pri
   }
   html+='</body></html>';
   return html;
+}
+
+// Print just the tab the user is looking at. Clones the live DOM of the active
+// panel (carrying across current field values, which live on the DOM properties
+// rather than the attributes) plus the app's stylesheets, then prints it.
+function exportTabPDF(node, docTitle){
+  if(!node) return;
+  const clone = node.cloneNode(true);
+  const srcFields = node.querySelectorAll('input,select,textarea');
+  const outFields = clone.querySelectorAll('input,select,textarea');
+  srcFields.forEach((el,i)=>{
+    const c = outFields[i];
+    if(!c) return;
+    if(el.tagName==='SELECT'){
+      Array.from(c.options).forEach((o,j)=>{
+        if(j===el.selectedIndex) o.setAttribute('selected','');
+        else o.removeAttribute('selected');
+      });
+    } else if(el.type==='checkbox'||el.type==='radio'){
+      if(el.checked) c.setAttribute('checked',''); else c.removeAttribute('checked');
+    } else if(el.tagName==='TEXTAREA'){
+      c.textContent = el.value;
+    } else {
+      c.setAttribute('value', el.value);
+    }
+  });
+  const styles = Array.from(document.querySelectorAll('style'))
+    .map(s=>`<style>${s.innerHTML}</style>`).join('');
+  const links = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
+    .map(l=>`<link rel="stylesheet" href="${l.href}"/>`).join('');
+  // The tabs render inside fixed-height scrollers; unpin them so the whole
+  // panel flows onto the printed page.
+  const printCss = `
+    html,body{height:auto!important;overflow:visible!important;background:#fff;margin:0}
+    #kp-print-root{height:auto!important;overflow:visible!important;padding:0}
+    #kp-print-root *{overflow:visible!important;max-height:none!important}
+    @media print{ @page{margin:12mm} button{display:none!important} }
+  `;
+  const root = document.documentElement;
+  const themeAttrs = `${root.getAttribute('data-theme')?` data-theme="${root.getAttribute('data-theme')}"`:''} class="${root.className||''}"`;
+  const win = window.open('','_blank','width=900,height=900');
+  if(!win) return;
+  win.document.write(
+    `<!DOCTYPE html><html${themeAttrs}><head><meta charset="UTF-8"/><title>${docTitle}</title>`
+    + links + styles + `<style>${printCss}</style></head>`
+    + `<body class="${document.body.className||''}"><div id="kp-print-root">${clone.innerHTML}</div>`
+    + `<script>window.onload=function(){setTimeout(function(){window.print();},300);}<\/script></body></html>`
+  );
+  win.document.close();
+  win.document.title = docTitle;
 }
 
 function exportBidPDF(client,rooms,settings,totals,paints,ceilPaints,primers,colours,swColours,supplies,projectName){

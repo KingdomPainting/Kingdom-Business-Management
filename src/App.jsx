@@ -4251,15 +4251,7 @@ function MasterEstimate(){
       const pushData={value:totals.total,rooms:dealRooms,quote_html:qhtml,quote_date:todayISO,contract_html:chtml,payment_schedule:pushSchedule};
 
       if(changeItems.length>0){
-        const coSub=changeItems.reduce((s,it)=>s+(parseFloat(it.amount)||0),0);
-        const coTax=coSub*0.13;const coTotal=coSub+coTax;
-        let cohtml='<!DOCTYPE html><html><head><meta charset="utf-8"><title>Change Order</title><style>'+css+'</style></head><body style="padding:40px 48px;max-width:900px;margin:0 auto">';
-        cohtml+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid ${gold}"><div style="display:flex;gap:12px;align-items:center"><img src="${LOGO_PNG}" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:2px">KINGDOM PAINTING INC. CHANGE ORDER</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p><p style="font-size:10px;color:#999;margin-top:4px">HST# 71164 5556 RT0001</p></div></div>`;
-        cohtml+=`<p style="font-size:12px;margin-bottom:20px"><strong>Client:</strong> ${client.name||'—'}</p>`;
-        cohtml+='<table><thead><tr><th style="width:60px">Item</th><th>Description</th><th style="text-align:right;width:120px">Amount</th></tr></thead><tbody>';
-        changeItems.forEach(it=>{cohtml+=`<tr><td>${it.num||''}</td><td>${it.desc||''}</td><td style="text-align:right">${fmtC(parseFloat(it.amount)||0)}</td></tr>`;});
-        cohtml+=`</tbody></table><div style="margin-top:16px;padding-top:12px;border-top:2px solid #e5e5e5;text-align:right"><p style="font-size:12px;margin-bottom:4px">Subtotal: ${fmtC(coSub)}</p><p style="font-size:12px;margin-bottom:4px">HST (13%): ${fmtC(coTax)}</p><p style="font-size:14px;font-weight:700;color:${gold}">Total: ${fmtC(coTotal)}</p></div></body></html>`;
-        pushData.change_order_html=cohtml;
+        pushData.change_order_html=buildChangeOrderHtml(client,changeItems);
       }
 
       await api.saveDeal(pushData,selectedDealId);
@@ -4309,7 +4301,11 @@ function MasterEstimate(){
           const deal=deals.find(d=>d.id===selectedDealId);
           const tabLabel=(TABS.find(t=>t.k===activeTab)||{}).l||'Estimate';
           const name=deal?.dealName||client?.name||'';
-          exportTabPDF(tabContentRef.current, name?`${tabLabel} - ${name}`:tabLabel);
+          const title=name?`${tabLabel} - ${name}`:tabLabel;
+          // The Change Order tab is an editable form on screen, so print the
+          // document version instead of the live DOM.
+          if(activeTab==='changeorder'){ exportHtmlPDF(buildChangeOrderHtml(client,changeItems),title); return; }
+          exportTabPDF(tabContentRef.current, title);
         }} style={actionBtnStyle}>Export PDF</button>
         <div style={{flex:1}}/>
         {saving&&<Loader2 size={14} style={{animation:'spin 1s linear infinite',color:'var(--muted-fg)'}}/>}
@@ -4669,6 +4665,35 @@ function buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,pri
   }
   html+='</body></html>';
   return html;
+}
+
+// The Change Order document, styled like the other exported documents (quote,
+// contract) rather than the editable on-screen form. Shared by Push and Export PDF.
+function buildChangeOrderHtml(client, items){
+  const gold='#C4922A';
+  const fmtC=n=>'$'+n.toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const css='*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,sans-serif;color:#1a1a1a;font-size:12px}table{width:100%;border-collapse:collapse}th{text-align:left;padding:8px 10px;border-bottom:2px solid #e5e5e5;color:#888;font-size:11px;font-weight:600}td{padding:8px 10px;border-bottom:1px solid #eee;font-size:12px;vertical-align:top}';
+  const rows=(items||[]).filter(it=>(it.desc&&String(it.desc).trim())||(parseFloat(it.amount)||0));
+  const sub=rows.reduce((s,it)=>s+(parseFloat(it.amount)||0),0);
+  const tax=sub*0.13, total=sub+tax;
+  const today=new Date().toLocaleDateString('en-CA',{year:'numeric',month:'long',day:'numeric'});
+  let h='<!DOCTYPE html><html><head><meta charset="utf-8"><title>Change Order</title><style>'+css+'</style></head><body style="padding:40px 48px;max-width:900px;margin:0 auto">';
+  h+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid ${gold}"><div style="display:flex;gap:12px;align-items:center"><img src="${LOGO_PNG}" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:2px">KINGDOM PAINTING INC. CHANGE ORDER</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${today}</p><p style="font-size:10px;color:#999;margin-top:4px">HST# 71164 5556 RT0001</p></div></div>`;
+  h+=`<p style="font-size:12px;margin-bottom:20px"><strong>Client:</strong> ${client?.name||'\u2014'}</p>`;
+  h+='<table><thead><tr><th style="width:60px">Item</th><th>Description</th><th style="text-align:right;width:120px">Amount</th></tr></thead><tbody>';
+  rows.forEach(it=>{h+=`<tr><td>${it.num||''}</td><td>${it.desc||''}</td><td style="text-align:right">${fmtC(parseFloat(it.amount)||0)}</td></tr>`;});
+  h+=`</tbody></table><div style="margin-top:16px;padding-top:12px;border-top:2px solid #e5e5e5;text-align:right"><p style="font-size:12px;margin-bottom:4px">Subtotal: ${fmtC(sub)}</p><p style="font-size:12px;margin-bottom:4px">HST (13%): ${fmtC(tax)}</p><p style="font-size:14px;font-weight:700;color:${gold}">Total: ${fmtC(total)}</p></div></body></html>`;
+  return h;
+}
+
+// Print a prebuilt document (full HTML string) in a new window.
+function exportHtmlPDF(html, docTitle){
+  const out=html.replace('</body></html>','<script>window.onload=function(){window.print();}<\/script></body></html>');
+  const win=window.open('','_blank','width=900,height=900');
+  if(!win) return;
+  win.document.write(out);
+  win.document.close();
+  win.document.title=docTitle;
 }
 
 // Print just the tab the user is looking at. Clones the live DOM of the active

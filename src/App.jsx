@@ -1488,7 +1488,7 @@ function Dashboard({toast}){
           <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',marginBottom:12}}>Leads by Source</p>
           <div style={{display:'flex',flexDirection:'column',gap:8}}>
             {(()=>{
-              const srcDeals=deals.filter(d=>['Scheduled','Completed','Archive'].includes(d.stage));
+              const srcDeals=deals.filter(d=>['Proposal','Scheduled','Completed','Archive'].includes(d.stage));
               // Count each label across deals (bridging any legacy leadSource value).
               const has=(d,l)=>(d.labels||[]).includes(l)||d.leadSource===l;
               // Sort labels highest→lowest by count so the order updates as leads change.
@@ -1519,7 +1519,7 @@ function Dashboard({toast}){
                 );
               });
             })()}
-            {deals.filter(d=>['Scheduled','Completed','Archive'].includes(d.stage)&&(LEADS_BY_SOURCE_LABELS.some(l=>(d.labels||[]).includes(l))||d.leadSource)).length===0&&(
+            {deals.filter(d=>['Proposal','Scheduled','Completed','Archive'].includes(d.stage)&&(LEADS_BY_SOURCE_LABELS.some(l=>(d.labels||[]).includes(l))||d.leadSource)).length===0&&(
               <p style={{fontSize:12,color:'var(--muted-fg)'}}>No labels assigned yet.</p>
             )}
           </div>

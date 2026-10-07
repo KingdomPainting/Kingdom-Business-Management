@@ -1319,6 +1319,149 @@ function CalendarWeekWidget(){
   );
 }
 
+// ─── Google Calendar Month Widget ────────────────────────────────────────────
+// Month grid of the same Google Calendar events the week widget shows. The fetch
+// window spans the whole visible grid, so leading/trailing days carry events too.
+function CalendarMonthWidget(){
+  const [events,setEvents]=useState([]);
+  const [error,setError]=useState(null);
+  const [loading,setLoading]=useState(true);
+  const [needsAuth,setNeedsAuth]=useState(false);
+  const [cursor,setCursor]=useState(()=>{const d=new Date();return new Date(d.getFullYear(),d.getMonth(),1);});
+  const [selected,setSelected]=useState(null);
+
+  // 42-cell grid starting on the Sunday of the week containing the 1st.
+  const gridStart=new Date(cursor);
+  gridStart.setDate(1);
+  gridStart.setDate(gridStart.getDate()-gridStart.getDay());
+  gridStart.setHours(0,0,0,0);
+  const cells=[];
+  for(let i=0;i<42;i++){const d=new Date(gridStart);d.setDate(d.getDate()+i);cells.push(d);}
+  const gridEnd=new Date(gridStart); gridEnd.setDate(gridEnd.getDate()+42);
+
+  const startISO=gridStart.toISOString(), endISO=gridEnd.toISOString();
+  const load=useCallback(async()=>{
+    setLoading(true); setError(null); setNeedsAuth(false);
+    try{
+      if(!GCAL_CLIENT_ID){ setNeedsAuth(true); setEvents([]); return; }
+      const resp=await gcalFetchEvents(startISO,endISO);
+      if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data=await resp.json();
+      setEvents((data.items||[]).map(ev=>({
+        title:ev.summary||'(No title)',
+        start:ev.start?.dateTime||ev.start?.date||'',
+        allDay:!ev.start?.dateTime,
+      })));
+    }catch(e){
+      if(e.message==='NO_CLIENT_ID'||e.message==='popup_closed_by_user'||e.message==='access_denied') setNeedsAuth(true);
+      else setError(e.message||'Could not load calendar');
+      setEvents([]);
+    }finally{ setLoading(false); }
+  },[startISO,endISO]);
+
+  useEffect(()=>{ load(); },[load]);
+
+  const sameDay=(a,b)=>a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();
+  const todayD=new Date();
+  const eventsForDay=day=>events
+    .filter(ev=>{const s=new Date(ev.start);return sameDay(s,day);})
+    .sort((a,b)=>new Date(a.start)-new Date(b.start));
+  const fmtTime=iso=>new Date(iso).toLocaleTimeString('en-CA',{hour:'numeric',minute:'2-digit',hour12:true});
+  const monthLabel=cursor.toLocaleDateString('en-CA',{month:'long',year:'numeric'});
+  const shiftMonth=n=>{setSelected(null);setCursor(c=>new Date(c.getFullYear(),c.getMonth()+n,1));};
+  const goToday=()=>{const d=new Date();setSelected(null);setCursor(new Date(d.getFullYear(),d.getMonth(),1));};
+
+  const navBtn={background:'none',border:'1px solid var(--border)',borderRadius:5,cursor:'pointer',color:'var(--fg)',fontSize:11,lineHeight:1,padding:'3px 7px'};
+  const selDay=selected?cells.find(c=>sameDay(c,selected)):null;
+  const selEvents=selDay?eventsForDay(selDay):[];
+
+  return (
+    <Card style={{display:'flex',flexDirection:'column',minHeight:0,overflow:'hidden'}}>
+      <div style={{padding:'10px 14px 6px',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0,gap:8}}>
+        <span style={{fontWeight:600,fontSize:13,display:'flex',alignItems:'center',gap:6,minWidth:0}}>
+          <CalendarDays size={14} style={{color:'var(--primary)',flexShrink:0}}/>
+          <span style={{whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{monthLabel}</span>
+        </span>
+        <span style={{display:'flex',alignItems:'center',gap:4,flexShrink:0}}>
+          {loading&&<span style={{fontSize:10,color:'var(--muted-fg)',marginRight:2}}>…</span>}
+          <button onClick={()=>shiftMonth(-1)} style={navBtn} title='Previous month'>‹</button>
+          <button onClick={goToday} style={{...navBtn,fontWeight:600}}>Today</button>
+          <button onClick={()=>shiftMonth(1)} style={navBtn} title='Next month'>›</button>
+        </span>
+      </div>
+      <div style={{overflowY:'auto',flex:1,padding:'0 10px 10px'}}>
+        {needsAuth&&(
+          <div style={{padding:'20px 4px',textAlign:'center'}}>
+            <CalendarDays size={28} style={{color:'var(--muted)',margin:'0 auto 10px',display:'block'}}/>
+            <p style={{fontSize:12,fontWeight:600,marginBottom:6}}>Connect Google Calendar</p>
+            <p style={{fontSize:11,color:'var(--muted-fg)',marginBottom:12,lineHeight:1.5}}>
+              {GCAL_CLIENT_ID?'Sign in to see this month’s events.':'Google Calendar requires a Client ID to be configured.'}
+            </p>
+            {GCAL_CLIENT_ID&&(
+              <button onClick={()=>load()} style={{background:'var(--primary)',color:'#fff',border:'none',borderRadius:6,padding:'8px 16px',fontSize:12,fontWeight:600,cursor:'pointer'}}>Sign in with Google</button>
+            )}
+          </div>
+        )}
+        {error&&!needsAuth&&(
+          <div style={{padding:'16px 4px',fontSize:11,color:'var(--muted-fg)',textAlign:'center'}}>
+            <p style={{fontWeight:600,marginBottom:4,color:'var(--fg)'}}>Calendar error</p>
+            <p style={{fontSize:10,marginBottom:8}}>{error}</p>
+            <button onClick={()=>load()} style={{fontSize:10,color:'var(--primary)',background:'none',border:'none',cursor:'pointer',textDecoration:'underline'}}>Retry</button>
+          </div>
+        )}
+        {!needsAuth&&!error&&(<>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:2,marginBottom:2}}>
+            {['S','M','T','W','T','F','S'].map((w,i)=>(
+              <div key={i} style={{textAlign:'center',fontSize:9,fontWeight:700,color:'var(--muted-fg)',textTransform:'uppercase',letterSpacing:'0.04em',padding:'2px 0'}}>{w}</div>
+            ))}
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:2}}>
+            {cells.map((day,i)=>{
+              const inMonth=day.getMonth()===cursor.getMonth();
+              const isToday=sameDay(day,todayD);
+              const isSel=selected&&sameDay(day,selected);
+              const dayEvents=eventsForDay(day);
+              return (
+                <button key={i} onClick={()=>setSelected(isSel?null:new Date(day))}
+                  title={dayEvents.length?dayEvents.map(e=>`${e.allDay?'All day':fmtTime(e.start)} · ${e.title}`).join('\n'):''}
+                  style={{display:'flex',flexDirection:'column',alignItems:'center',gap:2,minHeight:34,padding:'3px 1px',borderRadius:6,cursor:'pointer',
+                    border:isSel?'1px solid var(--primary)':'1px solid transparent',
+                    background:isToday?'rgba(212,169,106,0.18)':(dayEvents.length?'var(--muted)':'transparent'),
+                    opacity:inMonth?1:0.35,fontFamily:'inherit'}}>
+                  <span style={{fontSize:11,fontWeight:isToday?700:500,color:isToday?'var(--primary)':'var(--fg)',lineHeight:1.1}}>{day.getDate()}</span>
+                  {dayEvents.length>0&&(
+                    <span style={{display:'flex',gap:2,alignItems:'center',justifyContent:'center',flexWrap:'wrap',maxWidth:'100%'}}>
+                      {dayEvents.slice(0,3).map((_,di)=>(
+                        <span key={di} style={{width:4,height:4,borderRadius:'50%',background:'var(--primary)',display:'block'}}/>
+                      ))}
+                      {dayEvents.length>3&&<span style={{fontSize:8,color:'var(--muted-fg)',fontWeight:700,lineHeight:1}}>+{dayEvents.length-3}</span>}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          <div style={{marginTop:8,borderTop:'1px solid var(--border)',paddingTop:6}}>
+            {!selDay&&<p style={{fontSize:10,color:'var(--muted-fg)',textAlign:'center'}}>{events.length} event{events.length!==1?'s':''} this month · tap a day for details</p>}
+            {selDay&&(<>
+              <p style={{fontSize:10,fontWeight:700,color:'var(--muted-fg)',textTransform:'uppercase',letterSpacing:'0.05em',marginBottom:4}}>
+                {selDay.toLocaleDateString('en-CA',{weekday:'long',month:'short',day:'numeric'})}
+              </p>
+              {selEvents.length===0&&<p style={{fontSize:11,color:'var(--muted-fg)',fontStyle:'italic'}}>No events</p>}
+              {selEvents.map((ev,ei)=>(
+                <div key={ei} style={{display:'flex',alignItems:'baseline',gap:6,marginBottom:3,background:'var(--muted)',borderRadius:5,padding:'3px 7px',borderLeft:'3px solid var(--primary)'}}>
+                  <span style={{fontSize:10,color:'var(--primary)',fontWeight:600,flexShrink:0,minWidth:62}}>{ev.allDay?'All day':fmtTime(ev.start)}</span>
+                  <span style={{fontSize:11,fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{ev.title}</span>
+                </div>
+              ))}
+            </>)}
+          </div>
+        </>)}
+      </div>
+    </Card>
+  );
+}
+
 // ─── PAGES ────────────────────────────────────────────────────────────────────
 function Dashboard({toast}){
   const [,forceUpdate]=useState(0);
@@ -1389,10 +1532,10 @@ function Dashboard({toast}){
       </div>
       <div style={{flex:1,overflowY:'auto',display:'flex',flexDirection:'column',gap:10,minHeight:0}}>
 
-        {/* Row 1 — Calendar + Tasks */}
+        {/* Row 1 — Calendar: this week + this month */}
         <div className="dash-row" style={{minHeight:280}}>
           <CalendarWeekWidget/>
-          <TasksWidget/>
+          <CalendarMonthWidget/>
         </div>
 
         {/* Row 2 — Proposals + Scheduled Projects */}

@@ -4973,7 +4973,10 @@ async function generateInvoicePDF(deal, contactName, contactAddr, contact){
   if(contact?.email) html+=`<p style="color:#666">${esc(contact.email)}</p>`;
   html+='</div>';
   html+='<table><thead><tr><th>Item</th><th>Description</th><th style="text-align:right">Amount</th></tr></thead><tbody>';
-  const desc='Painting services as agreed';
+  // Description comes from the project card's Description / Notes field, with a
+  // fallback when it's blank. Newlines are preserved as line breaks.
+  const notes=String(deal.description||'').trim();
+  const desc=notes?esc(notes).replace(/\r?\n/g,'<br>'):'Painting services as agreed';
   html+=`<tr><td style="font-weight:600;white-space:nowrap;vertical-align:top">${esc(invoiceItemsLabel(deal)||'—')}</td><td>${desc}</td><td style="text-align:right;font-weight:600;white-space:nowrap">${fmtC(revenue)}</td></tr>`;
   html+='</tbody></table>';
   html+=`<div style="margin-top:24px;padding-top:16px" class="border-gold"><table style="width:auto;margin-left:auto"><tr><td style="text-align:right;padding:4px 16px;color:#888">Invoice Total</td><td style="text-align:right;padding:4px 0;font-weight:600">${fmtC(revenue)}</td></tr>`;

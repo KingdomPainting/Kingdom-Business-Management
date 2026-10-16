@@ -4916,7 +4916,7 @@ function exportBidPDF(client,rooms,settings,totals,paints,ceilPaints,primers,col
 // ─── LAYOUT + APP ─────────────────────────────────────────────────────────────
 // ─── Financials Page ─────────────────────────────────────────────────────────
 const LOGO_PNG = "data:image/png;base64,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";
-async function generateInvoicePDF(deal, contactName, contactAddr){
+async function generateInvoicePDF(deal, contactName, contactAddr, contact){
   let invNum = deal.invoice_number;
   if(!invNum && deal.id){
     try{
@@ -4934,69 +4934,51 @@ async function generateInvoicePDF(deal, contactName, contactAddr){
   const paid        = dealPaidAmount(deal);
   const outstanding = Math.max(0, revenue - paid);
   const today       = new Date().toLocaleDateString('en-CA',{year:'numeric',month:'long',day:'numeric'});
-  const addr        = contactAddr||deal.address||'—';
-  const fmt = n => '$'+n.toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2});
-  const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const addr        = contactAddr||deal.address||'';
+  const gold        = '#C4922A';
+  const fmtC = n => '$'+n.toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const esc  = s => String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const docTitle = deal.dealName ? `Invoice - ${deal.dealName}` : 'Invoice';
 
-  const html = '<!DOCTYPE html>'
-    +'<html><head><meta charset="UTF-8">'
-    +'<title>Invoice \u2014 '+esc(deal.dealName||'Project')+'</title>'
-    +'<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet"/>'
-    +'<style>'
-    +'*{box-sizing:border-box;margin:0;padding:0}'
-    +'body{font-family:\'Montserrat\',sans-serif;font-size:13px;color:#1a1714;background:#fff;padding:48px 56px}'
-    +'.doc-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px;padding-bottom:24px;border-bottom:2px solid #1a1714}'
-    +'.kp-logo{height:48px;width:auto;display:block}'
-    +'.doc-type{font-size:11px;color:#1a1714;font-weight:500;text-transform:uppercase;letter-spacing:.14em;margin-top:4px}'
-    +'.doc-meta{font-size:12px;color:#555;line-height:2.2;text-align:right}'
-    +'.doc-meta strong{color:#1a1714}'
-    +'.project-title{font-size:16px;font-weight:700;color:#1a1714;margin-bottom:24px;padding-bottom:12px;border-bottom:1px solid #e5ddd0}'
-    +'.inv-table{width:100%;border-collapse:collapse;margin-bottom:0}'
-    +'.inv-table td{padding:16px 18px;font-size:14px;border-bottom:1px solid #ece8e1}'
-    +'.inv-table tr:last-child td{border-bottom:none}'
-    +'.inv-table .label{color:#7a6e65;font-weight:500;width:60%}'
-    +'.inv-table .amount{text-align:right;font-weight:600;font-size:15px}'
-    +'.outstanding-row td{background:#1a1714;color:#fff;font-size:17px;font-weight:700}'
-    +'.outstanding-row .label{color:rgba(255,255,255,0.75)}'
-    +'.inv-wrap{background:#f9f7f4;border-radius:10px;overflow:hidden;border:1px solid #e5ddd0}'
-    +'.footer-note{margin-top:32px;padding:14px 16px;background:#f2ede6;border-radius:8px;font-size:12px;color:#3d3530;line-height:1.8;text-align:center}'
-    +'@media print{body{padding:24px 32px}}'
-    +'</style></head><body>'
-    +'<div class="doc-header">'
-    +'<div style="display:flex;align-items:center;gap:12px">'
-    +'<img class="kp-logo" src="'+LOGO_PNG+'" alt="Kingdom Painting"/>'
-    +'<div>'
-    +'<div style="font-family:\'Montserrat\',sans-serif;font-size:14px;font-weight:700;color:#C4922A;letter-spacing:0.05em;text-transform:uppercase">Kingdom Painting Inc.</div>'
-    +'<div class="doc-type">Invoice</div>'
-    +'</div></div>'
-    +'<div class="doc-meta">'
-    +'<div><strong>Client</strong> '+esc(contactName||'\u2014')+'</div>'
-    +(addr&&addr!=='\u2014'?'<div><strong>Address</strong> '+esc(addr)+'</div>':'')
-    +'<div><strong>Date</strong> '+esc(today)+'</div>'
-    +'<div><strong>HST #</strong> 71164 5556 RT0001</div>'
-    +'<div><strong>Invoice #</strong> '+esc(invLabel)+'</div>'
-    +'</div></div>'
-    +'<div class="project-title">'+esc(deal.dealName||'Painting Services')+(deal.description?' \u2014 '+esc(deal.description):'')+'</div>'
-    +'<div class="inv-wrap"><table class="inv-table">'
-    +'<tr><td class="label">Invoice Total</td><td class="amount">'+fmt(revenue)+'</td></tr>'
-    +'<tr><td class="label">Amount Paid</td><td class="amount">'+fmt(paid)+'</td></tr>'
-    +'<tr class="outstanding-row"><td class="label">Outstanding</td><td class="amount">'+fmt(outstanding)+'</td></tr>'
-    +'</table></div>'
-    +'<div class="footer-note">Thank you for your business!</div>'
-    +'<script>window.onload=function(){window.print();}<\/script>'
-    +'</body></html>';
+  // Same page shell, header, Prepared For block, table and totals styling as the
+  // Estimates quote template (buildBidProposalHtml, mode 'quote').
+  let html='<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+esc(docTitle)+'</title>';
+  html+='<style>*{margin:0;padding:0;box-sizing:border-box}html,body{height:auto;overflow:visible}body{font-family:-apple-system,sans-serif;color:#1a1a1a;font-size:12px}';
+  html+='.page{padding:40px 48px;max-width:900px;margin:0 auto}';
+  html+='.section{page-break-inside:avoid;break-inside:avoid}';
+  html+=`.gold{color:${gold}}.border-gold{border-bottom:2px solid ${gold}}`;
+  html+='table{width:100%;border-collapse:collapse}th{text-align:left;padding:8px 10px;border-bottom:2px solid #e5e5e5;color:#888;font-size:11px;font-weight:600}td{padding:8px 10px;border-bottom:1px solid #eee;font-size:12px;vertical-align:top}';
+  html+='@media print{body{padding:0}.page{padding:32px 40px}}</style></head><body>';
+  html+='<div class="page">';
+  html+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px" class="border-gold"><div style="display:flex;gap:12px;align-items:center"><img src="${LOGO_PNG}" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:2px">KINGDOM PAINTING INC. INVOICE</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${esc(today)}</p><p style="font-size:10px;color:#999;margin-top:4px">HST# 71164 5556 RT0001</p><p style="font-size:10px;color:#999;margin-top:4px">Invoice ${esc(invLabel)}</p></div></div>`;
+  html+='<div style="margin-bottom:24px;font-size:12px"><p style="font-weight:600;color:#888;font-size:10px;text-transform:uppercase;margin-bottom:4px">Prepared For</p>';
+  html+=`<p style="font-weight:600">${esc(contactName||'—')}</p>`;
+  if(addr){ const ci=addr.indexOf(','); if(ci>=0){ html+=`<p style="color:#666">${esc(addr.slice(0,ci).trim())}</p><p style="color:#666">${esc(addr.slice(ci+1).trim())}</p>`; } else { html+=`<p style="color:#666">${esc(addr)}</p>`; } }
+  if(contact?.phone) html+=`<p style="color:#666">${esc(contact.phone)}</p>`;
+  if(contact?.email) html+=`<p style="color:#666">${esc(contact.email)}</p>`;
+  html+='</div>';
+  html+='<table><thead><tr><th>Item</th><th>Description</th><th style="text-align:right">Amount</th></tr></thead><tbody>';
+  const rooms=(deal.rooms||[]).filter(r=>r&&r.name).map(r=>r.name);
+  let desc=deal.description?esc(deal.description):'Painting services as agreed';
+  if(rooms.length) desc+=`<p style="margin-top:4px;color:#444">${esc(rooms.join(', '))}</p>`;
+  html+=`<tr><td style="font-weight:600;white-space:nowrap;vertical-align:top">${esc(deal.dealName||'Painting Services')}</td><td>${desc}</td><td style="text-align:right;font-weight:600;white-space:nowrap">${fmtC(revenue)}</td></tr>`;
+  html+='</tbody></table>';
+  html+=`<div style="margin-top:24px;padding-top:16px" class="border-gold"><table style="width:auto;margin-left:auto"><tr><td style="text-align:right;padding:4px 16px;color:#888">Invoice Total</td><td style="text-align:right;padding:4px 0;font-weight:600">${fmtC(revenue)}</td></tr>`;
+  html+=`<tr><td style="text-align:right;padding:4px 16px;color:#888">Amount Paid</td><td style="text-align:right;padding:4px 0">${fmtC(paid)}</td></tr>`;
+  html+=`<tr style="border-top:2px solid ${gold}"><td style="text-align:right;padding:8px 16px;font-weight:700;font-size:14px" class="gold">Outstanding</td><td style="text-align:right;padding:8px 0;font-weight:700;font-size:14px" class="gold">${fmtC(outstanding)}</td></tr></table>`;
+  html+='</div>';
+  html+='<p style="margin-top:28px;font-size:11px;color:#666;text-align:center">Thank you for your business!</p>';
+  html+='</div>';
+  html+='<script>window.onload=function(){window.print();}<\/script></body></html>';
 
   // Open print window
   const win = window.open('','_blank','width=860,height=900');
-  if(win){ win.document.write(html); win.document.close(); }
+  if(win){ win.document.write(html); win.document.close(); win.document.title=docTitle; }
 
   // Save invoice HTML to Supabase deal record
   if(deal.id){
-    const session=_session||null;
-    const token=session?.access_token;
     supaFetch(`/rest/v1/deals?id=eq.${deal.id}`,'PATCH',{invoice_html:html})
       .then(()=>{
-        // Refresh local DB
         const d=DB.deals.find(x=>x.id===deal.id);
         if(d) d.invoice_html=html;
       })
@@ -5148,7 +5130,7 @@ function InvoicePage({showToast}){
                     </td>
                     <td style={{...tdStyle,textAlign:'right',fontWeight:700,color:outColor}}>{fmtUSD(outstanding)}</td>
                     <td style={{...tdStyle,textAlign:'center'}}>
-                      <button onClick={()=>generateInvoicePDF(deal,contactName(deal),contactAddr(deal))}
+                      <button onClick={()=>generateInvoicePDF(deal,contactName(deal),contactAddr(deal),contacts.find(x=>x.id===(deal.contact||deal.contactId))||null)}
                         style={{background:'var(--primary)',color:'#fff',border:'none',borderRadius:6,padding:'5px 12px',fontSize:11,fontWeight:600,cursor:'pointer',whiteSpace:'nowrap',display:'inline-flex',alignItems:'center',gap:4}}>
                         <FileText size={11}/>PDF
                       </button>

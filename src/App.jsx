@@ -4943,7 +4943,7 @@ async function generateInvoicePDF(deal, contactName, contactAddr, contact){
     if(d) d.invoice_number = invNum;
     supaFetch(`/rest/v1/deals?id=eq.${deal.id}`,'PATCH',{invoice_number:invNum}).catch(()=>{});
   }
-  const invLabel = 'KGDM-' + (invNum || 1001);
+  const invLabel = 'INV-' + (invNum || 1001);
 
   const revenue     = parseFloat(deal.value)||0;
   const paid        = dealPaidAmount(deal);
@@ -4965,7 +4965,7 @@ async function generateInvoicePDF(deal, contactName, contactAddr, contact){
   html+='table{width:100%;border-collapse:collapse}th{text-align:left;padding:8px 10px;border-bottom:2px solid #e5e5e5;color:#888;font-size:11px;font-weight:600}td{padding:8px 10px;border-bottom:1px solid #eee;font-size:12px;vertical-align:top}';
   html+='@media print{body{padding:0}.page{padding:32px 40px}}</style></head><body>';
   html+='<div class="page">';
-  html+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px" class="border-gold"><div style="display:flex;gap:12px;align-items:center"><img src="${LOGO_PNG}" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:2px">KINGDOM PAINTING INC. INVOICE</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${esc(today)}</p><p style="font-size:10px;color:#999;margin-top:4px">HST# 71164 5556 RT0001</p><p style="font-size:10px;color:#999;margin-top:4px">Invoice ${esc(invLabel)}</p></div></div>`;
+  html+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px" class="border-gold"><div style="display:flex;gap:12px;align-items:center"><img src="${LOGO_PNG}" style="height:48px"><span style="font-size:20px;font-weight:700;color:${gold};letter-spacing:2px">KINGDOM PAINTING INC. INVOICE</span></div><div style="text-align:right"><p style="font-size:11px;color:#666">${esc(today)}</p><p style="font-size:10px;color:#999;margin-top:4px">HST# 71164 5556 RT0001</p><p style="font-size:10px;color:#999;margin-top:4px">${esc(invLabel)}</p></div></div>`;
   html+='<div style="margin-bottom:24px;font-size:12px"><p style="font-weight:600;color:#888;font-size:10px;text-transform:uppercase;margin-bottom:4px">Prepared For</p>';
   html+=`<p style="font-weight:600">${esc(contactName||'—')}</p>`;
   if(addr){ const ci=addr.indexOf(','); if(ci>=0){ html+=`<p style="color:#666">${esc(addr.slice(0,ci).trim())}</p><p style="color:#666">${esc(addr.slice(ci+1).trim())}</p>`; } else { html+=`<p style="color:#666">${esc(addr)}</p>`; } }

@@ -2136,15 +2136,15 @@ function Pipeline({showToast}){
                             e.stopPropagation();
                             // New project prefilled with the client details only — no id,
                             // so the modal opens in "New Project" mode and saves a new row.
+                            // No stage, so it starts in Lead via defaultStage.
                             setEditDeal({
                               contact:deal.contact,
                               contactFreeText:deal.contactFreeText||'',
                               address:deal.address||'',
                               labels:deal.labels||[],
                               referralName:deal.referralName||'',
-                              stage:deal.stage,
                             });
-                            setDefaultStage(deal.stage||'Lead');
+                            setDefaultStage('Lead');
                             setModalOpen(true);
                           }}
                             style={{background:'none',border:'none',cursor:'pointer',padding:4,borderRadius:6,color:'var(--muted-fg)',opacity:0.5}}

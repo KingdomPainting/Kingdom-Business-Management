@@ -10,7 +10,7 @@ import {
   MapPin, Star, CalendarDays, StickyNote, CheckSquare, DollarSign,
   TrendingUp, Percent, Layers, ArrowRight, ArrowLeft,
   ChevronRight, ChevronDown, Archive as ArchiveIcon, Receipt, BarChart2,
-  Save, Loader2, GripVertical, Printer, Download, Eye, Camera,
+  Save, Loader2, GripVertical, Printer, Download, Eye, Camera, Copy,
   BookOpen,
 } from "lucide-react";
 
@@ -638,9 +638,9 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead',onAdd
 
     // Project-level spanning event (start date → end date)
     let projectCalEventId=deal?.projectCalEventId||null;
-    if(!deal&&f.startDate){
+    if(!deal?.id&&f.startDate){
       projectCalEventId=await gcalCreateProjectEvent(gcalTitle,f.startDate,f.startTime,f.endDate,f.endTime,f.address,notesTxt);
-    } else if(deal&&f.startDate&&(
+    } else if(deal?.id&&f.startDate&&(
       f.startDate!==deal.startDate||f.endDate!==deal.endDate||
       f.startTime!==deal.startTime||f.endTime!==deal.endTime||
       f.dealName!==deal.dealName||f.address!==deal.address
@@ -725,7 +725,7 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead',onAdd
   const paymentValid=!(_projTotal>0)||Math.abs(_schedSum-_projTotal)<0.005;
 
   return (
-    <Modal open={open} onClose={onClose} title={deal?'Edit Project':'New Project'}>
+    <Modal open={open} onClose={onClose} title={deal?.id?'Edit Project':'New Project'}>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
         <div><Label>Project Name</Label><input value={f.dealName} onChange={e=>setF(x=>({...x,dealName:e.target.value}))} placeholder='Project name' style={inp}/></div>
         <div><Label>Contact</Label>
@@ -2131,6 +2131,25 @@ function Pipeline({showToast}){
                             style={{background:'none',border:'none',cursor:'pointer',padding:4,borderRadius:6,color:'var(--muted-fg)',opacity:0.5}}
                             onMouseEnter={e=>{e.currentTarget.style.opacity=1;e.currentTarget.style.color='var(--primary)';}} onMouseLeave={e=>{e.currentTarget.style.opacity=0.5;e.currentTarget.style.color='var(--muted-fg)';}}>
                             <Camera size={13}/>
+                          </button>
+                          <button title='Duplicate project' onClick={e=>{
+                            e.stopPropagation();
+                            // New project prefilled with the client details only — no id,
+                            // so the modal opens in "New Project" mode and saves a new row.
+                            // No stage, so it starts in Lead via defaultStage.
+                            setEditDeal({
+                              contact:deal.contact,
+                              contactFreeText:deal.contactFreeText||'',
+                              address:deal.address||'',
+                              labels:deal.labels||[],
+                              referralName:deal.referralName||'',
+                            });
+                            setDefaultStage('Lead');
+                            setModalOpen(true);
+                          }}
+                            style={{background:'none',border:'none',cursor:'pointer',padding:4,borderRadius:6,color:'var(--muted-fg)',opacity:0.5}}
+                            onMouseEnter={e=>{e.currentTarget.style.opacity=1;e.currentTarget.style.color='var(--primary)';}} onMouseLeave={e=>{e.currentTarget.style.opacity=0.5;e.currentTarget.style.color='var(--muted-fg)';}}>
+                            <Copy size={13}/>
                           </button>
                           <button onClick={e=>{e.stopPropagation();setConfirm({id:deal.id,name:deal.dealName,deal});}}
                             style={{background:'none',border:'none',cursor:'pointer',padding:4,borderRadius:6,color:'var(--destructive)',flexShrink:0,opacity:0.4}}

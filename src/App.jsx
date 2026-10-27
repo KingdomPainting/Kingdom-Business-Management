@@ -553,9 +553,26 @@ function DealModal({open,onClose,deal,contacts,onSaved,defaultStage='Lead',onAdd
     const newDays=rebuildDays(v,x.startTime,x.endDate||v,x.endTime,x.scheduleDays);
     return{...x,startDate:v,scheduleDays:newDays};
   });
+  // Changing the end date extends or trims the schedule from the previous end
+  // date only — days removed earlier in the range stay removed rather than being
+  // regenerated.
   const handleEndDate=v=>setF(x=>{
-    const newDays=rebuildDays(x.startDate,x.startTime,v,x.endTime,x.scheduleDays);
-    return{...x,endDate:v,scheduleDays:newDays};
+    const existing=x.scheduleDays||[];
+    if(!v) return {...x,endDate:v};
+    if(!existing.length) return {...x,endDate:v,scheduleDays:rebuildDays(x.startDate,x.startTime,v,x.endTime,existing)};
+    const newEnd=String(v).slice(0,10);
+    const kept=existing.filter(d=>d.date<=newEnd);
+    const prevEnd=(x.endDate&&String(x.endDate).slice(0,10))
+      ||(kept.length?kept[kept.length-1].date:'')
+      ||(x.startDate?String(x.startDate).slice(0,10):'');
+    const have=new Set(kept.map(d=>d.date));
+    const added=(prevEnd&&newEnd>prevEnd)
+      ? dateRange(prevEnd,newEnd)
+          .filter(dt=>dt>prevEnd&&!have.has(dt))
+          .map(date=>({date,startTime:x.startTime||'09:00',endTime:x.endTime||'17:00',calEventId:null}))
+      : [];
+    const next=[...kept,...added].sort((a,b)=>a.date.localeCompare(b.date));
+    return {...x,endDate:v,scheduleDays:next};
   });
   const handleStartTime=v=>setF(x=>({
     ...x,startTime:v,

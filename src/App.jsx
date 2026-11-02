@@ -401,6 +401,10 @@ function stripAppendedContractorSig(html){
   return html.replace(/<div style="margin-top:24px;padding:16px 20px;border-top:2px solid #C4922A;[^"]*"><p style="font-weight:600;margin-bottom:8px">Contractor Signature<\/p>[\s\S]*<\/div>/,'');
 }
 
+// True when a surface has been switched off in the Breakdown tab, so it is left
+// out of the scope text as well as the pricing.
+const surfOff=(r,k)=>(r?.excludedSurfaces||[]).includes(k);
+
 // Scope-of-work lines for a room's stairs, shared by the quote and contract
 // generators. Counted components first, then the landing by area.
 function stairScopeLines(r){
@@ -408,6 +412,7 @@ function stairScopeLines(r){
   if(!r.stairs?.enabled) return out;
   STAIR_ITEMS.forEach(it=>{
     if(it.dims) return;
+    if(surfOff(r,`stairs:${it.k}`)) return;
     const p=r.stairs[it.k]||{};
     const n=+p.count||0;
     if(!(n>0)) return;
@@ -415,7 +420,7 @@ function stairScopeLines(r){
     out.push(`Painting ${c} coat${c>1?'s':''} on ${n} stair ${it.label.toLowerCase()}${n>1&&!it.label.endsWith('s')?'s':''}`);
   });
   const ls=roomLandingSqft(r);
-  if(ls>0){
+  if(ls>0 && !surfOff(r,'stairs:landing')){
     const c=r.stairs.landing?.coats||2;
     out.push(`Painting ${c} coat${c>1?'s':''} on ${Math.round(ls)} sqft of stair landing`);
   }
@@ -425,7 +430,7 @@ function stairScopeLines(r){
 // Scope-of-work line for a room's floor.
 function floorScopeLines(r){
   const sq=roomFloorSqft(r);
-  if(!(sq>0)) return [];
+  if(!(sq>0)||surfOff(r,'floor')) return [];
   const c=r.floor?.coats||2;
   return [`Painting ${c} coat${c>1?'s':''} on ${Math.round(sq)} sqft of floor`];
 }
@@ -3052,6 +3057,11 @@ function RoomCard({room,settings,onChange,onRemove,primers,paints,ceilPaints,col
             ))}
             <button onClick={()=>u({supplies:[...(room.supplies||[]),{name:'',qty:1}]})} style={{fontSize:11,padding:'4px 10px',borderRadius:4,border:'1px dashed var(--border)',background:'none',cursor:'pointer',color:'var(--primary)',fontWeight:500}}>+ Add Supply</button>
           </div>
+          <div style={{padding:'14px 16px',borderTop:'1px solid rgba(0,0,0,0.05)'}}>
+            <p style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--muted-fg)',marginBottom:8}}>Notes</p>
+            <textarea value={room.notes||''} onChange={e=>u({notes:e.target.value})} rows={3} placeholder='Notes for this room...'
+              style={{width:'100%',fontSize:12,padding:'6px 8px',border:'1px solid var(--border)',borderRadius:6,background:'var(--card)',color:'var(--fg)',resize:'vertical',fontFamily:'inherit'}}/>
+          </div>
         </div>
       )}
     </div>
@@ -3179,7 +3189,7 @@ function projectHoursAndDays(totalHrs, settings){
 }
 
 // ─── BREAKDOWN TAB ────────────────────────────────────────────────────────────
-function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,swColours,supplies}){
+function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,swColours,supplies,onToggleSurface}){
   const fmtN=n=>Math.round(n).toLocaleString('en-CA');
   const activeRooms=rooms.filter(r=>r.walls.enabled||r.ceiling.enabled||r.baseboards.enabled||r.doors?.enabled||roomDoorCount(r)>0||r.stairs?.enabled||r.floor?.enabled);
   let tWalls=0,tCeil=0,tTrim=0,tDoors=0,tHrs=0,tCost=0;
@@ -3199,7 +3209,8 @@ function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,swColour
   // Shared column widths/alignment so every room's table lines up with the others
   // (each room renders its own table, so auto layout would size them differently).
   const brkCols=[
-    {l:'Surface',           w:'32%', a:'left'},
+    {l:'',                  w:'4%',  a:'center'},
+    {l:'Surface',           w:'28%', a:'left'},
     {l:'Area',              w:'13%', a:'right'},
     {l:'Coats',             w:'9%',  a:'right'},
     {l:'Paintable Surface', w:'19%', a:'right'},
@@ -3229,16 +3240,26 @@ function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,swColour
                 <thead><tr>
                   {brkCols.map((c,i)=><th key={i} style={{...thStyle,textAlign:c.a}}>{c.l}</th>)}
                 </tr></thead>
-                <tbody>{lines.map((ln,i)=>(
+                <tbody>{lines.map((ln,i)=>{
+                  const off=(room.excludedSurfaces||[]).includes(ln.key);
+                  const dim={opacity:off?0.4:1};
+                  const blank=off?'—':null;
+                  return (
                   <tr key={i}>
-                    <td style={{...tdStyle,textAlign:'left'}}>{ln.surface}</td>
-                    <td style={{...tdStyle,textAlign:'right'}}>{fmtN(ln.area)} {ln.areaUnit}</td>
-                    <td style={{...tdStyle,textAlign:'right'}}>{ln.coats}</td>
-                    <td style={{...tdStyle,textAlign:'right'}}>{ln.coats>0?`${fmtN(ln.area*ln.coats)} ${ln.areaUnit}`:'—'}</td>
-                    <td style={{...tdStyle,textAlign:'right'}}>{(ln.hours/nWorkers).toFixed(1)}</td>
-                    <td style={{...tdStyle,textAlign:'right'}}>{fmtCAD((ln.hours/nWorkers)*settings.hourlyRate)}</td>
+                    <td style={{...tdStyle,textAlign:'center'}}>
+                      <input type='checkbox' checked={off} title={off?'Surface is off — click to include':'Turn this surface off'}
+                        onChange={e=>onToggleSurface&&onToggleSurface(room.id,ln.key,e.target.checked)}
+                        style={{width:14,height:14,accentColor:'var(--primary)',cursor:'pointer'}}/>
+                    </td>
+                    <td style={{...tdStyle,textAlign:'left',...dim,textDecoration:off?'line-through':'none'}}>{ln.surface}</td>
+                    <td style={{...tdStyle,textAlign:'right',...dim}}>{blank??`${fmtN(ln.area)} ${ln.areaUnit}`}</td>
+                    <td style={{...tdStyle,textAlign:'right',...dim}}>{blank??ln.coats}</td>
+                    <td style={{...tdStyle,textAlign:'right',...dim}}>{blank??(ln.coats>0?`${fmtN(ln.area*ln.coats)} ${ln.areaUnit}`:'—')}</td>
+                    <td style={{...tdStyle,textAlign:'right',...dim}}>{blank??(ln.hours/nWorkers).toFixed(1)}</td>
+                    <td style={{...tdStyle,textAlign:'right',...dim}}>{blank??fmtCAD((ln.hours/nWorkers)*settings.hourlyRate)}</td>
                   </tr>
-                ))}</tbody>
+                  );
+                })}</tbody>
               </table>
             </div>
           ))}
@@ -3410,18 +3431,18 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
               const prepItems=Object.entries(r.prep).filter(([k,v])=>v&&k!=='custom').map(([k])=>prepLabelsMap[k]||k).filter(Boolean);
               if(r.prep?.custom) prepItems.push(r.prep.custom);
               const surfaces=[];
-              if(r.walls.enabled) surfaces.push(`${r.walls.coats} coat${r.walls.coats>1?'s':''} on walls — ${fmtN(c.wallSqft)} square feet`);
-              if(r.ceiling.enabled) surfaces.push(`${r.ceiling.coats} coat${r.ceiling.coats>1?'s':''} on ceiling — ${fmtN(c.ceilSqft)} square feet`);
-              if(r.baseboards.enabled) surfaces.push(`${r.baseboards.coats} coat${r.baseboards.coats>1?'s':''} on baseboards`);
-              if(r.crown.enabled) surfaces.push(`${r.crown.coats} coat${r.crown.coats>1?'s':''} on crown moulding`);
-              if(r.doorFrames?.enabled) surfaces.push(`${r.doorFrames.coats} coat${r.doorFrames.coats>1?'s':''} on door frames`);
+              if(r.walls.enabled&&!surfOff(r,'walls')) surfaces.push(`${r.walls.coats} coat${r.walls.coats>1?'s':''} on walls — ${fmtN(c.wallSqft)} square feet`);
+              if(r.ceiling.enabled&&!surfOff(r,'ceiling')) surfaces.push(`${r.ceiling.coats} coat${r.ceiling.coats>1?'s':''} on ceiling — ${fmtN(c.ceilSqft)} square feet`);
+              if(r.baseboards.enabled&&!surfOff(r,'baseboards')) surfaces.push(`${r.baseboards.coats} coat${r.baseboards.coats>1?'s':''} on baseboards`);
+              if(r.crown.enabled&&!surfOff(r,'crown')) surfaces.push(`${r.crown.coats} coat${r.crown.coats>1?'s':''} on crown moulding`);
+              if(r.doorFrames?.enabled&&!surfOff(r,'doorFrames')) surfaces.push(`${r.doorFrames.coats} coat${r.doorFrames.coats>1?'s':''} on door frames`);
               if(r.doors?.enabled){
                 [['Flat','flat'],['6 Panel','sixPanel'],['Custom','custom']].forEach(([label,key])=>{
-                  const dt=r.doors[key];if(dt?.count>0) surfaces.push(`${dt.count} ${label} door${dt.count>1?'s':''} — ${dt.coats} coat${dt.coats>1?'s':''}`);
+                  const dt=r.doors[key];if(dt?.count>0&&!surfOff(r,`doors:${key}`)) surfaces.push(`${dt.count} ${label} door${dt.count>1?'s':''} — ${dt.coats} coat${dt.coats>1?'s':''}`);
                 });
-              } else if(r.doors?.count>0) surfaces.push(`${r.doors.count} door${r.doors.count>1?'s':''} — ${r.doors.coats} coat${r.doors.coats>1?'s':''}`);
-              if(r.windows?.enabled&&roomWindowLF(r)>0) surfaces.push(`${r.windows.dims?.length||0} window${(r.windows.dims?.length||0)>1?'s':''} — ${r.windows.coats} coat${r.windows.coats>1?'s':''}`);
-              else if(r.windows?.count>0) surfaces.push(`${r.windows.count} window${r.windows.count>1?'s':''} — ${r.windows.coats} coat${r.windows.coats>1?'s':''}`);
+              } else if(r.doors?.count>0&&!surfOff(r,'doors')) surfaces.push(`${r.doors.count} door${r.doors.count>1?'s':''} — ${r.doors.coats} coat${r.doors.coats>1?'s':''}`);
+              if(r.windows?.enabled&&roomWindowLF(r)>0&&!surfOff(r,'windows')) surfaces.push(`${r.windows.dims?.length||0} window${(r.windows.dims?.length||0)>1?'s':''} — ${r.windows.coats} coat${r.windows.coats>1?'s':''}`);
+              else if(r.windows?.count>0&&!surfOff(r,'windows')) surfaces.push(`${r.windows.count} window${r.windows.count>1?'s':''} — ${r.windows.coats} coat${r.windows.coats>1?'s':''}`);
               stairScopeLines(r).forEach(l=>surfaces.push(l));
     floorScopeLines(r).forEach(l=>surfaces.push(l));
               const mats=roomMaterials(r);
@@ -3592,7 +3613,7 @@ function ContractTab({rooms,settings,client,totals}){
             <th style={{textAlign:'left',padding:'6px 8px',borderBottom:'2px solid #e5e5e5',color:'#888',fontWeight:600}}>Prep</th>
           </tr></thead>
           <tbody>{rooms.map(r=>{
-            const surfLines=calcRoomLines(r,settings).filter(ln=>ln.coats>0);
+            const surfLines=calcRoomLines(r,settings).filter(ln=>ln.coats>0&&!surfOff(r,ln.key));
             const prep=roomPrep(r);
             return (
               <tr key={r.id}>
@@ -4429,9 +4450,9 @@ function MasterEstimate(){
       const roomPaintableSqft=(r)=>{
         const c=calcRoom(r,settings);
         let a=0;
-        if(r.walls?.enabled) a+=c.wallSqft;
-        if(r.ceiling?.enabled) a+=c.ceilSqft;
-        if(r.baseboards?.enabled||r.crown?.enabled||r.doorFrames?.enabled||r.windows?.enabled) a+=roomTrimLF(r);
+        if(r.walls?.enabled&&!surfOff(r,'walls')) a+=c.wallSqft;
+        if(r.ceiling?.enabled&&!surfOff(r,'ceiling')) a+=c.ceilSqft;
+        a+=roomTrimLF(r);
         a+=roomDoorCount(r)*21;
         return Math.max(1,Math.round(a));
       };
@@ -4524,6 +4545,11 @@ function MasterEstimate(){
         )}
         {activeTab==='breakdown'&&(
           <BreakdownTab rooms={rooms} settings={settings}
+            onToggleSurface={(roomId,key,off)=>setRooms(rs=>rs.map(r=>{
+              if(r.id!==roomId) return r;
+              const cur=Array.isArray(r.excludedSurfaces)?r.excludedSurfaces:[];
+              return {...r,excludedSurfaces:off?[...new Set([...cur,key])]:cur.filter(k=>k!==key)};
+            }))}
             paints={ps.paints} ceilPaints={ps.ceilPaints} primers={ps.primers} colours={ps.colours} swColours={ps.swColours} supplies={ps.supplies}/>
         )}
         {activeTab==='quote'&&(
@@ -4743,22 +4769,22 @@ function buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,pri
   rooms.forEach(r=>{
     const c=calcRoom(r,settings);
     const lines=[],prepItems=[];
-    if(r.ceiling?.enabled && r.ceiling.removeStucco && c.ceilSqft) lines.push(`Removing ${fmtN(c.ceilSqft)} square feet of stucco ceiling`);
-    if(r.walls?.enabled && c.wallSqft) lines.push(`Painting ${r.walls.coats} coat${r.walls.coats>1?'s':''} on ${fmtN(c.wallSqft)} square feet of walls`);
-    if(r.ceiling?.enabled && c.ceilSqft) lines.push(`Painting ${r.ceiling.coats} coat${r.ceiling.coats>1?'s':''} on ${fmtN(c.ceilSqft)} square feet of ceilings`);
-    if(r.baseboards?.enabled && c.perimLF) lines.push(`Painting ${r.baseboards.coats} coat${r.baseboards.coats>1?'s':''} on ${fmtN(c.perimLF)} linear feet of baseboards`);
-    if(r.crown?.enabled && c.perimLF) lines.push(`Painting ${r.crown.coats} coat${r.crown.coats>1?'s':''} on ${fmtN(c.perimLF)} linear feet of crown moulding`);
+    if(r.ceiling?.enabled && r.ceiling.removeStucco && c.ceilSqft && !surfOff(r,'removeStucco')) lines.push(`Removing ${fmtN(c.ceilSqft)} square feet of stucco ceiling`);
+    if(r.walls?.enabled && c.wallSqft && !surfOff(r,'walls')) lines.push(`Painting ${r.walls.coats} coat${r.walls.coats>1?'s':''} on ${fmtN(c.wallSqft)} square feet of walls`);
+    if(r.ceiling?.enabled && c.ceilSqft && !surfOff(r,'ceiling')) lines.push(`Painting ${r.ceiling.coats} coat${r.ceiling.coats>1?'s':''} on ${fmtN(c.ceilSqft)} square feet of ceilings`);
+    if(r.baseboards?.enabled && c.perimLF && !surfOff(r,'baseboards')) lines.push(`Painting ${r.baseboards.coats} coat${r.baseboards.coats>1?'s':''} on ${fmtN(c.perimLF)} linear feet of baseboards`);
+    if(r.crown?.enabled && c.perimLF && !surfOff(r,'crown')) lines.push(`Painting ${r.crown.coats} coat${r.crown.coats>1?'s':''} on ${fmtN(c.perimLF)} linear feet of crown moulding`);
     if(r.doors?.enabled){
       const fl=r.doors.flat||{};const sp=r.doors.sixPanel||{};const cu=r.doors.custom||{};
-      if(fl.count>0) lines.push(`Painting ${fl.coats||2} coat${(fl.coats||2)>1?'s':''} on ${fl.count} flat door${fl.count>1?'s':''}`);
-      if(sp.count>0) lines.push(`Painting ${sp.coats||2} coat${(sp.coats||2)>1?'s':''} on ${sp.count} six-panel door${sp.count>1?'s':''}`);
-      if(cu.count>0) lines.push(`Painting ${cu.coats||2} coat${(cu.coats||2)>1?'s':''} on ${cu.count} custom door${cu.count>1?'s':''}`);
-    } else if(r.doors?.count>0){
+      if(fl.count>0 && !surfOff(r,'doors:flat')) lines.push(`Painting ${fl.coats||2} coat${(fl.coats||2)>1?'s':''} on ${fl.count} flat door${fl.count>1?'s':''}`);
+      if(sp.count>0 && !surfOff(r,'doors:sixPanel')) lines.push(`Painting ${sp.coats||2} coat${(sp.coats||2)>1?'s':''} on ${sp.count} six-panel door${sp.count>1?'s':''}`);
+      if(cu.count>0 && !surfOff(r,'doors:custom')) lines.push(`Painting ${cu.coats||2} coat${(cu.coats||2)>1?'s':''} on ${cu.count} custom door${cu.count>1?'s':''}`);
+    } else if(r.doors?.count>0 && !surfOff(r,'doors')){
       lines.push(`Painting ${r.doors.coats||2} coat${(r.doors.coats||2)>1?'s':''} on ${r.doors.count} door${r.doors.count>1?'s':''}`);
     }
     const wc=r.windows?.dims?.length||0;
-    if(r.windows?.enabled && wc>0) lines.push(`Painting ${r.windows.coats||2} coat${(r.windows.coats||2)>1?'s':''} on ${wc} window${wc>1?'s':''}`);
-    if(r.doorFrames?.enabled && c.perimLF) lines.push(`Painting ${r.doorFrames.coats||2} coat${(r.doorFrames.coats||2)>1?'s':''} on door frames`);
+    if(r.windows?.enabled && wc>0 && !surfOff(r,'windows')) lines.push(`Painting ${r.windows.coats||2} coat${(r.windows.coats||2)>1?'s':''} on ${wc} window${wc>1?'s':''}`);
+    if(r.doorFrames?.enabled && c.perimLF && !surfOff(r,'doorFrames')) lines.push(`Painting ${r.doorFrames.coats||2} coat${(r.doorFrames.coats||2)>1?'s':''} on door frames`);
     stairScopeLines(r).forEach(l=>lines.push(l));
     floorScopeLines(r).forEach(l=>lines.push(l));
     Object.entries(prepLabelsMap).forEach(([k,v])=>{if(r.prep?.[k])prepItems.push(v);});
@@ -4806,22 +4832,22 @@ function buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,pri
     const scopeLines=[];const scopePrep=[];
     Object.entries(prepLabelsMap).forEach(([k,v])=>{if(r.prep?.[k])scopePrep.push(v);});
     if(r.prep?.custom) scopePrep.push(r.prep.custom);
-    if(r.ceiling?.enabled && r.ceiling.removeStucco && c.ceilSqft) scopeLines.push(`Removing ${fmtN(c.ceilSqft)} square feet of stucco ceiling`);
-    if(r.walls?.enabled && c.wallSqft) scopeLines.push(`Painting ${r.walls.coats} coat${r.walls.coats>1?'s':''} on ${fmtN(c.wallSqft)} square feet of walls`);
-    if(r.ceiling?.enabled && c.ceilSqft) scopeLines.push(`Painting ${r.ceiling.coats} coat${r.ceiling.coats>1?'s':''} on ${fmtN(c.ceilSqft)} square feet of ceilings`);
-    if(r.baseboards?.enabled && c.perimLF) scopeLines.push(`Painting ${r.baseboards.coats} coat${r.baseboards.coats>1?'s':''} on ${fmtN(c.perimLF)} linear feet of baseboards`);
-    if(r.crown?.enabled && c.perimLF) scopeLines.push(`Painting ${r.crown.coats} coat${r.crown.coats>1?'s':''} on ${fmtN(c.perimLF)} linear feet of crown moulding`);
+    if(r.ceiling?.enabled && r.ceiling.removeStucco && c.ceilSqft && !surfOff(r,'removeStucco')) scopeLines.push(`Removing ${fmtN(c.ceilSqft)} square feet of stucco ceiling`);
+    if(r.walls?.enabled && c.wallSqft && !surfOff(r,'walls')) scopeLines.push(`Painting ${r.walls.coats} coat${r.walls.coats>1?'s':''} on ${fmtN(c.wallSqft)} square feet of walls`);
+    if(r.ceiling?.enabled && c.ceilSqft && !surfOff(r,'ceiling')) scopeLines.push(`Painting ${r.ceiling.coats} coat${r.ceiling.coats>1?'s':''} on ${fmtN(c.ceilSqft)} square feet of ceilings`);
+    if(r.baseboards?.enabled && c.perimLF && !surfOff(r,'baseboards')) scopeLines.push(`Painting ${r.baseboards.coats} coat${r.baseboards.coats>1?'s':''} on ${fmtN(c.perimLF)} linear feet of baseboards`);
+    if(r.crown?.enabled && c.perimLF && !surfOff(r,'crown')) scopeLines.push(`Painting ${r.crown.coats} coat${r.crown.coats>1?'s':''} on ${fmtN(c.perimLF)} linear feet of crown moulding`);
     if(r.doors?.enabled){
       const fl=r.doors.flat||{};const sp=r.doors.sixPanel||{};const cu=r.doors.custom||{};
-      if(fl.count>0) scopeLines.push(`Painting ${fl.coats||2} coat${(fl.coats||2)>1?'s':''} on ${fl.count} flat door${fl.count>1?'s':''}`);
-      if(sp.count>0) scopeLines.push(`Painting ${sp.coats||2} coat${(sp.coats||2)>1?'s':''} on ${sp.count} six-panel door${sp.count>1?'s':''}`);
-      if(cu.count>0) scopeLines.push(`Painting ${cu.coats||2} coat${(cu.coats||2)>1?'s':''} on ${cu.count} custom door${cu.count>1?'s':''}`);
-    } else if(r.doors?.count>0){
+      if(fl.count>0 && !surfOff(r,'doors:flat')) scopeLines.push(`Painting ${fl.coats||2} coat${(fl.coats||2)>1?'s':''} on ${fl.count} flat door${fl.count>1?'s':''}`);
+      if(sp.count>0 && !surfOff(r,'doors:sixPanel')) scopeLines.push(`Painting ${sp.coats||2} coat${(sp.coats||2)>1?'s':''} on ${sp.count} six-panel door${sp.count>1?'s':''}`);
+      if(cu.count>0 && !surfOff(r,'doors:custom')) scopeLines.push(`Painting ${cu.coats||2} coat${(cu.coats||2)>1?'s':''} on ${cu.count} custom door${cu.count>1?'s':''}`);
+    } else if(r.doors?.count>0 && !surfOff(r,'doors')){
       scopeLines.push(`Painting ${r.doors.coats||2} coat${(r.doors.coats||2)>1?'s':''} on ${r.doors.count} door${r.doors.count>1?'s':''}`);
     }
     const wc=r.windows?.dims?.length||0;
-    if(r.windows?.enabled && wc>0) scopeLines.push(`Painting ${r.windows.coats||2} coat${(r.windows.coats||2)>1?'s':''} on ${wc} window${wc>1?'s':''}`);
-    if(r.doorFrames?.enabled && c.perimLF) scopeLines.push(`Painting ${r.doorFrames.coats||2} coat${(r.doorFrames.coats||2)>1?'s':''} on door frames`);
+    if(r.windows?.enabled && wc>0 && !surfOff(r,'windows')) scopeLines.push(`Painting ${r.windows.coats||2} coat${(r.windows.coats||2)>1?'s':''} on ${wc} window${wc>1?'s':''}`);
+    if(r.doorFrames?.enabled && c.perimLF && !surfOff(r,'doorFrames')) scopeLines.push(`Painting ${r.doorFrames.coats||2} coat${(r.doorFrames.coats||2)>1?'s':''} on door frames`);
     stairScopeLines(r).forEach(l=>scopeLines.push(l));
     floorScopeLines(r).forEach(l=>scopeLines.push(l));
     html+='<div class="scope-room">';

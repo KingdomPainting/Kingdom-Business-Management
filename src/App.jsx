@@ -4450,9 +4450,9 @@ function MasterEstimate(){
       const roomPaintableSqft=(r)=>{
         const c=calcRoom(r,settings);
         let a=0;
-        if(r.walls?.enabled) a+=c.wallSqft;
-        if(r.ceiling?.enabled) a+=c.ceilSqft;
-        if(r.baseboards?.enabled||r.crown?.enabled||r.doorFrames?.enabled||r.windows?.enabled) a+=roomTrimLF(r);
+        if(r.walls?.enabled&&!surfOff(r,'walls')) a+=c.wallSqft;
+        if(r.ceiling?.enabled&&!surfOff(r,'ceiling')) a+=c.ceilSqft;
+        a+=roomTrimLF(r);
         a+=roomDoorCount(r)*21;
         return Math.max(1,Math.round(a));
       };

@@ -205,11 +205,12 @@ export function roomDoorCount(room){
 }
 export function roomTrimLF(room){
   const p = roomPerimLF(room);
+  const ex = roomExcluded(room);
   let lf = 0;
-  if(room.baseboards?.enabled) lf += p;
-  if(room.crown?.enabled) lf += p;
-  if(room.doorFrames?.enabled) lf += p;
-  if(room.windows?.enabled) lf += roomWindowLF(room);
+  if(room.baseboards?.enabled && !ex.has('baseboards')) lf += p;
+  if(room.crown?.enabled && !ex.has('crown')) lf += p;
+  if(room.doorFrames?.enabled && !ex.has('doorFrames')) lf += p;
+  if(room.windows?.enabled && !ex.has('windows')) lf += roomWindowLF(room);
   return lf;
 }
 
@@ -389,39 +390,45 @@ export function calcPaintCosts(rooms, allPaints, allCeilPaints, allPrimers, allC
     colMap[key].area += area;
   };
   rooms.forEach(r=>{
+    // Surfaces switched off in the Breakdown tab buy no paint.
+    const ex = roomExcluded(r);
+    const on = k => !ex.has(k);
     const ws = roomWallSqft(r), cs = roomCeilSqft(r);
     const trimLF = roomTrimLF(r);
     // Paintable surface = area × number of coats (each coat covers the surface once)
     const perim = roomPerimLF(r);
     const trimCoated =
-      (r.baseboards?.enabled ? perim*(r.baseboards.coats||2) : 0) +
-      (r.crown?.enabled ? perim*(r.crown.coats||2) : 0) +
-      (r.doorFrames?.enabled ? perim*(r.doorFrames.coats||2) : 0) +
-      (r.windows?.enabled ? roomWindowLF(r)*(r.windows.coats||2) : 0);
-    if(r.walls?.enabled && ws){
+      (r.baseboards?.enabled && on('baseboards') ? perim*(r.baseboards.coats||2) : 0) +
+      (r.crown?.enabled && on('crown') ? perim*(r.crown.coats||2) : 0) +
+      (r.doorFrames?.enabled && on('doorFrames') ? perim*(r.doorFrames.coats||2) : 0) +
+      (r.windows?.enabled && on('windows') ? roomWindowLF(r)*(r.windows.coats||2) : 0);
+    if(r.walls?.enabled && ws && on('walls')){
       if(r.walls.coats===3 && r.paint?.wallsPrimer){ addCol(r.paint.wallsPrimer,'','','Walls (Primer)',ws); addCol(r.paint.wallProduct,r.paint.wallColour,r.paint.wallSheen,'Walls (2 Coats)',ws*2); }
       else addCol(r.paint?.wallProduct,r.paint?.wallColour,r.paint?.wallSheen,'Walls',ws*(r.walls.coats||1));
     }
-    if(r.ceiling?.enabled && cs){
+    if(r.ceiling?.enabled && cs && on('ceiling')){
       if(r.ceiling.coats===3 && r.paint?.ceilingPrimer){ addCol(r.paint.ceilingPrimer,'','','Ceiling (Primer)',cs); addCol(r.paint.ceilProduct,r.paint.ceilColour,r.paint.ceilSheen,'Ceiling (2 Coats)',cs*2); }
       else addCol(r.paint?.ceilProduct,r.paint?.ceilColour,r.paint?.ceilSheen,'Ceiling',cs*(r.ceiling.coats||1));
     }
-    const hasTrim = r.baseboards?.enabled || r.crown?.enabled || r.doorFrames?.enabled || r.windows?.enabled || r.doors?.enabled || (r.windows?.count>0) || (r.doors?.count>0);
+    const doorsOn = r.doors?.enabled
+      ? ((r.doors.flat?.count>0 && on('doors:flat')) || (r.doors.sixPanel?.count>0 && on('doors:sixPanel')) || (r.doors.custom?.count>0 && on('doors:custom')))
+      : (r.doors?.count>0 && on('doors'));
+    const hasTrim = trimLF>0 || doorsOn || (r.windows?.count>0 && on('windows'));
     if(hasTrim && trimLF){
-      const needsPrimer = (r.baseboards?.coats===3||r.crown?.coats===3||r.doorFrames?.coats===3||r.doors?.coats===3||r.windows?.coats===3||r.doors?.flat?.coats===3||r.doors?.sixPanel?.coats===3||r.doors?.custom?.coats===3) && r.paint?.trimPrimer;
+      const needsPrimer = ((r.baseboards?.coats===3&&on('baseboards'))||(r.crown?.coats===3&&on('crown'))||(r.doorFrames?.coats===3&&on('doorFrames'))||(r.doors?.coats===3&&on('doors'))||(r.windows?.coats===3&&on('windows'))||(r.doors?.flat?.coats===3&&on('doors:flat'))||(r.doors?.sixPanel?.coats===3&&on('doors:sixPanel'))||(r.doors?.custom?.coats===3&&on('doors:custom'))) && r.paint?.trimPrimer;
       if(needsPrimer){ addCol(r.paint.trimPrimer,'','','Trim (Primer)',trimLF); addCol(r.paint.trimProduct,r.paint.trimColour,r.paint.trimSheen,'Trim (2 Coats)',trimLF*2); }
       else addCol(r.paint?.trimProduct,r.paint?.trimColour,r.paint?.trimSheen,'Trim',trimCoated);
     }
     // Stairs: only the landing has a measured area, so paint quantity is based on
     // that; the counted components (treads, balusters, …) carry no sqft figure.
     const landSqft = roomLandingSqft(r);
-    if(r.stairs?.enabled && landSqft){
+    if(r.stairs?.enabled && landSqft && on('stairs:landing')){
       const lc = r.stairs.landing?.coats||2;
       if(lc===3 && r.paint?.stairsPrimer){ addCol(r.paint.stairsPrimer,'','','Stairs (Primer)',landSqft); addCol(r.paint.stairsProduct,r.paint.stairsColour,r.paint.stairsSheen,'Stairs (2 Coats)',landSqft*2); }
       else addCol(r.paint?.stairsProduct,r.paint?.stairsColour,r.paint?.stairsSheen,'Stairs',landSqft*lc);
     }
     const flSqft = roomFloorSqft(r);
-    if(flSqft){
+    if(flSqft && on('floor')){
       const fc = r.floor?.coats||2;
       if(fc===3 && r.paint?.floorPrimer){ addCol(r.paint.floorPrimer,'','','Floor (Primer)',flSqft); addCol(r.paint.floorProduct,r.paint.floorColour,r.paint.floorSheen,'Floor (2 Coats)',flSqft*2); }
       else addCol(r.paint?.floorProduct,r.paint?.floorColour,r.paint?.floorSheen,'Floor',flSqft*fc);

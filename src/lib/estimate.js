@@ -440,7 +440,9 @@ export function calcPaintCosts(rooms, allPaints, allCeilPaints, allPrimers, allC
   const allProducts = [...(allPaints||[]),...(allCeilPaints||[]),...(allPrimers||[])];
   let total = 0;
   const lines = Object.values(colMap).map(cm=>{
-    const sqft = cm.area;
+    // Quantity and cost are based on the plain surface area, matching the Sqft
+    // column, rather than the coated area (cm.area = area x coats).
+    const sqft = cm.rawArea;
     const pObj = allProducts.find(p=>p.n===cm.product);
     // Quantity: 1 gallon covers 350 sqft, 1 pail (5 gal) covers 1900 sqft
     let qtyStr = '—', gallons = 0, pails = 0, extraGallons = 0;

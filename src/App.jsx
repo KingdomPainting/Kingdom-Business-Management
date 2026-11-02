@@ -3196,6 +3196,16 @@ function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,swColour
   const statVal={fontSize:20,fontWeight:700,marginTop:4};
   const thStyle={fontSize:11,fontWeight:600,textAlign:'left',padding:'8px 10px',borderBottom:'2px solid var(--border)',color:'var(--muted-fg)'};
   const tdStyle={fontSize:12,padding:'7px 10px',borderBottom:'1px solid var(--border)'};
+  // Shared column widths/alignment so every room's table lines up with the others
+  // (each room renders its own table, so auto layout would size them differently).
+  const brkCols=[
+    {l:'Surface',           w:'32%', a:'left'},
+    {l:'Area',              w:'13%', a:'right'},
+    {l:'Coats',             w:'9%',  a:'right'},
+    {l:'Paintable Surface', w:'19%', a:'right'},
+    {l:'Hours',             w:'10%', a:'right'},
+    {l:'Cost',              w:'17%', a:'right'},
+  ];
   return (
     <div style={{padding:24,overflow:'auto',maxHeight:'100%'}}>
       <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:24}}>
@@ -3214,18 +3224,18 @@ function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,swColour
           {roomCalcs.map(({room,calc,lines})=>(
             <div key={room.id} style={{marginBottom:16}}>
               <p style={{fontSize:12,fontWeight:600,marginBottom:6}}>{room.name} <span style={{color:'var(--muted-fg)',fontWeight:400}}>({fmtCAD((calc.totalHrs/nWorkers)*settings.hourlyRate)})</span></p>
-              <table style={{width:'100%',borderCollapse:'collapse'}}>
+              <table style={{width:'100%',borderCollapse:'collapse',tableLayout:'fixed'}}>
+                <colgroup>{brkCols.map((c,i)=><col key={i} style={{width:c.w}}/>)}</colgroup>
                 <thead><tr>
-                  <th style={thStyle}>Surface</th><th style={thStyle}>Area</th><th style={thStyle}>Coats</th>
-                  <th style={thStyle}>Paintable Surface</th><th style={thStyle}>Hours</th><th style={{...thStyle,textAlign:'right'}}>Cost</th>
+                  {brkCols.map((c,i)=><th key={i} style={{...thStyle,textAlign:c.a}}>{c.l}</th>)}
                 </tr></thead>
                 <tbody>{lines.map((ln,i)=>(
                   <tr key={i}>
-                    <td style={tdStyle}>{ln.surface}</td>
-                    <td style={tdStyle}>{fmtN(ln.area)} {ln.areaUnit}</td>
-                    <td style={tdStyle}>{ln.coats}</td>
-                    <td style={tdStyle}>{ln.coats>0?`${fmtN(ln.area*ln.coats)} ${ln.areaUnit}`:'—'}</td>
-                    <td style={tdStyle}>{(ln.hours/nWorkers).toFixed(1)}</td>
+                    <td style={{...tdStyle,textAlign:'left'}}>{ln.surface}</td>
+                    <td style={{...tdStyle,textAlign:'right'}}>{fmtN(ln.area)} {ln.areaUnit}</td>
+                    <td style={{...tdStyle,textAlign:'right'}}>{ln.coats}</td>
+                    <td style={{...tdStyle,textAlign:'right'}}>{ln.coats>0?`${fmtN(ln.area*ln.coats)} ${ln.areaUnit}`:'—'}</td>
+                    <td style={{...tdStyle,textAlign:'right'}}>{(ln.hours/nWorkers).toFixed(1)}</td>
                     <td style={{...tdStyle,textAlign:'right'}}>{fmtCAD((ln.hours/nWorkers)*settings.hourlyRate)}</td>
                   </tr>
                 ))}</tbody>

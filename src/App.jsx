@@ -3052,6 +3052,11 @@ function RoomCard({room,settings,onChange,onRemove,primers,paints,ceilPaints,col
             ))}
             <button onClick={()=>u({supplies:[...(room.supplies||[]),{name:'',qty:1}]})} style={{fontSize:11,padding:'4px 10px',borderRadius:4,border:'1px dashed var(--border)',background:'none',cursor:'pointer',color:'var(--primary)',fontWeight:500}}>+ Add Supply</button>
           </div>
+          <div style={{padding:'14px 16px',borderTop:'1px solid rgba(0,0,0,0.05)'}}>
+            <p style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--muted-fg)',marginBottom:8}}>Notes</p>
+            <textarea value={room.notes||''} onChange={e=>u({notes:e.target.value})} rows={3} placeholder='Notes for this room...'
+              style={{width:'100%',fontSize:12,padding:'6px 8px',border:'1px solid var(--border)',borderRadius:6,background:'var(--card)',color:'var(--fg)',resize:'vertical',fontFamily:'inherit'}}/>
+          </div>
         </div>
       )}
     </div>

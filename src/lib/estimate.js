@@ -383,11 +383,14 @@ export function calcRoomLines(room, settings){
 
 export function calcPaintCosts(rooms, allPaints, allCeilPaints, allPrimers, allColours, matBuffer){
   const colMap = {};
-  const addCol = (product,colour,sheen,surface,area)=>{
+  // `area` is the coated area (area x coats) and drives quantity and cost.
+  // `raw` is the plain surface area, carried through for display only.
+  const addCol = (product,colour,sheen,surface,area,raw)=>{
     if(!product||!area) return;
     const key = `${product}·${colour||''}·${sheen||''}·${surface}`;
-    if(!colMap[key]) colMap[key] = {product,colour:colour||'',sheen:sheen||'',surface,area:0};
+    if(!colMap[key]) colMap[key] = {product,colour:colour||'',sheen:sheen||'',surface,area:0,rawArea:0};
     colMap[key].area += area;
+    colMap[key].rawArea += (raw===undefined?area:raw);
   };
   rooms.forEach(r=>{
     // Surfaces switched off in the Breakdown tab buy no paint.
@@ -403,12 +406,12 @@ export function calcPaintCosts(rooms, allPaints, allCeilPaints, allPrimers, allC
       (r.doorFrames?.enabled && on('doorFrames') ? perim*(r.doorFrames.coats||2) : 0) +
       (r.windows?.enabled && on('windows') ? roomWindowLF(r)*(r.windows.coats||2) : 0);
     if(r.walls?.enabled && ws && on('walls')){
-      if(r.walls.coats===3 && r.paint?.wallsPrimer){ addCol(r.paint.wallsPrimer,'','','Walls (Primer)',ws); addCol(r.paint.wallProduct,r.paint.wallColour,r.paint.wallSheen,'Walls (2 Coats)',ws*2); }
-      else addCol(r.paint?.wallProduct,r.paint?.wallColour,r.paint?.wallSheen,'Walls',ws*(r.walls.coats||1));
+      if(r.walls.coats===3 && r.paint?.wallsPrimer){ addCol(r.paint.wallsPrimer,'','','Walls (Primer)',ws,ws); addCol(r.paint.wallProduct,r.paint.wallColour,r.paint.wallSheen,'Walls (2 Coats)',ws*2,ws); }
+      else addCol(r.paint?.wallProduct,r.paint?.wallColour,r.paint?.wallSheen,'Walls',ws*(r.walls.coats||1),ws);
     }
     if(r.ceiling?.enabled && cs && on('ceiling')){
-      if(r.ceiling.coats===3 && r.paint?.ceilingPrimer){ addCol(r.paint.ceilingPrimer,'','','Ceiling (Primer)',cs); addCol(r.paint.ceilProduct,r.paint.ceilColour,r.paint.ceilSheen,'Ceiling (2 Coats)',cs*2); }
-      else addCol(r.paint?.ceilProduct,r.paint?.ceilColour,r.paint?.ceilSheen,'Ceiling',cs*(r.ceiling.coats||1));
+      if(r.ceiling.coats===3 && r.paint?.ceilingPrimer){ addCol(r.paint.ceilingPrimer,'','','Ceiling (Primer)',cs,cs); addCol(r.paint.ceilProduct,r.paint.ceilColour,r.paint.ceilSheen,'Ceiling (2 Coats)',cs*2,cs); }
+      else addCol(r.paint?.ceilProduct,r.paint?.ceilColour,r.paint?.ceilSheen,'Ceiling',cs*(r.ceiling.coats||1),cs);
     }
     const doorsOn = r.doors?.enabled
       ? ((r.doors.flat?.count>0 && on('doors:flat')) || (r.doors.sixPanel?.count>0 && on('doors:sixPanel')) || (r.doors.custom?.count>0 && on('doors:custom')))
@@ -416,22 +419,22 @@ export function calcPaintCosts(rooms, allPaints, allCeilPaints, allPrimers, allC
     const hasTrim = trimLF>0 || doorsOn || (r.windows?.count>0 && on('windows'));
     if(hasTrim && trimLF){
       const needsPrimer = ((r.baseboards?.coats===3&&on('baseboards'))||(r.crown?.coats===3&&on('crown'))||(r.doorFrames?.coats===3&&on('doorFrames'))||(r.doors?.coats===3&&on('doors'))||(r.windows?.coats===3&&on('windows'))||(r.doors?.flat?.coats===3&&on('doors:flat'))||(r.doors?.sixPanel?.coats===3&&on('doors:sixPanel'))||(r.doors?.custom?.coats===3&&on('doors:custom'))) && r.paint?.trimPrimer;
-      if(needsPrimer){ addCol(r.paint.trimPrimer,'','','Trim (Primer)',trimLF); addCol(r.paint.trimProduct,r.paint.trimColour,r.paint.trimSheen,'Trim (2 Coats)',trimLF*2); }
-      else addCol(r.paint?.trimProduct,r.paint?.trimColour,r.paint?.trimSheen,'Trim',trimCoated);
+      if(needsPrimer){ addCol(r.paint.trimPrimer,'','','Trim (Primer)',trimLF,trimLF); addCol(r.paint.trimProduct,r.paint.trimColour,r.paint.trimSheen,'Trim (2 Coats)',trimLF*2,trimLF); }
+      else addCol(r.paint?.trimProduct,r.paint?.trimColour,r.paint?.trimSheen,'Trim',trimCoated,trimLF);
     }
     // Stairs: only the landing has a measured area, so paint quantity is based on
     // that; the counted components (treads, balusters, …) carry no sqft figure.
     const landSqft = roomLandingSqft(r);
     if(r.stairs?.enabled && landSqft && on('stairs:landing')){
       const lc = r.stairs.landing?.coats||2;
-      if(lc===3 && r.paint?.stairsPrimer){ addCol(r.paint.stairsPrimer,'','','Stairs (Primer)',landSqft); addCol(r.paint.stairsProduct,r.paint.stairsColour,r.paint.stairsSheen,'Stairs (2 Coats)',landSqft*2); }
-      else addCol(r.paint?.stairsProduct,r.paint?.stairsColour,r.paint?.stairsSheen,'Stairs',landSqft*lc);
+      if(lc===3 && r.paint?.stairsPrimer){ addCol(r.paint.stairsPrimer,'','','Stairs (Primer)',landSqft,landSqft); addCol(r.paint.stairsProduct,r.paint.stairsColour,r.paint.stairsSheen,'Stairs (2 Coats)',landSqft*2,landSqft); }
+      else addCol(r.paint?.stairsProduct,r.paint?.stairsColour,r.paint?.stairsSheen,'Stairs',landSqft*lc,landSqft);
     }
     const flSqft = roomFloorSqft(r);
     if(flSqft && on('floor')){
       const fc = r.floor?.coats||2;
-      if(fc===3 && r.paint?.floorPrimer){ addCol(r.paint.floorPrimer,'','','Floor (Primer)',flSqft); addCol(r.paint.floorProduct,r.paint.floorColour,r.paint.floorSheen,'Floor (2 Coats)',flSqft*2); }
-      else addCol(r.paint?.floorProduct,r.paint?.floorColour,r.paint?.floorSheen,'Floor',flSqft*fc);
+      if(fc===3 && r.paint?.floorPrimer){ addCol(r.paint.floorPrimer,'','','Floor (Primer)',flSqft,flSqft); addCol(r.paint.floorProduct,r.paint.floorColour,r.paint.floorSheen,'Floor (2 Coats)',flSqft*2,flSqft); }
+      else addCol(r.paint?.floorProduct,r.paint?.floorColour,r.paint?.floorSheen,'Floor',flSqft*fc,flSqft);
     }
   });
   const allProducts = [...(allPaints||[]),...(allCeilPaints||[]),...(allPrimers||[])];
@@ -463,7 +466,7 @@ export function calcPaintCosts(rooms, allPaints, allCeilPaints, allPrimers, allC
     }
     total += lineCost;
     const hex = cm.colour ? ((allColours||[]).find(c=>c.n===cm.colour)?.h||'#ccc') : '';
-    return { ...cm, sqft, qtyStr, lineCost, hex };
+    return { ...cm, sqft, sqftRaw: cm.rawArea, qtyStr, lineCost, hex };
   });
   return { lines, total };
 }

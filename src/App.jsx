@@ -3273,8 +3273,9 @@ function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,swColour
               const agg={};
               paintData.lines.forEach(ln=>{
                 const key=`${ln.product}·${ln.colour}·${ln.sheen}`;
-                if(!agg[key]) agg[key]={product:ln.product,colour:ln.colour,sheen:ln.sheen,hex:ln.hex,sqft:0,cost:0};
-                agg[key].sqft+=ln.sqft;
+                if(!agg[key]) agg[key]={product:ln.product,colour:ln.colour,sheen:ln.sheen,hex:ln.hex,sqft:0,sqftRaw:0,cost:0};
+                agg[key].sqft+=ln.sqft;              // coated area — drives Est. Qty
+                agg[key].sqftRaw+=(ln.sqftRaw??ln.sqft); // plain area — shown in the Sqft column
                 agg[key].cost+=ln.lineCost;
               });
               const rows=Object.values(agg);
@@ -3302,7 +3303,7 @@ function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,swColour
                           </span>
                         </td>
                         <td style={tdStyle}>{r.sheen||'—'}</td>
-                        <td style={tdStyle}>{fmtN(r.sqft)}</td>
+                        <td style={tdStyle}>{fmtN(r.sqftRaw)}</td>
                         <td style={tdStyle}>{qtyStr}</td>
                         <td style={{...tdStyle,textAlign:'right'}}>{fmtCAD(r.cost)}</td>
                       </tr>

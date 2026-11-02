@@ -213,53 +213,60 @@ export function roomTrimLF(room){
   return lf;
 }
 
+// Surfaces switched off in the Breakdown tab. Keys match the `key` on each
+// calcRoomLines() entry; an excluded surface contributes no hours and no cost.
+export function roomExcluded(room){
+  return new Set(Array.isArray(room?.excludedSurfaces)?room.excludedSurfaces:[]);
+}
+
 export function calcRoom(room, settings){
   const std = settings._standards || DEFAULT_STANDARDS;
+  const ex = roomExcluded(room);
   const wallSqft = roomWallSqft(room);
   const ceilSqft = roomCeilSqft(room);
   const perimLF = roomPerimLF(room);
   const winLF = roomWindowLF(room);
   let hrs = 0;
-  if(room.walls?.enabled && wallSqft) hrs += wallSqft / (std.walls?.[room.walls.coats] || 120);
-  if(room.ceiling?.enabled && ceilSqft){
+  if(!ex.has('walls') && room.walls?.enabled && wallSqft) hrs += wallSqft / (std.walls?.[room.walls.coats] || 120);
+  if(!ex.has('ceiling') && room.ceiling?.enabled && ceilSqft){
     const cstd = room.ceiling.type==='stucco' ? (std.stuccoCeiling||std.flatCeiling) : std.flatCeiling;
     hrs += ceilSqft / (cstd?.[room.ceiling.coats] || 90);
   }
   let stuccoCost = 0;
   let stuccoHrs = 0;
-  if(room.ceiling?.enabled && ceilSqft && room.ceiling.removeStucco){
+  if(!ex.has('removeStucco') && room.ceiling?.enabled && ceilSqft && room.ceiling.removeStucco){
     stuccoHrs = ceilSqft / 28;
     stuccoCost = ceilSqft * (std.removeStucco?.rate || 0.75);
   }
-  if(room.baseboards?.enabled && perimLF) hrs += perimLF / (std.baseboards?.[room.baseboards.coats] || 60);
-  if(room.crown?.enabled && perimLF) hrs += perimLF / (std.crown?.[room.crown.coats] || 55);
-  if(room.doorFrames?.enabled && perimLF) hrs += perimLF / (std.doorFrames?.[room.doorFrames.coats] || 102);
+  if(!ex.has('baseboards') && room.baseboards?.enabled && perimLF) hrs += perimLF / (std.baseboards?.[room.baseboards.coats] || 60);
+  if(!ex.has('crown') && room.crown?.enabled && perimLF) hrs += perimLF / (std.crown?.[room.crown.coats] || 55);
+  if(!ex.has('doorFrames') && room.doorFrames?.enabled && perimLF) hrs += perimLF / (std.doorFrames?.[room.doorFrames.coats] || 102);
   if(room.doors?.enabled){
     const fl=room.doors.flat||{};const sp=room.doors.sixPanel||{};const cu=room.doors.custom||{};
-    if(fl.count>0) hrs+=(fl.count*21)/(std.doorsFlat?.[fl.coats]||std.doors?.[fl.coats]||42);
-    if(sp.count>0) hrs+=(sp.count*21)/(std.doors6Panel?.[sp.coats]||std.doors?.[sp.coats]||42);
-    if(cu.count>0) hrs+=(cu.count*21)/(std.doorsCustom?.[cu.coats]||std.doors?.[cu.coats]||42);
-  } else if(room.doors?.count > 0) hrs += (room.doors.count * 21) / (std.doors?.[room.doors.coats] || 42);
-  if(room.windows?.enabled && winLF) hrs += winLF / (std.windows?.[room.windows.coats] || 60);
+    if(fl.count>0 && !ex.has('doors:flat')) hrs+=(fl.count*21)/(std.doorsFlat?.[fl.coats]||std.doors?.[fl.coats]||42);
+    if(sp.count>0 && !ex.has('doors:sixPanel')) hrs+=(sp.count*21)/(std.doors6Panel?.[sp.coats]||std.doors?.[sp.coats]||42);
+    if(cu.count>0 && !ex.has('doors:custom')) hrs+=(cu.count*21)/(std.doorsCustom?.[cu.coats]||std.doors?.[cu.coats]||42);
+  } else if(room.doors?.count > 0 && !ex.has('doors')) hrs += (room.doors.count * 21) / (std.doors?.[room.doors.coats] || 42);
+  if(!ex.has('windows') && room.windows?.enabled && winLF) hrs += winLF / (std.windows?.[room.windows.coats] || 60);
   if(room.stairs?.enabled){
     STAIR_ITEMS.forEach(it=>{
       if(it.dims) return;
       const item = room.stairs[it.k] || {};
       const n = +item.count || 0;
-      if(n>0) hrs += n / (std[it.std]?.[item.coats||2] || DEFAULT_STANDARDS[it.std][item.coats||2]);
+      if(n>0 && !ex.has(`stairs:${it.k}`)) hrs += n / (std[it.std]?.[item.coats||2] || DEFAULT_STANDARDS[it.std][item.coats||2]);
     });
     const landSqft = roomLandingSqft(room);
-    if(landSqft>0){
+    if(landSqft>0 && !ex.has('stairs:landing')){
       const lc = room.stairs.landing?.coats || 2;
       hrs += landSqft / (std.stairsLanding?.[lc] || DEFAULT_STANDARDS.stairsLanding[lc]);
     }
   }
   const floorSqft = roomFloorSqft(room);
-  if(floorSqft>0){
+  if(floorSqft>0 && !ex.has('floor')){
     const fc = room.floor?.coats || 2;
     hrs += floorSqft / (std.floor?.[fc] || DEFAULT_STANDARDS.floor[fc]);
   }
-  hrs += (room.prepHrs || 0);
+  if(!ex.has('prep')) hrs += (room.prepHrs || 0);
   // Labour cost = (hours / field workers) × total-hourly-rate-all-workers × buffer.
   // Hours are split across the active field workers so the cost matches the
   // Breakdown tab (which shows per-worker hours); totalHrs stays raw (man-hours).
@@ -292,53 +299,53 @@ export function calcRoomLines(room, settings){
   if(room.walls?.enabled && wallSqft){
     const r = std.walls?.[room.walls.coats]||120;
     const h = wallSqft/r;
-    lines.push({surface:'Walls',area:Math.round(wallSqft),areaUnit:'sqft',coats:room.walls.coats,rate:r,rateLabel:'sqft/hr',hours:h,cost:h*rate});
+    lines.push({key:'walls',surface:'Walls',area:Math.round(wallSqft),areaUnit:'sqft',coats:room.walls.coats,rate:r,rateLabel:'sqft/hr',hours:h,cost:h*rate});
   }
   if(room.ceiling?.enabled && ceilSqft){
     const cstd = room.ceiling.type==='stucco' ? (std.stuccoCeiling||std.flatCeiling) : std.flatCeiling;
     const r = cstd?.[room.ceiling.coats]||90;
     const h = ceilSqft/r;
-    lines.push({surface:'Ceiling',area:Math.round(ceilSqft),areaUnit:'sqft',coats:room.ceiling.coats,rate:r,rateLabel:'sqft/hr',hours:h,cost:h*rate});
+    lines.push({key:'ceiling',surface:'Ceiling',area:Math.round(ceilSqft),areaUnit:'sqft',coats:room.ceiling.coats,rate:r,rateLabel:'sqft/hr',hours:h,cost:h*rate});
     if(room.ceiling.removeStucco){
       const rr = 28;
       const hh = ceilSqft / rr;
       const directCost = ceilSqft * (std.removeStucco?.rate || 0.75);
-      lines.push({surface:'Remove Stucco',area:Math.round(ceilSqft),areaUnit:'sqft',coats:0,rate:rr,rateLabel:'sqft/hr',hours:hh,cost:directCost});
+      lines.push({key:'removeStucco',surface:'Remove Stucco',area:Math.round(ceilSqft),areaUnit:'sqft',coats:0,rate:rr,rateLabel:'sqft/hr',hours:hh,cost:directCost});
     }
   }
   if(room.baseboards?.enabled && perimLF){
     const r = std.baseboards?.[room.baseboards.coats]||60;
     const h = perimLF/r;
-    lines.push({surface:'Baseboards',area:Math.round(perimLF),areaUnit:'lf',coats:room.baseboards.coats,rate:r,rateLabel:'lf/hr',hours:h,cost:h*rate});
+    lines.push({key:'baseboards',surface:'Baseboards',area:Math.round(perimLF),areaUnit:'lf',coats:room.baseboards.coats,rate:r,rateLabel:'lf/hr',hours:h,cost:h*rate});
   }
   if(room.crown?.enabled && perimLF){
     const r = std.crown?.[room.crown.coats]||55;
     const h = perimLF/r;
-    lines.push({surface:'Crown',area:Math.round(perimLF),areaUnit:'lf',coats:room.crown.coats,rate:r,rateLabel:'lf/hr',hours:h,cost:h*rate});
+    lines.push({key:'crown',surface:'Crown',area:Math.round(perimLF),areaUnit:'lf',coats:room.crown.coats,rate:r,rateLabel:'lf/hr',hours:h,cost:h*rate});
   }
   if(room.doorFrames?.enabled && perimLF){
     const r = std.doorFrames?.[room.doorFrames.coats]||102;
     const h = perimLF/r;
-    lines.push({surface:'Door Frames',area:Math.round(perimLF),areaUnit:'lf',coats:room.doorFrames.coats,rate:r,rateLabel:'lf/hr',hours:h,cost:h*rate});
+    lines.push({key:'doorFrames',surface:'Door Frames',area:Math.round(perimLF),areaUnit:'lf',coats:room.doorFrames.coats,rate:r,rateLabel:'lf/hr',hours:h,cost:h*rate});
   }
   if(room.doors?.enabled){
-    const types=[['Flat',room.doors.flat,'doorsFlat'],['6 Panel',room.doors.sixPanel,'doors6Panel'],['Custom',room.doors.custom,'doorsCustom']];
-    types.forEach(([label,dt,stdKey])=>{
+    const types=[['Flat',room.doors.flat,'doorsFlat','doors:flat'],['6 Panel',room.doors.sixPanel,'doors6Panel','doors:sixPanel'],['Custom',room.doors.custom,'doorsCustom','doors:custom']];
+    types.forEach(([label,dt,stdKey,exKey])=>{
       if(dt?.count>0){
         const r=std[stdKey]?.[dt.coats]||std.doors?.[dt.coats]||42;
         const sqft=dt.count*21;const h=sqft/r;
-        lines.push({surface:`Doors - ${label} (${dt.count})`,area:sqft,areaUnit:'sqft',coats:dt.coats,rate:r,rateLabel:'sqft/hr',hours:h,cost:h*rate});
+        lines.push({key:exKey,surface:`Doors - ${label} (${dt.count})`,area:sqft,areaUnit:'sqft',coats:dt.coats,rate:r,rateLabel:'sqft/hr',hours:h,cost:h*rate});
       }
     });
   } else if(room.doors?.count > 0){
     const r = std.doors?.[room.doors.coats]||42;
     const sqft = room.doors.count*21;const h = sqft/r;
-    lines.push({surface:`Doors (${room.doors.count})`,area:sqft,areaUnit:'sqft',coats:room.doors.coats,rate:r,rateLabel:'sqft/hr',hours:h,cost:h*rate});
+    lines.push({key:'doors',surface:`Doors (${room.doors.count})`,area:sqft,areaUnit:'sqft',coats:room.doors.coats,rate:r,rateLabel:'sqft/hr',hours:h,cost:h*rate});
   }
   if(room.windows?.enabled && winLF){
     const r = std.windows?.[room.windows.coats]||60;
     const h = winLF/r;
-    lines.push({surface:`Windows (${room.windows.dims?.length||0})`,area:Math.round(winLF),areaUnit:'lf',coats:room.windows.coats,rate:r,rateLabel:'lf/hr',hours:h,cost:h*rate});
+    lines.push({key:'windows',surface:`Windows (${room.windows.dims?.length||0})`,area:Math.round(winLF),areaUnit:'lf',coats:room.windows.coats,rate:r,rateLabel:'lf/hr',hours:h,cost:h*rate});
   }
   if(room.stairs?.enabled){
     STAIR_ITEMS.forEach(it=>{
@@ -349,14 +356,14 @@ export function calcRoomLines(room, settings){
       const c = item.coats||2;
       const r = std[it.std]?.[c] || DEFAULT_STANDARDS[it.std][c];
       const h = n/r;
-      lines.push({surface:`Stairs — ${it.label}`,area:n,areaUnit:'ea',coats:c,rate:r,rateLabel:'ea/hr',hours:h,cost:h*rate});
+      lines.push({key:`stairs:${it.k}`,surface:`Stairs — ${it.label}`,area:n,areaUnit:'ea',coats:c,rate:r,rateLabel:'ea/hr',hours:h,cost:h*rate});
     });
     const landSqft = roomLandingSqft(room);
     if(landSqft>0){
       const c = room.stairs.landing?.coats || 2;
       const r = std.stairsLanding?.[c] || DEFAULT_STANDARDS.stairsLanding[c];
       const h = landSqft/r;
-      lines.push({surface:`Stairs — Landing (${room.stairs.landing?.dims?.length||0})`,area:Math.round(landSqft),areaUnit:'sqft',coats:c,rate:r,rateLabel:'sqft/hr',hours:h,cost:h*rate});
+      lines.push({key:'stairs:landing',surface:`Stairs — Landing (${room.stairs.landing?.dims?.length||0})`,area:Math.round(landSqft),areaUnit:'sqft',coats:c,rate:r,rateLabel:'sqft/hr',hours:h,cost:h*rate});
     }
   }
   const floorSqft = roomFloorSqft(room);
@@ -364,11 +371,11 @@ export function calcRoomLines(room, settings){
     const c = room.floor?.coats || 2;
     const r = std.floor?.[c] || DEFAULT_STANDARDS.floor[c];
     const h = floorSqft/r;
-    lines.push({surface:`Floor (${room.floor?.dims?.length||0})`,area:Math.round(floorSqft),areaUnit:'sqft',coats:c,rate:r,rateLabel:'sqft/hr',hours:h,cost:h*rate});
+    lines.push({key:'floor',surface:`Floor (${room.floor?.dims?.length||0})`,area:Math.round(floorSqft),areaUnit:'sqft',coats:c,rate:r,rateLabel:'sqft/hr',hours:h,cost:h*rate});
   }
   if(room.prepHrs > 0){
     const h = room.prepHrs;
-    lines.push({surface:'Prep Work',area:h,areaUnit:'hrs',coats:0,rate:1,rateLabel:'hr',hours:h,cost:h*rate});
+    lines.push({key:'prep',surface:'Prep Work',area:h,areaUnit:'hrs',coats:0,rate:1,rateLabel:'hr',hours:h,cost:h*rate});
   }
   return lines;
 }

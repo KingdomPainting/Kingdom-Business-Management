@@ -3184,7 +3184,7 @@ function projectHoursAndDays(totalHrs, settings){
 }
 
 // ─── BREAKDOWN TAB ────────────────────────────────────────────────────────────
-function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,swColours,supplies}){
+function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,swColours,supplies,onToggleSurface}){
   const fmtN=n=>Math.round(n).toLocaleString('en-CA');
   const activeRooms=rooms.filter(r=>r.walls.enabled||r.ceiling.enabled||r.baseboards.enabled||r.doors?.enabled||roomDoorCount(r)>0||r.stairs?.enabled||r.floor?.enabled);
   let tWalls=0,tCeil=0,tTrim=0,tDoors=0,tHrs=0,tCost=0;
@@ -3204,7 +3204,8 @@ function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,swColour
   // Shared column widths/alignment so every room's table lines up with the others
   // (each room renders its own table, so auto layout would size them differently).
   const brkCols=[
-    {l:'Surface',           w:'32%', a:'left'},
+    {l:'',                  w:'4%',  a:'center'},
+    {l:'Surface',           w:'28%', a:'left'},
     {l:'Area',              w:'13%', a:'right'},
     {l:'Coats',             w:'9%',  a:'right'},
     {l:'Paintable Surface', w:'19%', a:'right'},
@@ -3234,16 +3235,26 @@ function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,swColour
                 <thead><tr>
                   {brkCols.map((c,i)=><th key={i} style={{...thStyle,textAlign:c.a}}>{c.l}</th>)}
                 </tr></thead>
-                <tbody>{lines.map((ln,i)=>(
+                <tbody>{lines.map((ln,i)=>{
+                  const off=(room.excludedSurfaces||[]).includes(ln.key);
+                  const dim={opacity:off?0.4:1};
+                  const blank=off?'—':null;
+                  return (
                   <tr key={i}>
-                    <td style={{...tdStyle,textAlign:'left'}}>{ln.surface}</td>
-                    <td style={{...tdStyle,textAlign:'right'}}>{fmtN(ln.area)} {ln.areaUnit}</td>
-                    <td style={{...tdStyle,textAlign:'right'}}>{ln.coats}</td>
-                    <td style={{...tdStyle,textAlign:'right'}}>{ln.coats>0?`${fmtN(ln.area*ln.coats)} ${ln.areaUnit}`:'—'}</td>
-                    <td style={{...tdStyle,textAlign:'right'}}>{(ln.hours/nWorkers).toFixed(1)}</td>
-                    <td style={{...tdStyle,textAlign:'right'}}>{fmtCAD((ln.hours/nWorkers)*settings.hourlyRate)}</td>
+                    <td style={{...tdStyle,textAlign:'center'}}>
+                      <input type='checkbox' checked={off} title={off?'Surface is off — click to include':'Turn this surface off'}
+                        onChange={e=>onToggleSurface&&onToggleSurface(room.id,ln.key,e.target.checked)}
+                        style={{width:14,height:14,accentColor:'var(--primary)',cursor:'pointer'}}/>
+                    </td>
+                    <td style={{...tdStyle,textAlign:'left',...dim,textDecoration:off?'line-through':'none'}}>{ln.surface}</td>
+                    <td style={{...tdStyle,textAlign:'right',...dim}}>{blank??`${fmtN(ln.area)} ${ln.areaUnit}`}</td>
+                    <td style={{...tdStyle,textAlign:'right',...dim}}>{blank??ln.coats}</td>
+                    <td style={{...tdStyle,textAlign:'right',...dim}}>{blank??(ln.coats>0?`${fmtN(ln.area*ln.coats)} ${ln.areaUnit}`:'—')}</td>
+                    <td style={{...tdStyle,textAlign:'right',...dim}}>{blank??(ln.hours/nWorkers).toFixed(1)}</td>
+                    <td style={{...tdStyle,textAlign:'right',...dim}}>{blank??fmtCAD((ln.hours/nWorkers)*settings.hourlyRate)}</td>
                   </tr>
-                ))}</tbody>
+                  );
+                })}</tbody>
               </table>
             </div>
           ))}
@@ -4529,6 +4540,11 @@ function MasterEstimate(){
         )}
         {activeTab==='breakdown'&&(
           <BreakdownTab rooms={rooms} settings={settings}
+            onToggleSurface={(roomId,key,off)=>setRooms(rs=>rs.map(r=>{
+              if(r.id!==roomId) return r;
+              const cur=Array.isArray(r.excludedSurfaces)?r.excludedSurfaces:[];
+              return {...r,excludedSurfaces:off?[...new Set([...cur,key])]:cur.filter(k=>k!==key)};
+            }))}
             paints={ps.paints} ceilPaints={ps.ceilPaints} primers={ps.primers} colours={ps.colours} swColours={ps.swColours} supplies={ps.supplies}/>
         )}
         {activeTab==='quote'&&(

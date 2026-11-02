@@ -41,7 +41,7 @@ import {
   DEFAULT_SW_COLOURS, DEFAULT_SUPPLIES, DEFAULT_OVERHEAD_ITEMS, DEFAULT_WORKERS,
   DEFAULT_STANDARDS, DEFAULT_SETTINGS, newRoom,
   roomWallSqft, roomCeilSqft, roomPerimLF, roomWindowLF, roomDoorCount, roomTrimLF,
-  STAIR_ITEMS, roomLandingSqft, roomFloorSqft,
+  STAIR_ITEMS, roomLandingSqft, roomFloorSqft, PAINT_GROUPS, paintGroupOfField,
   calcRoom, calcTotals, calcRoomLines, calcPaintCosts, calcRoomSupplyCost,
   WALL_PAINTS, TRIM_PAINTS, CEILING_PAINTS, COLOURS, CEILING_COLOURS,
 } from "./lib/estimate";
@@ -2730,10 +2730,19 @@ function usePaintSettings(){
 // ─── ROOM CARD ────────────────────────────────────────────────────────────────
 // Defined at module level so their component identity is stable across RoomCard re-renders —
 // otherwise the native <select>s would remount on every render and any open dropdown would close.
-function PaintRow({label,prod,colour,sheen,products,colours,onProd,onColour,onSheen}){
+function PaintRow({label,prod,colour,sheen,products,colours,onProd,onColour,onSheen,syncOn,onSync}){
   return (
     <div style={{marginBottom:10}}>
-      <p style={{fontSize:11,fontWeight:500,color:'var(--muted-fg)',marginBottom:4}}>{label}</p>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:4}}>
+        <p style={{fontSize:11,fontWeight:500,color:'var(--muted-fg)'}}>{label}</p>
+        {onSync&&(
+          <label title='Use this selection in every room' style={{display:'flex',alignItems:'center',gap:4,fontSize:10,fontWeight:600,whiteSpace:'nowrap',cursor:'pointer',color:syncOn?'var(--primary)':'var(--muted-fg)'}}>
+            <input type='checkbox' checked={!!syncOn} onChange={e=>onSync(e.target.checked)}
+              style={{width:13,height:13,accentColor:'var(--primary)',cursor:'pointer'}}/>
+            All rooms
+          </label>
+        )}
+      </div>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6}}>
         <select value={prod} onChange={e=>onProd(e.target.value)} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Product —</option>{products.map(p=><option key={p} value={p}>{p}</option>)}</select>
         <select value={colour} onChange={e=>onColour(e.target.value)} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Colour —</option>{colours.map(c=><option key={c} value={c}>{c}</option>)}</select>
@@ -2755,7 +2764,7 @@ function SurfaceToggle({label,field,room,u,cbStyle,surfaceSelectStyle}){
     </div>
   );
 }
-function RoomCard({room,settings,onChange,onRemove,primers,paints,ceilPaints,colours,swColours,supplies}){
+function RoomCard({room,settings,onChange,onRemove,primers,paints,ceilPaints,colours,swColours,supplies,onSyncPaint}){
   const bmNames=(colours||[]).map(c=>c.n);
   const swNames=(swColours||[]).map(c=>c.n);
   const allColourNames=[...bmNames,...swNames];
@@ -2767,7 +2776,15 @@ function RoomCard({room,settings,onChange,onRemove,primers,paints,ceilPaints,col
   const [open,setOpen]=useState(true);
   const calc=calcRoom(room,settings);
   const u=patch=>onChange({...room,...patch});
-  const up=patch=>u({paint:{...room.paint,...patch}});
+  // Editing a paint selection breaks its "All rooms" link for this room.
+  const up=patch=>{
+    const touched=new Set(Object.keys(patch).map(paintGroupOfField).filter(Boolean));
+    u({paint:{...room.paint,...patch},paintSync:(room.paintSync||[]).filter(g=>!touched.has(g))});
+  };
+  const syncProps=g=>({
+    syncOn:(room.paintSync||[]).includes(g),
+    onSync:on=>onSyncPaint&&onSyncPaint(room.id,g,on),
+  });
   const uprep=patch=>u({prep:{...room.prep,...patch}});
   const cbStyle={width:18,height:18,accentColor:'var(--primary)',cursor:'pointer'};
   const surfaceSelectStyle={fontSize:11,padding:'2px 6px',border:'1px solid var(--border)',borderRadius:4,background:'#fff'};
@@ -3023,23 +3040,23 @@ function RoomCard({room,settings,onChange,onRemove,primers,paints,ceilPaints,col
           <div style={{padding:'14px 16px'}}>
             <p style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--muted-fg)',marginBottom:8}}>Paint Selections</p>
             {room.walls.enabled&&<>
-              <PaintRow label='Walls' prod={room.paint.wallProduct} colour={room.paint.wallColour} sheen={room.paint.wallSheen} products={(paints||[]).map(p=>p.n)} colours={coloursForProd(room.paint.wallProduct)} onProd={v=>up({wallProduct:v})} onColour={v=>up({wallColour:v})} onSheen={v=>up({wallSheen:v})}/>
+              <PaintRow label='Walls' prod={room.paint.wallProduct} colour={room.paint.wallColour} sheen={room.paint.wallSheen} products={(paints||[]).map(p=>p.n)} colours={coloursForProd(room.paint.wallProduct)} onProd={v=>up({wallProduct:v})} onColour={v=>up({wallColour:v})} onSheen={v=>up({wallSheen:v})} {...syncProps('walls')}/>
               {room.walls.coats===3&&<div style={{marginTop:-6,marginBottom:10}}><p style={{fontSize:11,fontWeight:500,color:'var(--muted-fg)',marginBottom:4}}>Walls Primer</p><select value={room.paint.wallsPrimer||''} onChange={e=>up({wallsPrimer:e.target.value})} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Select Primer —</option>{(primers||[]).map(p=><option key={p.n} value={p.n}>{p.n}</option>)}</select></div>}
             </>}
             {room.ceiling.enabled&&<>
-              <PaintRow label='Ceiling' prod={room.paint.ceilProduct} colour={room.paint.ceilColour} sheen={room.paint.ceilSheen} products={[...new Set([...(paints||[]),...(ceilPaints||[])].map(p=>p.n))]} colours={coloursForProd(room.paint.ceilProduct)} onProd={v=>up({ceilProduct:v})} onColour={v=>up({ceilColour:v})} onSheen={v=>up({ceilSheen:v})}/>
+              <PaintRow label='Ceiling' prod={room.paint.ceilProduct} colour={room.paint.ceilColour} sheen={room.paint.ceilSheen} products={[...new Set([...(paints||[]),...(ceilPaints||[])].map(p=>p.n))]} colours={coloursForProd(room.paint.ceilProduct)} onProd={v=>up({ceilProduct:v})} onColour={v=>up({ceilColour:v})} onSheen={v=>up({ceilSheen:v})} {...syncProps('ceiling')}/>
               {room.ceiling.coats===3&&<div style={{marginTop:-6,marginBottom:10}}><p style={{fontSize:11,fontWeight:500,color:'var(--muted-fg)',marginBottom:4}}>Ceiling Primer</p><select value={room.paint.ceilingPrimer||''} onChange={e=>up({ceilingPrimer:e.target.value})} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Select Primer —</option>{(primers||[]).map(p=><option key={p.n} value={p.n}>{p.n}</option>)}</select></div>}
             </>}
             {(room.baseboards.enabled||room.doors?.enabled||roomDoorCount(room)>0||room.crown.enabled)&&<>
-              <PaintRow label='Trim / Doors' prod={room.paint.trimProduct} colour={room.paint.trimColour} sheen={room.paint.trimSheen} products={(paints||[]).map(p=>p.n)} colours={coloursForProd(room.paint.trimProduct)} onProd={v=>up({trimProduct:v})} onColour={v=>up({trimColour:v})} onSheen={v=>up({trimSheen:v})}/>
+              <PaintRow label='Trim / Doors' prod={room.paint.trimProduct} colour={room.paint.trimColour} sheen={room.paint.trimSheen} products={(paints||[]).map(p=>p.n)} colours={coloursForProd(room.paint.trimProduct)} onProd={v=>up({trimProduct:v})} onColour={v=>up({trimColour:v})} onSheen={v=>up({trimSheen:v})} {...syncProps('trim')}/>
               {(room.baseboards?.coats===3||room.crown?.coats===3||room.doorFrames?.coats===3||room.windows?.coats===3||(room.doors?.flat?.coats===3)||(room.doors?.sixPanel?.coats===3)||(room.doors?.custom?.coats===3))&&<div style={{marginTop:-6,marginBottom:10}}><p style={{fontSize:11,fontWeight:500,color:'var(--muted-fg)',marginBottom:4}}>Trim Primer</p><select value={room.paint.trimPrimer||''} onChange={e=>up({trimPrimer:e.target.value})} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Select Primer —</option>{(primers||[]).map(p=><option key={p.n} value={p.n}>{p.n}</option>)}</select></div>}
             </>}
             {room.stairs?.enabled&&<>
-              <PaintRow label='Stairs' prod={room.paint.stairsProduct} colour={room.paint.stairsColour} sheen={room.paint.stairsSheen} products={(paints||[]).map(p=>p.n)} colours={coloursForProd(room.paint.stairsProduct)} onProd={v=>up({stairsProduct:v})} onColour={v=>up({stairsColour:v})} onSheen={v=>up({stairsSheen:v})}/>
+              <PaintRow label='Stairs' prod={room.paint.stairsProduct} colour={room.paint.stairsColour} sheen={room.paint.stairsSheen} products={(paints||[]).map(p=>p.n)} colours={coloursForProd(room.paint.stairsProduct)} onProd={v=>up({stairsProduct:v})} onColour={v=>up({stairsColour:v})} onSheen={v=>up({stairsSheen:v})} {...syncProps('stairs')}/>
               {STAIR_ITEMS.some(it=>(room.stairs?.[it.k]?.coats)===3)&&<div style={{marginTop:-6,marginBottom:10}}><p style={{fontSize:11,fontWeight:500,color:'var(--muted-fg)',marginBottom:4}}>Stairs Primer</p><select value={room.paint.stairsPrimer||''} onChange={e=>up({stairsPrimer:e.target.value})} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Select Primer —</option>{(primers||[]).map(p=><option key={p.n} value={p.n}>{p.n}</option>)}</select></div>}
             </>}
             {room.floor?.enabled&&<>
-              <PaintRow label='Floor' prod={room.paint.floorProduct} colour={room.paint.floorColour} sheen={room.paint.floorSheen} products={(paints||[]).map(p=>p.n)} colours={coloursForProd(room.paint.floorProduct)} onProd={v=>up({floorProduct:v})} onColour={v=>up({floorColour:v})} onSheen={v=>up({floorSheen:v})}/>
+              <PaintRow label='Floor' prod={room.paint.floorProduct} colour={room.paint.floorColour} sheen={room.paint.floorSheen} products={(paints||[]).map(p=>p.n)} colours={coloursForProd(room.paint.floorProduct)} onProd={v=>up({floorProduct:v})} onColour={v=>up({floorColour:v})} onSheen={v=>up({floorSheen:v})} {...syncProps('floor')}/>
               {room.floor?.coats===3&&<div style={{marginTop:-6,marginBottom:10}}><p style={{fontSize:11,fontWeight:500,color:'var(--muted-fg)',marginBottom:4}}>Floor Primer</p><select value={room.paint.floorPrimer||''} onChange={e=>up({floorPrimer:e.target.value})} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Select Primer —</option>{(primers||[]).map(p=><option key={p.n} value={p.n}>{p.n}</option>)}</select></div>}
             </>}
           </div>
@@ -3148,7 +3165,7 @@ function CoverTab({client,setClient,deals,contacts,onSelectDeal,selectedDealId})
 }
 
 // ─── ROOMS TAB ────────────────────────────────────────────────────────────────
-function RoomsTab({rooms,settings,onUpdate,onRemove,onAdd,paints,ceilPaints,colours,swColours,primers,supplies,focusedRef}){
+function RoomsTab({rooms,settings,onUpdate,onRemove,onAdd,paints,ceilPaints,colours,swColours,primers,supplies,focusedRef,onSyncPaint}){
   const totalCost=rooms.reduce((s,r)=>s+calcRoom(r,settings).cost,0);
   const containerRef=useRef(null);
   // The first time the Rooms tab is opened, drop the cursor straight into the first room's name.
@@ -3169,6 +3186,7 @@ function RoomsTab({rooms,settings,onUpdate,onRemove,onAdd,paints,ceilPaints,colo
       {rooms.map((r,i)=>(
         <RoomCard key={r.id} room={r} settings={settings} primers={primers} paints={paints} ceilPaints={ceilPaints} colours={colours} swColours={swColours} supplies={supplies}
           onChange={updated=>onUpdate(i,updated)}
+          onSyncPaint={onSyncPaint}
           onRemove={()=>onRemove(i)}/>
       ))}
       <Btn onClick={onAdd} variant='outline' style={{width:'100%',marginTop:8}}>
@@ -4538,6 +4556,20 @@ function MasterEstimate(){
         )}
         {activeTab==='rooms'&&(
           <RoomsTab rooms={rooms} settings={settings}
+            onSyncPaint={(roomId,group,on)=>setRooms(rs=>{
+              if(!on){
+                // Unticking only detaches the room it was unticked in.
+                return rs.map(r=>r.id===roomId?{...r,paintSync:(r.paintSync||[]).filter(g=>g!==group)}:r);
+              }
+              const src=rs.find(r=>r.id===roomId);
+              if(!src) return rs;
+              const picked={};
+              PAINT_GROUPS[group].forEach(f=>{picked[f]=src.paint?.[f]||'';});
+              return rs.map(r=>({...r,
+                paint:{...r.paint,...picked},
+                paintSync:[...new Set([...(r.paintSync||[]),group])],
+              }));
+            })}
             onUpdate={(i,updated)=>setRooms(rooms.map((r,j)=>j===i?updated:r))}
             onRemove={(i)=>{if(rooms.length>1)setRooms(rooms.filter((_,j)=>j!==i));}}
             onAdd={()=>{const next=roomCounter+1;setRoomCounter(next);setRooms([...rooms,newRoom(String(next),next)]);}}

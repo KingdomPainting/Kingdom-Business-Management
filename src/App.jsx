@@ -1669,7 +1669,8 @@ function Dashboard({toast}){
                   .filter(o=>exact[o.i]>0).sort((a,b)=>b.frac-a.frac);
                 for(let k=0;rem>0&&order.length;k++){ pcts[order[k%order.length].i]++; rem--; }
               }
-              return ranked.map(({source,count},idx)=>{
+              return (<>
+                {ranked.map(({source,count},idx)=>{
                 const pct=pcts[idx];
                 const c=ALL_LABEL_COLORS[source]||{bg:'#f3f4f6',color:'#374151'};
                 return (
@@ -1682,7 +1683,16 @@ function Dashboard({toast}){
                     <span style={{fontSize:10,color:'var(--muted-fg)',width:32,textAlign:'right'}}>{pct}%</span>
                   </div>
                 );
-              });
+                })}
+                {totalCount>0&&(
+                  <div style={{display:'flex',alignItems:'center',gap:8,marginTop:2,paddingTop:8,borderTop:'1px solid var(--border)'}}>
+                    <span style={{fontSize:10,fontWeight:700,width:96,textAlign:'center',flexShrink:0,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--muted-fg)'}}>Total</span>
+                    <div style={{flex:1}}/>
+                    <span style={{fontSize:12,fontWeight:800,color:'var(--fg)',width:24,textAlign:'right'}}>{totalCount}</span>
+                    <span style={{fontSize:10,color:'var(--muted-fg)',width:32,textAlign:'right'}}>100%</span>
+                  </div>
+                )}
+              </>);
             })()}
             {deals.filter(d=>['Proposal','Scheduled','Completed','Archive'].includes(d.stage)&&(LEADS_BY_SOURCE_LABELS.some(l=>(d.labels||[]).includes(l))||d.leadSource)).length===0&&(
               <p style={{fontSize:12,color:'var(--muted-fg)'}}>No labels assigned yet.</p>

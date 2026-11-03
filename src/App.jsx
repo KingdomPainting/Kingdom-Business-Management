@@ -1657,7 +1657,10 @@ function Dashboard({toast}){
               // Count each label across deals (bridging any legacy leadSource value).
               const has=(d,l)=>(d.labels||[]).includes(l)||d.leadSource===l;
               // Sort labels highest→lowest by count so the order updates as leads change.
-              const ranked=LEADS_BY_SOURCE_LABELS.map(source=>({source,count:srcDeals.filter(d=>has(d,source)).length})).sort((a,b)=>b.count-a.count);
+              const ranked=LEADS_BY_SOURCE_LABELS.map(source=>{
+                const ds=srcDeals.filter(d=>has(d,source));
+                return {source,count:ds.length,value:ds.reduce((t,d)=>t+(parseFloat(d.value)||0),0)};
+              }).sort((a,b)=>b.count-a.count);
               // Share of all label assignments (a deal can carry several labels), rounded by
               // largest remainder so the displayed percentages add up to exactly 100%.
               const totalCount=ranked.reduce((s,r)=>s+r.count,0);
@@ -1669,30 +1672,21 @@ function Dashboard({toast}){
                   .filter(o=>exact[o.i]>0).sort((a,b)=>b.frac-a.frac);
                 for(let k=0;rem>0&&order.length;k++){ pcts[order[k%order.length].i]++; rem--; }
               }
-              return (<>
-                {ranked.map(({source,count},idx)=>{
+              return ranked.map(({source,count,value},idx)=>{
                 const pct=pcts[idx];
                 const c=ALL_LABEL_COLORS[source]||{bg:'#f3f4f6',color:'#374151'};
                 return (
                   <div key={source} style={{display:'flex',alignItems:'center',gap:8}}>
                     <span style={{fontSize:11,fontWeight:700,width:96,textAlign:'center',flexShrink:0,padding:'2px 8px',borderRadius:20,background:c.bg,color:c.color,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{source}</span>
-                    <div style={{flex:1,height:8,background:'var(--muted)',borderRadius:9,overflow:'hidden'}}>
+                    <div style={{flex:1,height:8,background:'var(--muted)',borderRadius:9,overflow:'hidden',minWidth:20}}>
                       <div style={{height:'100%',background:'var(--primary)',borderRadius:9,width:`${pct}%`,transition:'width .4s'}}/>
                     </div>
-                    <span style={{fontSize:11,fontWeight:700,color:'var(--primary)',width:24,textAlign:'right'}}>{count}</span>
-                    <span style={{fontSize:10,color:'var(--muted-fg)',width:32,textAlign:'right'}}>{pct}%</span>
+                    <span style={{fontSize:11,fontWeight:700,color:'var(--primary)',width:24,textAlign:'right',flexShrink:0}}>{count}</span>
+                    <span style={{fontSize:10,color:'var(--muted-fg)',width:32,textAlign:'right',flexShrink:0}}>{pct}%</span>
+                    <span style={{fontSize:11,fontWeight:700,color:'var(--fg)',width:86,textAlign:'right',flexShrink:0,whiteSpace:'nowrap'}}>{fmtUSD(value)}</span>
                   </div>
                 );
-                })}
-                {totalCount>0&&(
-                  <div style={{display:'flex',alignItems:'center',gap:8,marginTop:2,paddingTop:8,borderTop:'1px solid var(--border)'}}>
-                    <span style={{fontSize:10,fontWeight:700,width:96,textAlign:'center',flexShrink:0,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--muted-fg)'}}>Total</span>
-                    <div style={{flex:1}}/>
-                    <span style={{fontSize:12,fontWeight:800,color:'var(--fg)',width:24,textAlign:'right'}}>{totalCount}</span>
-                    <span style={{fontSize:10,color:'var(--muted-fg)',width:32,textAlign:'right'}}>100%</span>
-                  </div>
-                )}
-              </>);
+              });
             })()}
             {deals.filter(d=>['Proposal','Scheduled','Completed','Archive'].includes(d.stage)&&(LEADS_BY_SOURCE_LABELS.some(l=>(d.labels||[]).includes(l))||d.leadSource)).length===0&&(
               <p style={{fontSize:12,color:'var(--muted-fg)'}}>No labels assigned yet.</p>

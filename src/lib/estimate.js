@@ -130,6 +130,19 @@ export const DEFAULT_STANDARDS = {
   floor:{1:250,2:150,3:95},
 };
 
+// Paint-selection groups on the room card. Each maps to the room.paint fields it
+// owns, and can be synced across every room via the "All rooms" box.
+export const PAINT_GROUPS={
+  walls:   ['wallProduct','wallColour','wallSheen','wallsPrimer'],
+  ceiling: ['ceilProduct','ceilColour','ceilSheen','ceilingPrimer'],
+  trim:    ['trimProduct','trimColour','trimSheen','trimPrimer'],
+  stairs:  ['stairsProduct','stairsColour','stairsSheen','stairsPrimer'],
+  floor:   ['floorProduct','floorColour','floorSheen','floorPrimer'],
+};
+export function paintGroupOfField(f){
+  return Object.keys(PAINT_GROUPS).find(g=>PAINT_GROUPS[g].includes(f));
+}
+
 // Stair components, in the order they appear on the room card and the Standards
 // page. `dims` marks the landing, which is measured L × W instead of counted.
 export const STAIR_ITEMS = [
@@ -163,7 +176,7 @@ export function newRoom(id, number){
     paint:{wallProduct:'',wallColour:'',wallSheen:'',ceilProduct:'',ceilColour:'',ceilSheen:'',trimProduct:'',trimColour:'',trimSheen:'',wallsPrimer:'',ceilingPrimer:'',trimPrimer:'',
       stairsProduct:'',stairsColour:'',stairsSheen:'',stairsPrimer:'',
       floorProduct:'',floorColour:'',floorSheen:'',floorPrimer:''},
-    notes:'', supplies:[],
+    notes:'', supplies:[], paintSync:[],
   };
 }
 

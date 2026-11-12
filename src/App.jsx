@@ -427,6 +427,20 @@ function stairScopeLines(r){
   return out;
 }
 
+// Scope-of-work lines for a room's unlisted ("Other") surfaces.
+function customScopeLines(r){
+  if(!r.custom?.enabled) return [];
+  const out=[];
+  (r.custom.items||[]).forEach((it,i)=>{
+    if(surfOff(r,`custom:${i}`)) return;
+    const name=(it.name||'').trim();
+    if(!name) return;
+    const c=+it.coats||0;
+    out.push(c>0?`Painting ${c} coat${c>1?'s':''} on ${name}`:name);
+  });
+  return out;
+}
+
 // Scope-of-work line for a room's floor.
 function floorScopeLines(r){
   const sq=roomFloorSqft(r);
@@ -3022,6 +3036,45 @@ function RoomCard({room,settings,onChange,onRemove,primers,paints,ceilPaints,col
                 );
               })()}
             </div>
+            <div style={{padding:'4px 0'}}>
+              <label style={{fontSize:12,display:'flex',gap:6,alignItems:'center'}}>
+                <input type='checkbox' checked={room.custom?.enabled||false} onChange={e=>u({custom:{...room.custom,enabled:e.target.checked}})} style={cbStyle}/>
+                Other surfaces
+              </label>
+              {room.custom?.enabled&&(()=>{
+                const items=room.custom.items?.length?room.custom.items:[{name:'',coats:2,cost:'',hours:''}];
+                const setItems=next=>u({custom:{...room.custom,items:next}});
+                const patch=(i,p)=>setItems(items.map((it,j)=>j===i?{...it,...p}:it));
+                const totCost=items.reduce((t,it)=>t+(parseFloat(it.cost)||0),0);
+                const totHrs=items.reduce((t,it)=>t+(parseFloat(it.hours)||0),0);
+                return (
+                  <div style={{marginLeft:22,marginTop:6,padding:10,background:'rgba(0,0,0,0.02)',borderRadius:6,border:'1px solid var(--border)'}}>
+                    <div style={{display:'flex',gap:6,marginBottom:4}}>
+                      <span style={{flex:1,fontSize:9,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.04em',color:'var(--muted-fg)'}}>Surface</span>
+                      <span style={{width:92,fontSize:9,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.04em',color:'var(--muted-fg)'}}>Coats</span>
+                      <span style={{width:66,fontSize:9,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.04em',color:'var(--muted-fg)',textAlign:'right'}}>Cost $</span>
+                      <span style={{width:56,fontSize:9,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.04em',color:'var(--muted-fg)',textAlign:'right'}}>Hours</span>
+                      <span style={{width:16,flexShrink:0}}/>
+                    </div>
+                    {items.map((it,i)=>(
+                      <div key={i} style={{display:'flex',gap:6,alignItems:'center',marginBottom:6}}>
+                        <Input value={it.name||''} onChange={e=>patch(i,{name:e.target.value})} placeholder='Surface not listed above' style={{flex:1,padding:'4px 6px',fontSize:11,minWidth:0}}/>
+                        <select value={it.coats??2} onChange={e=>patch(i,{coats:+e.target.value})} style={{width:92,fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)',color:'var(--fg)'}}>
+                          <option value={1}>1 coat</option><option value={2}>2 coats</option><option value={3}>Primer & 2 coats</option>
+                        </select>
+                        <Input type='number' min={0} step='0.01' value={it.cost??''} onChange={e=>patch(i,{cost:e.target.value})} placeholder='0.00' style={{width:66,padding:'4px 6px',fontSize:11,minWidth:0,textAlign:'right'}}/>
+                        <Input type='number' min={0} step='0.25' value={it.hours??''} onChange={e=>patch(i,{hours:e.target.value})} placeholder='0' style={{width:56,padding:'4px 6px',fontSize:11,minWidth:0,textAlign:'right'}}/>
+                        {items.length>1
+                          ? <button onClick={()=>setItems(items.filter((_,j)=>j!==i))} title='Remove' style={{background:'none',border:'none',cursor:'pointer',color:'var(--destructive)',padding:0,width:16,fontSize:12,flexShrink:0}}>×</button>
+                          : <span style={{width:16,flexShrink:0}}/>}
+                      </div>
+                    ))}
+                    <button onClick={()=>setItems([...items,{name:'',coats:2,cost:'',hours:''}])} style={{fontSize:11,padding:'4px 10px',borderRadius:4,border:'1px dashed var(--border)',background:'none',cursor:'pointer',color:'var(--primary)',fontWeight:500,marginTop:2}}>+ Add more</button>
+                    {(totCost>0||totHrs>0)&&<p style={{fontSize:10,color:'var(--primary)',fontWeight:600,marginTop:6}}>Total: {fmtCAD(totCost)} · {totHrs} hr{totHrs===1?'':'s'}</p>}
+                  </div>
+                );
+              })()}
+            </div>
           </div>
           <div style={{padding:'14px 16px',borderBottom:'1px solid rgba(0,0,0,0.05)'}}>
             <p style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--muted-fg)',marginBottom:8}}>Prep Work</p>
@@ -3213,7 +3266,7 @@ function projectHoursAndDays(totalHrs, settings){
 // ─── BREAKDOWN TAB ────────────────────────────────────────────────────────────
 function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,swColours,supplies,onToggleSurface}){
   const fmtN=n=>Math.round(n).toLocaleString('en-CA');
-  const activeRooms=rooms.filter(r=>r.walls.enabled||r.ceiling.enabled||r.baseboards.enabled||r.doors?.enabled||roomDoorCount(r)>0||r.stairs?.enabled||r.floor?.enabled);
+  const activeRooms=rooms.filter(r=>r.walls.enabled||r.ceiling.enabled||r.baseboards.enabled||r.doors?.enabled||roomDoorCount(r)>0||r.stairs?.enabled||r.floor?.enabled||r.custom?.enabled);
   let tWalls=0,tCeil=0,tTrim=0,tDoors=0,tHrs=0,tCost=0;
   const roomCalcs=rooms.map(r=>{
     const c=calcRoom(r,settings);
@@ -3222,6 +3275,13 @@ function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,swColour
   });
   const {hrs:totalProjectHrs,days:estDays}=projectHoursAndDays(tHrs,settings);
   const nWorkers=fieldWorkerCount(settings); // per-room hours are shown per-worker to match the total
+  // Labour totals are summed from the rows the table shows: an unlisted surface
+  // contributes its typed-in cost, a switched-off surface contributes nothing.
+  const lineLabour=(room,ln)=>(room.excludedSurfaces||[]).includes(ln.key)
+    ? 0
+    : (ln.direct?(parseFloat(ln.cost)||0):(ln.hours/nWorkers)*settings.hourlyRate);
+  const roomLabour=(room,lines)=>lines.reduce((t,ln)=>t+lineLabour(room,ln),0);
+  const tLabour=roomCalcs.reduce((t,rc)=>t+roomLabour(rc.room,rc.lines),0);
   const paintData=calcPaintCosts(rooms,paints||[],ceilPaints||[],primers||[],[...(colours||[]),...(swColours||[])],settings.matBuffer||1.25);
   const statStyle={background:'var(--card)',border:'1px solid var(--border)',borderRadius:10,padding:'14px 16px',textAlign:'center'};
   const statLabel={fontSize:10,textTransform:'uppercase',letterSpacing:'0.06em',color:'var(--muted-fg)',fontWeight:600};
@@ -3248,7 +3308,7 @@ function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,swColour
         <div style={statStyle}><p style={statLabel}>Total Doors</p><p style={statVal}>{tDoors}</p></div>
         <div style={statStyle}><p style={statLabel}>Total Project Hours</p><p style={statVal}>{fmtN(totalProjectHrs)}</p></div>
         <div style={statStyle}><p style={statLabel}>Est. Days</p><p style={statVal}>{estDays}</p></div>
-        <div style={statStyle}><p style={statLabel}>Labour Cost</p><p style={statVal}>{fmtCAD((tHrs/nWorkers)*settings.hourlyRate)}</p></div>
+        <div style={statStyle}><p style={statLabel}>Labour Cost</p><p style={statVal}>{fmtCAD(tLabour)}</p></div>
         <div style={statStyle}><p style={statLabel}>Active Rooms</p><p style={statVal}>{activeRooms.length}</p></div>
       </div>
       <Card style={{marginBottom:24}}>
@@ -3256,7 +3316,7 @@ function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,swColour
           <p style={{fontSize:13,fontWeight:700,marginBottom:12}}>Per-Room Labour Breakdown</p>
           {roomCalcs.map(({room,calc,lines})=>(
             <div key={room.id} style={{marginBottom:16}}>
-              <p style={{fontSize:12,fontWeight:600,marginBottom:6}}>{room.name} <span style={{color:'var(--muted-fg)',fontWeight:400}}>({fmtCAD((calc.totalHrs/nWorkers)*settings.hourlyRate)})</span></p>
+              <p style={{fontSize:12,fontWeight:600,marginBottom:6}}>{room.name} <span style={{color:'var(--muted-fg)',fontWeight:400}}>({fmtCAD(roomLabour(room,lines))})</span></p>
               <table style={{width:'100%',borderCollapse:'collapse',tableLayout:'fixed'}}>
                 <colgroup>{brkCols.map((c,i)=><col key={i} style={{width:c.w}}/>)}</colgroup>
                 <thead><tr>
@@ -3274,11 +3334,11 @@ function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,swColour
                         style={{width:14,height:14,accentColor:'var(--primary)',cursor:'pointer'}}/>
                     </td>
                     <td style={{...tdStyle,textAlign:'left',...dim,textDecoration:off?'line-through':'none'}}>{ln.surface}</td>
-                    <td style={{...tdStyle,textAlign:'right',...dim}}>{blank??`${fmtN(ln.area)} ${ln.areaUnit}`}</td>
-                    <td style={{...tdStyle,textAlign:'right',...dim}}>{blank??ln.coats}</td>
-                    <td style={{...tdStyle,textAlign:'right',...dim}}>{blank??(ln.coats>0?`${fmtN(ln.area*ln.coats)} ${ln.areaUnit}`:'—')}</td>
+                    <td style={{...tdStyle,textAlign:'right',...dim}}>{blank??(ln.area==null?'—':`${fmtN(ln.area)} ${ln.areaUnit}`)}</td>
+                    <td style={{...tdStyle,textAlign:'right',...dim}}>{blank??(ln.coats||'—')}</td>
+                    <td style={{...tdStyle,textAlign:'right',...dim}}>{blank??(ln.area!=null&&ln.coats>0?`${fmtN(ln.area*ln.coats)} ${ln.areaUnit}`:'—')}</td>
                     <td style={{...tdStyle,textAlign:'right',...dim}}>{blank??(ln.hours/nWorkers).toFixed(1)}</td>
-                    <td style={{...tdStyle,textAlign:'right',...dim}}>{blank??fmtCAD((ln.hours/nWorkers)*settings.hourlyRate)}</td>
+                    <td style={{...tdStyle,textAlign:'right',...dim}}>{blank??fmtCAD(ln.direct?ln.cost:(ln.hours/nWorkers)*settings.hourlyRate)}</td>
                   </tr>
                   );
                 })}</tbody>
@@ -3468,6 +3528,7 @@ function QuoteTab({rooms,settings,client,totals,paints,ceilPaints,primers,colour
               else if(r.windows?.count>0&&!surfOff(r,'windows')) surfaces.push(`${r.windows.count} window${r.windows.count>1?'s':''} — ${r.windows.coats} coat${r.windows.coats>1?'s':''}`);
               stairScopeLines(r).forEach(l=>surfaces.push(l));
     floorScopeLines(r).forEach(l=>surfaces.push(l));
+    customScopeLines(r).forEach(l=>surfaces.push(l));
               const mats=roomMaterials(r);
               const supplyCost=calcRoomSupplyCost(r,supplies||[]);
               const matTotal=mats.reduce((s,m)=>s+m.lineCost,0)+supplyCost;
@@ -3636,14 +3697,15 @@ function ContractTab({rooms,settings,client,totals}){
             <th style={{textAlign:'left',padding:'6px 8px',borderBottom:'2px solid #e5e5e5',color:'#888',fontWeight:600}}>Prep</th>
           </tr></thead>
           <tbody>{rooms.map(r=>{
-            const surfLines=calcRoomLines(r,settings).filter(ln=>ln.coats>0&&!surfOff(r,ln.key));
+            // Unlisted surfaces have no measured area, so they are listed by name only.
+            const surfLines=calcRoomLines(r,settings).filter(ln=>(ln.coats>0||ln.direct)&&!surfOff(r,ln.key));
             const prep=roomPrep(r);
             return (
               <tr key={r.id}>
                 <td style={{padding:'6px 8px',borderBottom:'1px solid #eee',fontWeight:500,verticalAlign:'top'}}>{r.name}</td>
                 <td style={{padding:'6px 8px',borderBottom:'1px solid #eee',color:'#555',verticalAlign:'top'}}>
                   {surfLines.length
-                    ? surfLines.map((ln,i)=><div key={i}>{ln.surface}: <strong style={{color:'#333'}}>{fmtN(ln.area*ln.coats)} {ln.areaUnit==='lf'?'LF':'sqft'}</strong></div>)
+                    ? surfLines.map((ln,i)=><div key={i}>{ln.surface}{ln.area!=null&&<>: <strong style={{color:'#333'}}>{fmtN(ln.area*ln.coats)} {ln.areaUnit==='lf'?'LF':'sqft'}</strong></>}</div>)
                     : '—'}
                 </td>
                 <td style={{padding:'6px 8px',borderBottom:'1px solid #eee',color:'#555',verticalAlign:'top'}}>
@@ -4824,6 +4886,7 @@ function buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,pri
     if(r.doorFrames?.enabled && c.perimLF && !surfOff(r,'doorFrames')) lines.push(`Painting ${r.doorFrames.coats||2} coat${(r.doorFrames.coats||2)>1?'s':''} on door frames`);
     stairScopeLines(r).forEach(l=>lines.push(l));
     floorScopeLines(r).forEach(l=>lines.push(l));
+    customScopeLines(r).forEach(l=>lines.push(l));
     Object.entries(prepLabelsMap).forEach(([k,v])=>{if(r.prep?.[k])prepItems.push(v);});
     if(r.prep?.custom) prepItems.push(r.prep.custom);
     const mats=roomMaterials(r);
@@ -4887,6 +4950,7 @@ function buildBidProposalHtml(client,rooms,settings,totals,paints,ceilPaints,pri
     if(r.doorFrames?.enabled && c.perimLF && !surfOff(r,'doorFrames')) scopeLines.push(`Painting ${r.doorFrames.coats||2} coat${(r.doorFrames.coats||2)>1?'s':''} on door frames`);
     stairScopeLines(r).forEach(l=>scopeLines.push(l));
     floorScopeLines(r).forEach(l=>scopeLines.push(l));
+    customScopeLines(r).forEach(l=>scopeLines.push(l));
     html+='<div class="scope-room">';
     html+=`<p style="font-size:12px;font-weight:600;color:#1a1a1a;margin-top:14px;margin-bottom:6px">${r.name}</p>`;
     html+='<div style="font-size:11px;color:#444;line-height:1.8;padding-left:10px;border-left:2px solid #e5ddd0;margin-bottom:6px">';

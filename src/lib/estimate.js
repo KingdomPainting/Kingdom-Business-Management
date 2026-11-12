@@ -172,6 +172,7 @@ export function newRoom(id, number){
       landing:{coats:2,dims:[{l:0,w:0}]},
       handrail:{count:0,coats:2}, baluster:{count:0,coats:2}, post:{count:0,coats:2}},
     floor:{enabled:false,coats:2,dims:[{l:0,w:0}]},
+    custom:{enabled:false,items:[{name:'',coats:2,cost:'',hours:''}]},
     prep:{furniture:false,plastic:false,outlets:false,drywall:false,caulking:false,cleanup:false,custom:''},
     paint:{wallProduct:'',wallColour:'',wallSheen:'',ceilProduct:'',ceilColour:'',ceilSheen:'',trimProduct:'',trimColour:'',trimSheen:'',wallsPrimer:'',ceilingPrimer:'',trimPrimer:'',
       stairsProduct:'',stairsColour:'',stairsSheen:'',stairsPrimer:'',
@@ -281,12 +282,22 @@ export function calcRoom(room, settings){
     hrs += floorSqft / (std.floor?.[fc] || DEFAULT_STANDARDS.floor[fc]);
   }
   if(!ex.has('prep')) hrs += (room.prepHrs || 0);
+  // Unlisted surfaces: the cost is typed in directly, so it is added to the total
+  // rather than derived from hours; the hours still count toward the project total.
+  let customCost = 0, customHrs = 0;
+  if(room.custom?.enabled){
+    (room.custom.items||[]).forEach((it,i)=>{
+      if(ex.has(`custom:${i}`)) return;
+      customCost += parseFloat(it.cost)||0;
+      customHrs  += parseFloat(it.hours)||0;
+    });
+  }
   // Labour cost = (hours / field workers) × total-hourly-rate-all-workers × buffer.
   // Hours are split across the active field workers so the cost matches the
   // Breakdown tab (which shows per-worker hours); totalHrs stays raw (man-hours).
   const workers = Math.max(1, settings.fieldWorkers || 1);
-  const cost = (hrs / workers) * (settings.hourlyRate || 65) * (settings.labourBuffer || 1.25) + stuccoCost;
-  return { wallSqft, ceilSqft, perimLF, winLF, totalHrs: hrs + stuccoHrs, cost };
+  const cost = (hrs / workers) * (settings.hourlyRate || 65) * (settings.labourBuffer || 1.25) + stuccoCost + customCost;
+  return { wallSqft, ceilSqft, perimLF, winLF, totalHrs: hrs + stuccoHrs + customHrs, cost };
 }
 
 export function calcTotals(rooms, settings, materialCost=0){
@@ -390,6 +401,15 @@ export function calcRoomLines(room, settings){
   if(room.prepHrs > 0){
     const h = room.prepHrs;
     lines.push({key:'prep',surface:'Prep Work',area:h,areaUnit:'hrs',coats:0,rate:1,rateLabel:'hr',hours:h,cost:h*rate});
+  }
+  if(room.custom?.enabled){
+    (room.custom.items||[]).forEach((it,i)=>{
+      const name=(it.name||'').trim();
+      const h=parseFloat(it.hours)||0, cst=parseFloat(it.cost)||0;
+      if(!name && !h && !cst) return;
+      lines.push({key:`custom:${i}`,surface:name||`Other surface ${i+1}`,area:null,areaUnit:'',
+        coats:+it.coats||0,rate:0,rateLabel:'',hours:h,cost:cst,direct:true});
+    });
   }
   return lines;
 }

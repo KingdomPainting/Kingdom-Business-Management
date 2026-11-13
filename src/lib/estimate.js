@@ -138,6 +138,7 @@ export const PAINT_GROUPS={
   trim:    ['trimProduct','trimColour','trimSheen','trimPrimer'],
   stairs:  ['stairsProduct','stairsColour','stairsSheen','stairsPrimer'],
   floor:   ['floorProduct','floorColour','floorSheen','floorPrimer'],
+  custom:  ['customProduct','customColour','customSheen','customPrimer'],
 };
 export function paintGroupOfField(f){
   return Object.keys(PAINT_GROUPS).find(g=>PAINT_GROUPS[g].includes(f));
@@ -176,7 +177,8 @@ export function newRoom(id, number){
     prep:{furniture:false,plastic:false,outlets:false,drywall:false,caulking:false,cleanup:false,custom:''},
     paint:{wallProduct:'',wallColour:'',wallSheen:'',ceilProduct:'',ceilColour:'',ceilSheen:'',trimProduct:'',trimColour:'',trimSheen:'',wallsPrimer:'',ceilingPrimer:'',trimPrimer:'',
       stairsProduct:'',stairsColour:'',stairsSheen:'',stairsPrimer:'',
-      floorProduct:'',floorColour:'',floorSheen:'',floorPrimer:''},
+      floorProduct:'',floorColour:'',floorSheen:'',floorPrimer:'',
+      customProduct:'',customColour:'',customSheen:'',customPrimer:''},
     notes:'', supplies:[], paintSync:[],
   };
 }

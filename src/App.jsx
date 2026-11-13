@@ -3119,10 +3119,6 @@ function RoomCard({room,settings,onChange,onRemove,primers,paints,ceilPaints,col
                 <select value={room.paint.customUnit||'gal'} onChange={e=>up({customUnit:e.target.value})} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)',color:'var(--fg)'}}>
                   <option value='gal'>Gallons</option><option value='pail'>Pails</option>
                 </select>
-                <Input type='number' min={0} step='0.25' value={room.paint.customQty2??''} onChange={e=>up({customQty2:e.target.value})} placeholder='Quantity' style={{padding:'4px 6px',fontSize:11,minWidth:0}}/>
-                <select value={room.paint.customUnit2||'pail'} onChange={e=>up({customUnit2:e.target.value})} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)',color:'var(--fg)'}}>
-                  <option value='gal'>Gallons</option><option value='pail'>Pails</option>
-                </select>
               </div>
               {(room.custom?.items||[]).some(it=>+it.coats===3)&&<div style={{marginTop:-6,marginBottom:10}}><p style={{fontSize:11,fontWeight:500,color:'var(--muted-fg)',marginBottom:4}}>Other Surfaces Primer</p><select value={room.paint.customPrimer||''} onChange={e=>up({customPrimer:e.target.value})} style={{width:'100%',fontSize:11,padding:'4px 6px',border:'1px solid var(--border)',borderRadius:4,background:'var(--card)'}}><option value=''>— Select Primer —</option>{(primers||[]).map(p=><option key={p.n} value={p.n}>{p.n}</option>)}</select></div>}
             </>}
@@ -3369,7 +3365,7 @@ function BreakdownTab({rooms,settings,paints,ceilPaints,primers,colours,swColour
               const agg={};
               paintData.lines.forEach(ln=>{
                 // Hand-entered quantities keep their own row: there is no area to merge.
-                const key=ln.manual?`M·${ln.product}·${ln.colour}·${ln.sheen}`:`${ln.product}·${ln.colour}·${ln.sheen}`;
+                const key=ln.manual?`M·${ln.product}·${ln.colour}·${ln.sheen}·${ln.unit}`:`${ln.product}·${ln.colour}·${ln.sheen}`;
                 if(!agg[key]) agg[key]={product:ln.product,colour:ln.colour,sheen:ln.sheen,hex:ln.hex,sqft:0,sqftRaw:0,cost:0,manual:!!ln.manual,qtyStr:ln.qtyStr};
                 agg[key].sqft+=ln.sqft;              // coated area — drives Est. Qty
                 agg[key].sqftRaw+=(ln.sqftRaw??ln.sqft); // plain area — shown in the Sqft column

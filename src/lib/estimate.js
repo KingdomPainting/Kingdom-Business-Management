@@ -138,7 +138,7 @@ export const PAINT_GROUPS={
   trim:    ['trimProduct','trimColour','trimSheen','trimPrimer'],
   stairs:  ['stairsProduct','stairsColour','stairsSheen','stairsPrimer'],
   floor:   ['floorProduct','floorColour','floorSheen','floorPrimer'],
-  custom:  ['customProduct','customColour','customSheen','customPrimer','customQty','customUnit','customQty2','customUnit2'],
+  custom:  ['customProduct','customColour','customSheen','customPrimer'],
 };
 export function paintGroupOfField(f){
   return Object.keys(PAINT_GROUPS).find(g=>PAINT_GROUPS[g].includes(f));
@@ -178,7 +178,7 @@ export function newRoom(id, number){
     paint:{wallProduct:'',wallColour:'',wallSheen:'',ceilProduct:'',ceilColour:'',ceilSheen:'',trimProduct:'',trimColour:'',trimSheen:'',wallsPrimer:'',ceilingPrimer:'',trimPrimer:'',
       stairsProduct:'',stairsColour:'',stairsSheen:'',stairsPrimer:'',
       floorProduct:'',floorColour:'',floorSheen:'',floorPrimer:'',
-      customProduct:'',customColour:'',customSheen:'',customPrimer:'',customQty:'',customUnit:'gal',customQty2:'',customUnit2:'pail'},
+      customProduct:'',customColour:'',customSheen:'',customPrimer:'',customQty:'',customUnit:'gal'},
     notes:'', supplies:[], paintSync:[],
   };
 }
@@ -478,19 +478,12 @@ export function calcPaintCosts(rooms, allPaints, allCeilPaints, allPrimers, allC
   rooms.forEach(r=>{
     if(!r.custom?.enabled) return;
     const prod=r.paint?.customProduct;
-    if(!prod) return;
-    const entries=[
-      [r.paint.customQty,  r.paint.customUnit  || 'gal'],
-      [r.paint.customQty2, r.paint.customUnit2 || 'pail'],
-    ];
-    entries.forEach(([q,u])=>{
-      const qty=parseFloat(q)||0;
-      if(!(qty>0)) return;
-      const unit=u==='pail'?'pail':'gal';
-      const key=`${prod}·${r.paint.customColour||''}·${r.paint.customSheen||''}`;
-      if(!manMap[key]) manMap[key]={product:prod,colour:r.paint.customColour||'',sheen:r.paint.customSheen||'',surface:'Other Surfaces',gal:0,pail:0};
-      manMap[key][unit]+=qty;
-    });
+    const qty=parseFloat(r.paint?.customQty)||0;
+    if(!prod||!(qty>0)) return;
+    const unit=r.paint?.customUnit==='pail'?'pail':'gal';
+    const key=`${prod}·${r.paint.customColour||''}·${r.paint.customSheen||''}·${unit}`;
+    if(!manMap[key]) manMap[key]={product:prod,colour:r.paint.customColour||'',sheen:r.paint.customSheen||'',surface:'Other Surfaces',unit,qty:0};
+    manMap[key].qty+=qty;
   });
   const allProducts = [...(allPaints||[]),...(allCeilPaints||[]),...(allPrimers||[])];
   let total = 0;
@@ -528,15 +521,11 @@ export function calcPaintCosts(rooms, allPaints, allCeilPaints, allPrimers, allC
   const manualLines = Object.values(manMap).map(m=>{
     const pObj = allProducts.find(p=>p.n===m.product);
     const gPrice = pObj?.g||0, pPrice = pObj?.p||0;
-    const perGal  = gPrice||pPrice/5||0;
-    const perPail = pPrice||gPrice*5;
-    const lineCost = (m.pail*perPail + m.gal*perGal) * matBuffer;
+    const unitPrice = m.unit==='pail' ? (pPrice||gPrice*5) : (gPrice||pPrice/5||0);
+    const lineCost = unitPrice * m.qty * matBuffer;
     total += lineCost;
-    const parts=[];
-    if(m.pail>0) parts.push(`${m.pail} pail${m.pail!==1?'s':''}`);
-    if(m.gal>0)  parts.push(`${m.gal} gal`);
     const hex = m.colour ? ((allColours||[]).find(c=>c.n===m.colour)?.h||'#ccc') : '';
-    return {...m, sqft:0, sqftRaw:0, qtyStr:parts.join(' + ')||'—', lineCost, hex, manual:true};
+    return {...m, sqft:0, sqftRaw:0, qtyStr:`${m.qty} ${m.unit}${m.unit==='pail'&&m.qty!==1?'s':''}`, lineCost, hex, manual:true};
   });
   return { lines:[...lines,...manualLines], total };
 }

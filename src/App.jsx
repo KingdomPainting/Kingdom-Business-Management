@@ -5170,7 +5170,11 @@ async function generateInvoicePDF(deal, contactName, contactAddr, contact){
   const gold        = '#C4922A';
   const fmtC = n => '$'+n.toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2});
   const esc  = s => String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  const docTitle = deal.dealName ? `Invoice - ${deal.dealName}` : 'Invoice';
+  // Document title drives the browser's default Save-as-PDF filename, so it
+  // carries the client's name rather than the project name. A deal with no
+  // contact resolves to a placeholder dash, which falls back to plain 'Invoice'.
+  const clientName = String(contactName||'').trim();
+  const docTitle = clientName && clientName !== '—' ? `Invoice - ${clientName}` : 'Invoice';
 
   // Same page shell, header, Prepared For block, table and totals styling as the
   // Estimates quote template (buildBidProposalHtml, mode 'quote').

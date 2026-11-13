@@ -178,7 +178,7 @@ export function newRoom(id, number){
     paint:{wallProduct:'',wallColour:'',wallSheen:'',ceilProduct:'',ceilColour:'',ceilSheen:'',trimProduct:'',trimColour:'',trimSheen:'',wallsPrimer:'',ceilingPrimer:'',trimPrimer:'',
       stairsProduct:'',stairsColour:'',stairsSheen:'',stairsPrimer:'',
       floorProduct:'',floorColour:'',floorSheen:'',floorPrimer:'',
-      customProduct:'',customColour:'',customSheen:'',customPrimer:''},
+      customProduct:'',customColour:'',customSheen:'',customPrimer:'',customQty:'',customUnit:'gal'},
     notes:'', supplies:[], paintSync:[],
   };
 }
@@ -472,6 +472,19 @@ export function calcPaintCosts(rooms, allPaints, allCeilPaints, allPrimers, allC
       else addCol(r.paint?.floorProduct,r.paint?.floorColour,r.paint?.floorSheen,'Floor',flSqft*fc,flSqft);
     }
   });
+  // Unlisted surfaces have no measured area, so their paint is entered by hand as
+  // a number of gallons or pails rather than derived from sqft.
+  const manMap = {};
+  rooms.forEach(r=>{
+    if(!r.custom?.enabled) return;
+    const prod=r.paint?.customProduct;
+    const qty=parseFloat(r.paint?.customQty)||0;
+    if(!prod||!(qty>0)) return;
+    const unit=r.paint?.customUnit==='pail'?'pail':'gal';
+    const key=`${prod}·${r.paint.customColour||''}·${r.paint.customSheen||''}·${unit}`;
+    if(!manMap[key]) manMap[key]={product:prod,colour:r.paint.customColour||'',sheen:r.paint.customSheen||'',surface:'Other Surfaces',unit,qty:0};
+    manMap[key].qty+=qty;
+  });
   const allProducts = [...(allPaints||[]),...(allCeilPaints||[]),...(allPrimers||[])];
   let total = 0;
   const lines = Object.values(colMap).map(cm=>{
@@ -505,7 +518,16 @@ export function calcPaintCosts(rooms, allPaints, allCeilPaints, allPrimers, allC
     const hex = cm.colour ? ((allColours||[]).find(c=>c.n===cm.colour)?.h||'#ccc') : '';
     return { ...cm, sqft, sqftRaw: cm.rawArea, qtyStr, lineCost, hex };
   });
-  return { lines, total };
+  const manualLines = Object.values(manMap).map(m=>{
+    const pObj = allProducts.find(p=>p.n===m.product);
+    const gPrice = pObj?.g||0, pPrice = pObj?.p||0;
+    const unitPrice = m.unit==='pail' ? (pPrice||gPrice*5) : (gPrice||pPrice/5||0);
+    const lineCost = unitPrice * m.qty * matBuffer;
+    total += lineCost;
+    const hex = m.colour ? ((allColours||[]).find(c=>c.n===m.colour)?.h||'#ccc') : '';
+    return {...m, sqft:0, sqftRaw:0, qtyStr:`${m.qty} ${m.unit}${m.unit==='pail'&&m.qty!==1?'s':''}`, lineCost, hex, manual:true};
+  });
+  return { lines:[...lines,...manualLines], total };
 }
 
 export function calcRoomSupplyCost(room, allSupplies){
